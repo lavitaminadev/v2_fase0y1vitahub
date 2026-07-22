@@ -1,0 +1,18 @@
+---
+deployment:
+  tasks:
+    - export APP_ROOT=$PWD
+    - export DEPLOYPATH=$HOME/public_html
+    - /bin/mkdir -p "$DEPLOYPATH"
+    - npm ci --include=dev
+    - npm run build:cpanel
+    - npm run check:production-env
+    - test -f "$APP_ROOT/apps/api/dist/main.js"
+    - test -f "$APP_ROOT/apps/web/dist/index.html"
+    - test -f "$APP_ROOT/apps/web/dist/.htaccess"
+    - /bin/mkdir -p "$HOME/vitahub_storage" "$HOME/vitahub_uploads" "$APP_ROOT/tmp"
+    - /bin/chmod 750 "$HOME/vitahub_storage" "$HOME/vitahub_uploads" "$APP_ROOT/tmp"
+    - /bin/rm -rf "$DEPLOYPATH/assets"
+    - /bin/cp -R apps/web/dist/. "$DEPLOYPATH"
+    - /bin/touch "$APP_ROOT/tmp/restart.txt"
+    - /bin/touch "$APP_ROOT/app.js"

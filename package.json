@@ -1,0 +1,46 @@
+{
+  "name": "vitahub",
+  "version": "1.0.0",
+  "description": "VITAHUB — Sistema de Gestión de Agencia",
+  "private": true,
+  "packageManager": "npm@11.16.0",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "build:shared": "cd packages/shared && npm run build",
+    "build:api": "npm run build:shared && cd apps/api && npm run build",
+    "build:web": "npm run build:shared && cd apps/web && npm run build",
+    "build:cpanel": "npm run build:shared && cd apps/api && npm run build && cd ../web && npm run build",
+    "check:production-env": "node -e \"require('./apps/api/dist/config/load-environment'); require('./apps/api/dist/config/environment').validateEnvironment(); console.log('Production environment valid')\"",
+    "start:api": "cd apps/api && npm run start:prod",
+    "start:passenger": "node app.js",
+    "dev:api": "npm run build:shared && cd apps/api && npm run start:dev",
+    "dev:web": "npm run build:shared && cd apps/web && npm run dev",
+    "local:start": "node scripts/local/start.cjs",
+    "local:stop": "node scripts/local/stop.cjs",
+    "local:status": "node scripts/local/status.cjs",
+    "local:seed": "node scripts/local/seed.cjs",
+    "lint:api": "cd apps/api && npm run lint",
+    "lint:web": "cd apps/web && npm run lint",
+    "lint:shared": "cd packages/shared && npm run lint",
+    "test:api": "cd apps/api && npm run test",
+    "deploy:web:cpanel": "powershell -NoProfile -Command \"$dest = Join-Path $HOME 'public_html'; New-Item -ItemType Directory -Force -Path $dest | Out-Null; if (Test-Path (Join-Path $dest 'assets')) { Remove-Item -Recurse -Force (Join-Path $dest 'assets') }; Copy-Item -Recurse -Force apps/web/dist/* $dest\"",
+    "migration:run": "cd apps/api && npx typeorm-ts-node-commonjs migration:run -d src/infrastructure/database-data-source.ts",
+    "migration:revert": "cd apps/api && npx typeorm-ts-node-commonjs migration:revert -d src/infrastructure/database-data-source.ts"
+  },
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/*"
+  ],
+  "dependencies": {
+    "lodash": "^4.18.1",
+    "rxjs": "^7.8.2"
+  },
+  "overrides": {
+    "@nestjs/common": "11.1.28",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-express": "11.1.28"
+  }
+}
