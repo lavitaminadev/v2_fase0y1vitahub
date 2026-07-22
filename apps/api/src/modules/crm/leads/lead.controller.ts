@@ -62,13 +62,17 @@ export class LeadController {
   async reservations(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const lead = await this.getLead.execute(id, req.organizationId);
     if (!lead) throw new NotFoundException('Lead no encontrado');
-    if (!lead.email && !lead.phone) return [];
-    const qb = this.reservationRepository.createQueryBuilder('r')
-      .where('r.organization_id = :organizationId', { organizationId: req.organizationId })
-      .andWhere('(r.guest_email = :email OR r.guest_phone = :phone)', { email: lead.email || '', phone: lead.phone || '' })
+    const conditions: string[] = [];
+    const params: Record<string, string> = { organizationId: req.organizationId };
+    if (lead.email) { conditions.push('r.guest_email = :email'); params.email = lead.email; }
+    if (lead.phone) { conditions.push('r.guest_phone = :phone'); params.phone = lead.phone; }
+    if (conditions.length === 0) return [];
+    return this.reservationRepository.createQueryBuilder('r')
+      .where('r.organization_id = :organizationId', params)
+      .andWhere(`(${conditions.join(' OR ')})`)
       .orderBy('r.starts_at', 'DESC')
-      .take(50);
-    return qb.getMany();
+      .take(50)
+      .getMany();
   }
 
   @Post(':id/convert')

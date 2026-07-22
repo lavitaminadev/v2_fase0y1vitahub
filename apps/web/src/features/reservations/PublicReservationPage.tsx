@@ -50,6 +50,7 @@ export function PublicReservationPage() {
   const params = new URLSearchParams(window.location.search);
   const [step, setStep] = useState(1);
   const [selected, setSelected] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [resourceId, setResourceId] = useState('');
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -146,12 +147,15 @@ export function PublicReservationPage() {
   };
 
   const goToForm = () => {
+    if (!selectedDate && selected) setSelectedDate(slotDateKey(selected, form!.timezone));
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setStep(2);
   };
 
   const goBackToSlots = () => {
     setStep(1);
+    setSelectedDate('');
+    setSelected('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -245,7 +249,6 @@ export function PublicReservationPage() {
     return days;
   }, [from, slotsByDate, form.timezone]);
 
-  const selectedDate = selected ? slotDateKey(selected, form.timezone) : '';
   const selectedDaySlots = slotsByDate.get(selectedDate) || [];
 
   return <main className={`public-booking layout-${safeDesignChoice(design.layoutPosition, ['left', 'center', 'right'], 'right')}`} style={style} onFocusCapture={markStarted} onPointerDown={markStarted}>
@@ -266,13 +269,13 @@ export function PublicReservationPage() {
           </div>}
           {loadingSlots && <div className="no-slots"><LoadingSpinner text="Buscando disponibilidad..." /></div>}
           {!loadingSlots && calendarDays.length > 0 && <div>
-            <div className="calendar-grid">{calendarDays.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} onClick={() => { if (day.hasSlots) setSelected(''); }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span></button>)}</div>
+            <div className="calendar-grid">{calendarDays.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span></button>)}</div>
             <div className="calendar-hint"><span className="dot available" /> Disponible <span className="dot taken" /> Sin cupo</div>
           </div>}
           {!loadingSlots && calendarDays.length === 0 && <div className="no-slots"><strong>Sin horarios disponibles</strong><p>Prueba otro servicio o contacta al local.</p></div>}
 
-          {selected && <div className="slot-time-picker">
-            <h3>Horarios de {new Date(selected).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: form.timezone })}</h3>
+          {selectedDate && <div className="slot-time-picker">
+            <h3>Horarios de {calendarDays.find((d) => d.date === selectedDate)?.weekday} {calendarDays.find((d) => d.date === selectedDate)?.day}</h3>
             <div className="slot-time-grid">{selectedDaySlots.map((slot) => <button type="button" className={`slot-time-btn ${selected === slot.startsAt ? 'active' : ''}`} onClick={() => setSelected(slot.startsAt)} key={slot.startsAt}>
               <strong>{new Date(slot.startsAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</strong>
               <small>{slot.available} cupo{slot.available !== 1 ? 's' : ''}</small>

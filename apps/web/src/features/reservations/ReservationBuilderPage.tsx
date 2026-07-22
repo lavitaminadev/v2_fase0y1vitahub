@@ -10,6 +10,16 @@ import { localInputToUtc } from './local-time';
 import { contrastText, normalizeHexColor } from '../../shared/color-contrast';
 import { APP_PUBLIC_URL_CONFIGURED, APP_PUBLIC_URL_IS_HTTPS, publicReservationUrl } from '../../core/public-url';
 
+function uuid(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
 const FIELD_LIBRARY = [
   ['text', 'Texto corto'], ['textarea', 'Texto largo'], ['email', 'Correo'],
   ['phone', 'Teléfono'], ['select', 'Selector'], ['multi_select', 'Selección múltiple'],
@@ -193,11 +203,11 @@ export function ReservationBuilderPage() {
   const windows = draft.scheduleConfig?.windows || [];
 
   const addField = (type: string) => {
-    const field: FormField = { id: `field_${crypto.randomUUID().slice(0, 8)}`, type, label: FIELD_LIBRARY.find(([key]) => key === type)?.[1] || 'Campo', required: false, ...(['select', 'multi_select'].includes(type) ? { options: ['Opción 1', 'Opción 2'] } : {}) };
+    const field: FormField = { id: `field_${uuid().slice(0, 8)}`, type, label: FIELD_LIBRARY.find(([key]) => key === type)?.[1] || 'Campo', required: false, ...(['select', 'multi_select'].includes(type) ? { options: ['Opción 1', 'Opción 2'] } : {}) };
     change({ fieldSchema: [...fields, field] }); setSelected(field.id);
   };
   const duplicateField = (field: FormField) => {
-    const copy: FormField = { ...field, id: `field_${crypto.randomUUID().slice(0, 8)}`, label: `${field.label} copia`, system: false };
+    const copy: FormField = { ...field, id: `field_${uuid().slice(0, 8)}`, label: `${field.label} copia`, system: false };
     const index = fields.findIndex((item) => item.id === field.id);
     const next = [...fields];
     next.splice(index + 1, 0, copy);

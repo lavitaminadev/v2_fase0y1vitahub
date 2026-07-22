@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedRequest } from '@shared/types/request';
@@ -124,8 +124,10 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async batchBlock(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() dtos: CreateBlockDto[]) {
     const scope = await this.scope(req);
-    const results = await Promise.all(dtos.map((dto) => this.service.addBlock(req.organizationId, id, req.user.id, dto, scope.clientId, scope.clientIds).catch(() => null)));
-    return { created: results.filter(Boolean).length };
+    const errors: string[] = [];
+    const results = await Promise.all(dtos.map((dto) => this.service.addBlock(req.organizationId, id, req.user.id, dto, scope.clientId, scope.clientIds).catch((err: Error) => { errors.push(err.message); return null; })));
+    if (errors.length && results.filter(Boolean).length === 0) throw new BadRequestException(errors.join('; '));
+    return { created: results.filter(Boolean).length, total: dtos.length, errors: errors.length ? errors : undefined };
   }
 
   @Delete('blocks/:id')

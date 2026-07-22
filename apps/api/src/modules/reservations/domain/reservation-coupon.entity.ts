@@ -14,6 +14,7 @@ export class ReservationCoupon {
   @Column({ name: 'valid_from', type: 'timestamp', nullable: true }) validFrom?: Date;
   @Column({ name: 'valid_until', type: 'timestamp', nullable: true }) validUntil?: Date;
   @Column({ name: 'form_ids', type: 'json', nullable: true }) formIds?: string[];
+  @Column({ name: 'valid_days_of_week', type: 'json', nullable: true }) validDaysOfWeek?: number[];
   @Column({ type: 'boolean', default: true }) active: boolean;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
