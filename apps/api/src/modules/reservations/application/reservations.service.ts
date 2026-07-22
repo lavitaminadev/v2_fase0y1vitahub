@@ -9,7 +9,7 @@ import { ReservationEvent } from '../domain/reservation-event.entity';
 import { ReservationFormEvent } from '../domain/reservation-form-event.entity';
 import { ReservationCoupon } from '../domain/reservation-coupon.entity';
 import { addPlainDays, assertTimeZone, localToUtc, plainDateParts, zonedParts } from '../domain/timezone';
-import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, PublicFormEventDto, PublicReservationDto, UpdateReservationDto, UpdateReservationFormDto } from '../dto/reservation.dto';
+import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, PublicFormEventDto, PublicReservationDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from '../dto/reservation.dto';
 import { LeadIntakeService } from '../../crm/leads/lead-intake.service';
 import { GoogleCalendarService } from '../../integrations/google/google-calendar.service';
 import { MetaConversionOutboxService } from '../../integrations/meta/meta-conversion-outbox.service';
@@ -390,7 +390,7 @@ export class ReservationsService {
   }
 
   async listReservations(organizationId: string, query: ListReservationsDto, clientId?: string, clientIds?: string[], includeInternalNotes = true) {
-    const page = query.page ?? 1; const pageSize = query.pageSize ?? 50; const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId }); if (clientId) qb.andWhere('r.client_id = :clientId', { clientId }); else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds }); if (query.formId) qb.andWhere('r.form_id = :formId', { formId: query.formId }); if (query.status) qb.andWhere('r.status = :status', { status: query.status }); if (query.from) qb.andWhere('r.starts_at >= :from', { from: query.from }); if (query.to) qb.andWhere('r.starts_at <= :to', { to: query.to }); if (query.search) qb.andWhere('(r.guest_name LIKE :search OR r.guest_email LIKE :search OR r.guest_phone LIKE :search OR r.reference_code LIKE :search)', { search: `%${query.search}%` }); const [items, total] = await qb.orderBy('r.starts_at', 'DESC').skip((page - 1) * pageSize).take(pageSize).getManyAndCount(); const safeItems = includeInternalNotes ? items : items.map(({ internalNotes: _internalNotes, ...item }) => item); return { items: safeItems, total, page, pageSize, pages: Math.ceil(total / pageSize) };
+    const page = query.page ?? 1; const pageSize = query.pageSize ?? 50; const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId }); if (clientId) qb.andWhere('r.client_id = :clientId', { clientId }); else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds }); if (query.formId) qb.andWhere('r.form_id = :formId', { formId: query.formId }); if (query.status) qb.andWhere('r.status = :status', { status: query.status }); if (query.from) qb.andWhere('r.starts_at >= :from', { from: query.from }); if (query.to) qb.andWhere('r.starts_at <= :to', { to: query.to });     if (query.search) qb.andWhere('(r.guest_name LIKE :search OR r.guest_email LIKE :search OR r.guest_phone LIKE :search OR r.reference_code LIKE :search)', { search: `%${query.search}%` }); if (query.couponCode) qb.andWhere('r.coupon_code = :couponCode', { couponCode: query.couponCode }); const [items, total] = await qb.orderBy('r.starts_at', 'DESC').skip((page - 1) * pageSize).take(pageSize).getManyAndCount(); const safeItems = includeInternalNotes ? items : items.map(({ internalNotes: _internalNotes, ...item }) => item); return { items: safeItems, total, page, pageSize, pages: Math.ceil(total / pageSize) };
   }
 
   async updateReservation(organizationId: string, id: string, dto: UpdateReservationDto, actorId: string, actorType: string, clientId?: string, clientIds?: string[]) {
@@ -435,6 +435,13 @@ export class ReservationsService {
     const exists = await this.coupons.findOne({ where: { organizationId, code } });
     if (exists) throw new ConflictException('Ya existe un cupón con ese código');
     const coupon = this.coupons.create({ organizationId, clientId, code, discountType: dto.discountType || 'percentage', value: dto.value ?? 0, maxUses: dto.maxUses ?? 0, validFrom: dto.validFrom ? new Date(dto.validFrom) : undefined, validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined, formIds: dto.formIds });
+    return this.coupons.save(coupon);
+  }
+
+  async updateCoupon(organizationId: string, id: string, dto: UpdateCouponDto) {
+    const coupon = await this.coupons.findOne({ where: { id, organizationId } });
+    if (!coupon) throw new NotFoundException('Cupón no encontrado');
+    Object.assign(coupon, Object.fromEntries(Object.entries(dto).filter(([, value]) => value !== undefined)));
     return this.coupons.save(coupon);
   }
 

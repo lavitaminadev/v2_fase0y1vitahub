@@ -7,7 +7,7 @@ import { AccountAccessService } from '../../core/client-scope/account-access.ser
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { ReservationsService } from './application/reservations.service';
-import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, ReservationScopeDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
+import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, ReservationScopeDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
 
 @ApiTags('Reservas')
 @ApiBearerAuth()
@@ -185,6 +185,12 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER)
   async createCoupon(@Req() req: AuthenticatedRequest, @Body() dto: CreateCouponDto) {
     return this.service.createCoupon(req.organizationId, req.user.id, dto, this.client(req));
+  }
+
+  @Patch('coupons/:id')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR)
+  async updateCoupon(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() dto: UpdateCouponDto) {
+    return this.service.updateCoupon(req.organizationId, id, dto);
   }
 
   @Get('export/csv')

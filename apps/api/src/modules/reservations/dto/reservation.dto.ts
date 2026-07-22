@@ -87,6 +87,15 @@ export class ListReservationsDto {
   @IsOptional() @IsDateString() to?: string;
   @IsOptional() @IsString() @MaxLength(180) search?: string;
   @IsOptional() @IsUUID() clientId?: string;
+  @IsOptional() @IsString() @MaxLength(80) couponCode?: string;
+}
+export class UpdateCouponDto {
+  @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsInt() @Min(0) @Max(100) value?: number;
+  @IsOptional() @IsInt() @Min(0) maxUses?: number;
+  @IsOptional() @IsDateString() validFrom?: string;
+  @IsOptional() @IsDateString() validUntil?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) formIds?: string[];
 }
 
 export class ReservationScopeDto { @IsOptional() @IsUUID() clientId?: string; }
