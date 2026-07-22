@@ -63,7 +63,7 @@ export class CreateCouponDto {
   @IsOptional() @IsDateString() validFrom?: string;
   @IsOptional() @IsDateString() validUntil?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) formIds?: string[];
-  @IsOptional() @IsArray() @IsInt({ each: true }) validDaysOfWeek?: number[];
+  @IsOptional() @IsArray() validDaysOfWeek?: number[];
 }
 export class CreateManualReservationDto {
   @IsUUID() formId: string;
@@ -97,7 +97,7 @@ export class UpdateCouponDto {
   @IsOptional() @IsDateString() validFrom?: string;
   @IsOptional() @IsDateString() validUntil?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) formIds?: string[];
-  @IsOptional() @IsArray() @IsInt({ each: true }) validDaysOfWeek?: number[];
+  @IsOptional() @IsArray() validDaysOfWeek?: number[];
 }
 
 export class ReservationScopeDto { @IsOptional() @IsUUID() clientId?: string; }

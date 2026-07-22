@@ -44,7 +44,7 @@ type DesignConfig = {
   fontFamily?: string;
 };
 
-const FIELD_TYPES = new Set(['text', 'textarea', 'email', 'phone', 'select', 'multi_select', 'number', 'date', 'consent']);
+const FIELD_TYPES = new Set(['text', 'textarea', 'email', 'phone', 'select', 'multi_select', 'number', 'date', 'consent', 'coupon']);
 // Only reservations that still own a future slot consume capacity.
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'rescheduled'];
 const STATUS_TRANSITIONS: Record<string, string[]> = {
