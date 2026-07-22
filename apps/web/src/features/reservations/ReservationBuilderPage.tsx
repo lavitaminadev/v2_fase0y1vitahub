@@ -5,20 +5,11 @@ import { api } from '../../core/api';
 import { useAuth } from '../../core/auth';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { ImageUpload } from '../../shared/ImageUpload';
-import type { FormField, ReservationForm } from './types';
+import type { DesignConfig, FormField, ReservationForm } from './types';
 import { localInputToUtc } from './local-time';
 import { contrastText, normalizeHexColor } from '../../shared/color-contrast';
 import { APP_PUBLIC_URL_CONFIGURED, APP_PUBLIC_URL_IS_HTTPS, publicReservationUrl } from '../../core/public-url';
-
-function uuid(): string {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
-}
+import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible } from './booking-utils';
 
 const FIELD_LIBRARY = [
   ['text', 'Texto corto'], ['textarea', 'Texto largo'], ['email', 'Correo'],
@@ -45,27 +36,6 @@ const BACKGROUND_SIZES = [['cover', 'Cubrir pantalla'], ['contain', 'Mostrar com
 const LAYOUT_POSITIONS = [['right', 'Formulario derecha'], ['center', 'Formulario centro'], ['left', 'Formulario izquierda']] as const;
 const LOGO_POSITIONS = [['left', 'Logo izquierda'], ['center', 'Logo centro'], ['right', 'Logo derecha']] as const;
 
-function imageOverlayAlpha(value?: string): number {
-  const visibility = Math.max(0, Math.min(100, Number(value || 88))) / 100;
-  return Number((1 - visibility).toFixed(3));
-}
-
-function safeDesignChoice(value: string | undefined, allowed: readonly string[], fallback: string): string {
-  return value && allowed.includes(value) ? value : fallback;
-}
-
-function safeNumber(value: string | undefined, fallback: number, min: number, max: number): number {
-  const number = Number(value ?? fallback);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.max(min, Math.min(max, number));
-}
-
-function visible(value: string | undefined, fallback = true): boolean {
-  if (value === 'false') return false;
-  if (value === 'true') return true;
-  return fallback;
-}
-
 function campaignReservationUrl(form: ReservationForm, baseUrl = publicReservationUrl(form.publicSlug, form.publicUrl)): string {
   if (!form.campaignId?.trim()) return baseUrl;
   const url = new URL(baseUrl);
@@ -74,7 +44,7 @@ function campaignReservationUrl(form: ReservationForm, baseUrl = publicReservati
   return url.toString();
 }
 
-function reservationDesignStyle(design: Record<string, string>): CSSProperties {
+function reservationDesignStyle(design: DesignConfig): CSSProperties {
   const primary = normalizeHexColor(design.primaryColor, '#173f35');
   const accent = normalizeHexColor(design.accentColor, '#ea0f63');
   const background = normalizeHexColor(design.backgroundColor, '#f3f5ef');
@@ -319,10 +289,10 @@ function DesignAdvancedControls({
   design,
   onChange,
 }: {
-  design: Record<string, string>;
-  onChange: (design: Record<string, string>) => void;
+  design: DesignConfig;
+  onChange: (design: DesignConfig) => void;
 }) {
-  const update = (patch: Record<string, string>) => onChange({ ...design, ...patch });
+  const update = (patch: Partial<DesignConfig>) => onChange({ ...design, ...patch });
   const activePosition = design.backgroundAnchor || design.backgroundPosition || 'center center';
   const activeLayout = design.layoutPosition || 'right';
   const activeLogo = design.logoPosition || 'left';

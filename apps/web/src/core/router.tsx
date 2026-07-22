@@ -6,6 +6,7 @@ import { ClientRoute } from './ClientRoute';
 import { NotFoundPage } from '../features/not-found/NotFoundPage';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { useAuth } from './auth';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const LoginPage = lazy(() => import('../features/auth/LoginPage').then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import('../features/auth/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -50,8 +51,8 @@ const PublicReservationPage = lazy(() => import('../features/reservations/Public
 const AudiovisualPage = lazy(() => import('../features/audiovisual/AudiovisualPage').then(m => ({ default: m.AudiovisualPage })));
 const GovernancePage = lazy(() => import('../features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
 
-function SuspenseWrapper({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<LoadingSpinner text="Preparando tu espacio..." />}>{children}</Suspense>;
+function SafeSuspense({ children }: { children: React.ReactNode }) {
+  return <ErrorBoundary><Suspense fallback={<LoadingSpinner text="Preparando tu espacio..." />}>{children}</Suspense></ErrorBoundary>;
 }
 
 function HomeRedirect() {
@@ -65,7 +66,7 @@ function LoginRoute() {
   const { user, loading } = useAuth();
   if (loading) return <LoadingSpinner text="Restaurando tu sesión..." />;
   if (user) return <Navigate to={user.role === 'client' ? '/portal' : '/dashboard'} replace />;
-  return <SuspenseWrapper><LoginPage /></SuspenseWrapper>;
+  return <SafeSuspense><LoginPage /></SafeSuspense>;
 }
 
 export function AppRouter() {
@@ -73,51 +74,51 @@ export function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
-        <Route path="/forgot-password" element={<SuspenseWrapper><ForgotPasswordPage /></SuspenseWrapper>} />
-        <Route path="/reset-password" element={<SuspenseWrapper><ResetPasswordPage /></SuspenseWrapper>} />
-        <Route path="/change-password" element={<ProtectedRoute path="/change-password"><SuspenseWrapper><ChangePasswordPage /></SuspenseWrapper></ProtectedRoute>} />
-        <Route path="/book/:slug" element={<SuspenseWrapper><PublicReservationPage /></SuspenseWrapper>} />
+        <Route path="/forgot-password" element={<SafeSuspense><ForgotPasswordPage /></SafeSuspense>} />
+        <Route path="/reset-password" element={<SafeSuspense><ResetPasswordPage /></SafeSuspense>} />
+        <Route path="/change-password" element={<ProtectedRoute path="/change-password"><SafeSuspense><ChangePasswordPage /></SafeSuspense></ProtectedRoute>} />
+        <Route path="/book/:slug" element={<SafeSuspense><PublicReservationPage /></SafeSuspense>} />
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<ProtectedRoute path="/dashboard"><SuspenseWrapper><DashboardPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/clients" element={<ProtectedRoute path="/clients"><SuspenseWrapper><ClientsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/clients/:id" element={<ProtectedRoute path="/clients"><SuspenseWrapper><ClientDetailPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/crm/leads" element={<ProtectedRoute path="/crm/leads"><SuspenseWrapper><LeadsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/crm/opportunities" element={<ProtectedRoute path="/crm/leads"><SuspenseWrapper><OpportunitiesPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/crm/contacts" element={<ProtectedRoute path="/crm/leads"><SuspenseWrapper><ContactsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/crm/interactions" element={<ProtectedRoute path="/crm/leads"><SuspenseWrapper><InteractionsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/production" element={<ProtectedRoute path="/production"><SuspenseWrapper><ProductionPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/audiovisual" element={<ProtectedRoute path="/audiovisual"><SuspenseWrapper><AudiovisualPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/content" element={<ProtectedRoute path="/content"><SuspenseWrapper><ContentGridPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/approvals" element={<ProtectedRoute path="/approvals"><SuspenseWrapper><ApprovalsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/meetings" element={<ProtectedRoute path="/meetings"><SuspenseWrapper><MeetingsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute path="/reports"><SuspenseWrapper><ReportsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute path="/settings"><SuspenseWrapper><SettingsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/integrations" element={<ProtectedRoute path="/integrations"><SuspenseWrapper><IntegrationsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/integrations/meta/callback" element={<ProtectedRoute path="/integrations"><SuspenseWrapper><MetaOAuthCallbackPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/integrations/google/callback" element={<ProtectedRoute path="/integrations"><SuspenseWrapper><GoogleOAuthCallbackPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/operations" element={<ProtectedRoute path="/operations"><SuspenseWrapper><OperationsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/direction" element={<ProtectedRoute path="/direction"><SuspenseWrapper><DirectionPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/billing" element={<ProtectedRoute path="/billing"><SuspenseWrapper><BillingPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/contracts" element={<ProtectedRoute path="/contracts"><SuspenseWrapper><ContractsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/gamification" element={<ProtectedRoute path="/gamification"><SuspenseWrapper><GamificationPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/documents" element={<ProtectedRoute path="/documents"><SuspenseWrapper><DocumentsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/briefs" element={<ProtectedRoute path="/briefs"><SuspenseWrapper><BriefsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/onboarding" element={<ProtectedRoute path="/onboarding"><SuspenseWrapper><OnboardingPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute path="/users"><SuspenseWrapper><UsersPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/governance" element={<ProtectedRoute path="/governance"><SuspenseWrapper><GovernancePage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/catalog" element={<ProtectedRoute path="/catalog"><SuspenseWrapper><CatalogPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/knowledge" element={<ProtectedRoute path="/knowledge"><SuspenseWrapper><KnowledgePage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/reservations" element={<ProtectedRoute path="/reservations"><SuspenseWrapper><ReservationsPage /></SuspenseWrapper></ProtectedRoute>} />
-          <Route path="/reservations/forms/:id" element={<ProtectedRoute path="/reservations"><SuspenseWrapper><ReservationBuilderPage /></SuspenseWrapper></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute path="/dashboard"><SafeSuspense><DashboardPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/clients" element={<ProtectedRoute path="/clients"><SafeSuspense><ClientsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/clients/:id" element={<ProtectedRoute path="/clients"><SafeSuspense><ClientDetailPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/leads" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><LeadsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/opportunities" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><OpportunitiesPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/contacts" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><ContactsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/interactions" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><InteractionsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/production" element={<ProtectedRoute path="/production"><SafeSuspense><ProductionPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/audiovisual" element={<ProtectedRoute path="/audiovisual"><SafeSuspense><AudiovisualPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/content" element={<ProtectedRoute path="/content"><SafeSuspense><ContentGridPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/approvals" element={<ProtectedRoute path="/approvals"><SafeSuspense><ApprovalsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/meetings" element={<ProtectedRoute path="/meetings"><SafeSuspense><MeetingsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute path="/reports"><SafeSuspense><ReportsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute path="/settings"><SafeSuspense><SettingsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/integrations" element={<ProtectedRoute path="/integrations"><SafeSuspense><IntegrationsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/integrations/meta/callback" element={<ProtectedRoute path="/integrations"><SafeSuspense><MetaOAuthCallbackPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/integrations/google/callback" element={<ProtectedRoute path="/integrations"><SafeSuspense><GoogleOAuthCallbackPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/operations" element={<ProtectedRoute path="/operations"><SafeSuspense><OperationsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/direction" element={<ProtectedRoute path="/direction"><SafeSuspense><DirectionPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/billing" element={<ProtectedRoute path="/billing"><SafeSuspense><BillingPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/contracts" element={<ProtectedRoute path="/contracts"><SafeSuspense><ContractsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/gamification" element={<ProtectedRoute path="/gamification"><SafeSuspense><GamificationPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute path="/documents"><SafeSuspense><DocumentsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/briefs" element={<ProtectedRoute path="/briefs"><SafeSuspense><BriefsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/onboarding" element={<ProtectedRoute path="/onboarding"><SafeSuspense><OnboardingPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute path="/users"><SafeSuspense><UsersPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/governance" element={<ProtectedRoute path="/governance"><SafeSuspense><GovernancePage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/catalog" element={<ProtectedRoute path="/catalog"><SafeSuspense><CatalogPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/knowledge" element={<ProtectedRoute path="/knowledge"><SafeSuspense><KnowledgePage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/forms/:id" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationBuilderPage /></SafeSuspense></ProtectedRoute>} />
         </Route>
-        <Route path="/portal" element={<ClientRoute><SuspenseWrapper><ClientLayout /></SuspenseWrapper></ClientRoute>}>
-          <Route index element={<SuspenseWrapper><ClientDashboard /></SuspenseWrapper>} />
-          <Route path="grid" element={<SuspenseWrapper><ClientGrid /></SuspenseWrapper>} />
-          <Route path="approvals" element={<SuspenseWrapper><ClientApprovals /></SuspenseWrapper>} />
-          <Route path="meetings" element={<SuspenseWrapper><ClientMeetings /></SuspenseWrapper>} />
-          <Route path="reports" element={<SuspenseWrapper><ClientReports /></SuspenseWrapper>} />
-          <Route path="reservations" element={<SuspenseWrapper><ReservationsPage clientView /></SuspenseWrapper>} />
-          <Route path="reservations/forms/:id" element={<SuspenseWrapper><ReservationBuilderPage /></SuspenseWrapper>} />
+        <Route path="/portal" element={<ClientRoute><SafeSuspense><ClientLayout /></SafeSuspense></ClientRoute>}>
+          <Route index element={<SafeSuspense><ClientDashboard /></SafeSuspense>} />
+          <Route path="grid" element={<SafeSuspense><ClientGrid /></SafeSuspense>} />
+          <Route path="approvals" element={<SafeSuspense><ClientApprovals /></SafeSuspense>} />
+          <Route path="meetings" element={<SafeSuspense><ClientMeetings /></SafeSuspense>} />
+          <Route path="reports" element={<SafeSuspense><ClientReports /></SafeSuspense>} />
+          <Route path="reservations" element={<SafeSuspense><ReservationsPage clientView /></SafeSuspense>} />
+          <Route path="reservations/forms/:id" element={<SafeSuspense><ReservationBuilderPage /></SafeSuspense>} />
         </Route>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/404" element={<NotFoundPage />} />

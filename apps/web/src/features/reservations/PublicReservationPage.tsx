@@ -9,41 +9,11 @@ import { accessibleForeground, contrastText, normalizeHexColor } from '../../sha
 import { BrandMark } from '../../shared/Brand';
 import { MetaPixel } from '../../shared/MetaPixel';
 import { readMetaMatchData } from '../../shared/meta-match';
+import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible, slotDateKey } from './booking-utils';
 
 interface Slot { startsAt: string; available: number }
 interface Created { id: string; referenceCode: string; status: string; startsAt: string }
 const DEFAULT_BACKGROUND_GRADIENT = 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)';
-
-function imageOverlayAlpha(value?: string): number {
-  const visibility = Math.max(0, Math.min(100, Number(value || 88))) / 100;
-  return Number((1 - visibility).toFixed(3));
-}
-function safeDesignChoice(value: string | undefined, allowed: readonly string[], fallback: string): string {
-  return value && allowed.includes(value) ? value : fallback;
-}
-function safeNumber(value: string | undefined, fallback: number, min: number, max: number): number {
-  const number = Number(value ?? fallback);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.max(min, Math.min(max, number));
-}
-function visible(value: string | undefined, fallback = true): boolean {
-  if (value === 'false') return false;
-  if (value === 'true') return true;
-  return fallback;
-}
-function uuid(): string {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
-}
-
-function slotDateKey(startsAt: string, timezone: string): string {
-  return new Date(startsAt).toLocaleDateString('es-CL', { timeZone: timezone });
-}
 
 export function PublicReservationPage() {
   const { slug = '' } = useParams();
@@ -63,16 +33,24 @@ export function PublicReservationPage() {
   const [idempotencyKey] = useState(() => uuid());
   const [sessionId] = useState(() => uuid());
   const [renderedAt] = useState(() => new Date().toISOString());
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [slotDays, setSlotDays] = useState(14);
   const started = useRef(false);
   const formRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
   const utmSource = params.get('utm_source') || undefined;
   const utmCampaign = params.get('utm_campaign') || undefined;
-
   const { data: form, isLoading, error } = useQuery<ReservationForm>({ queryKey: ['public-form', slug], queryFn: () => api.get(`/public/reservations/${slug}`), retry: false });
   const from = form ? plainDateInZone(new Date(), form.timezone) : new Date().toISOString().slice(0, 10);
-  const slotParams = new URLSearchParams({ from, days: '31', ...(serviceId ? { serviceId } : {}), ...(resourceId ? { resourceId } : {}) });
-  const { data: slots = [], isFetching: loadingSlots } = useQuery<Slot[]>({ queryKey: ['public-slots', slug, from, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form) });
+  const fromDate = useMemo(() => {
+    if (!form) return from;
+    const start = new Date(from + 'T00:00:00');
+    start.setMonth(start.getMonth() + monthOffset);
+    return start.toISOString().slice(0, 10);
+  }, [from, monthOffset, form]);
+  const slotParams = new URLSearchParams({ from: fromDate, days: String(slotDays), ...(serviceId ? { serviceId } : {}), ...(resourceId ? { resourceId } : {}) });
+  const { data: slots = [], isFetching: loadingSlots } = useQuery<Slot[]>({ queryKey: ['public-slots', slug, fromDate, slotDays, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form), staleTime: 30_000, gcTime: 60_000 });
 
   const pageTitle = useMemo(() => form ? `${form.name} · Reserva en línea · VITAHUB` : 'Reserva en línea · VITAHUB', [form]);
   const pageDescription = useMemo(() => form ? `Reserva tu hora para ${form.name}. ${form.designConfig?.welcome || 'Agenda fácil y segura.'}` : 'Agenda tu hora de forma fácil y segura.', [form]);
@@ -150,6 +128,7 @@ export function PublicReservationPage() {
     if (!selectedDate && selected) setSelectedDate(slotDateKey(selected, form!.timezone));
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setStep(2);
+    setTimeout(() => nameInputRef.current?.focus(), 300);
   };
 
   const goBackToSlots = () => {
@@ -229,9 +208,9 @@ export function PublicReservationPage() {
     return map;
   }, [slots, form.timezone]);
 
-  // Build 28-day calendar grid from "from" date
+  // Build 28-day calendar grid from "fromDate"
   const calendarDays = useMemo(() => {
-    const start = new Date(from + 'T00:00:00');
+    const start = new Date(fromDate + 'T00:00:00');
     const days: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean }> = [];
     for (let i = 0; i < 28; i++) {
       const d = new Date(start);
@@ -247,10 +226,11 @@ export function PublicReservationPage() {
       });
     }
     return days;
-  }, [from, slotsByDate, form.timezone]);
+  }, [fromDate, slotsByDate, form.timezone]);
 
   const selectedDaySlots = slotsByDate.get(selectedDate) || [];
 
+  if (form.status === 'paused') return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><h1>Formulario en mantenimiento</h1><p>Este formulario no acepta reservas en este momento. Vuelve más tarde o contacta al establecimiento.</p></section></main>;
   return <main className={`public-booking layout-${safeDesignChoice(design.layoutPosition, ['left', 'center', 'right'], 'right')}`} style={style} onFocusCapture={markStarted} onPointerDown={markStarted}>
     <MetaPixel pixelId={form.pixelId} />
     {(visible(design.showPoweredBy) || visible(design.showSecureBadge)) && <header>{visible(design.showPoweredBy) ? <div className="public-brand"><BrandMark decorative /><small>{poweredByText.split('\n').map((line) => <Fragment key={line}>{line}<br /></Fragment>)}</small></div> : <span />}{visible(design.showSecureBadge) && <em>{badgeText}</em>}</header>}
@@ -269,8 +249,10 @@ export function PublicReservationPage() {
           </div>}
           {loadingSlots && <div className="no-slots"><LoadingSpinner text="Buscando disponibilidad..." /></div>}
           {!loadingSlots && calendarDays.length > 0 && <div>
+            <div className="calendar-month-nav"><button type="button" className="btn btn-outline btn-xs" disabled={monthOffset <= 0} onClick={() => { setMonthOffset((m) => Math.max(0, m - 1)); setSelected(''); setSelectedDate(''); }}>← Mes anterior</button><span>{new Date(fromDate + 'T00:00:00').toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: form.timezone })}</span><button type="button" className="btn btn-outline btn-xs" onClick={() => { setMonthOffset((m) => m + 1); setSelected(''); setSelectedDate(''); }}>Mes siguiente →</button></div>
             <div className="calendar-grid">{calendarDays.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span></button>)}</div>
             <div className="calendar-hint"><span className="dot available" /> Disponible <span className="dot taken" /> Sin cupo</div>
+            {slotDays <= 60 && <button type="button" className="btn btn-outline btn-sm calendar-load-more" onClick={() => setSlotDays((d) => d + 14)}>Cargar más fechas</button>}
           </div>}
           {!loadingSlots && calendarDays.length === 0 && <div className="no-slots"><strong>Sin horarios disponibles</strong><p>Prueba otro servicio o contacta al local.</p></div>}
 
@@ -289,7 +271,7 @@ export function PublicReservationPage() {
           <div className="booking-step-title"><span>02</span><div><strong>Tus datos</strong><small>Se usarán solo para gestionar tu atención.</small></div></div>
           <div className="booking-selected-slot">{selected && <div className="selected-slot-badge"><span>📅</span><strong>{new Date(selected).toLocaleString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</strong><button type="button" className="btn btn-outline btn-xs" onClick={goBackToSlots}>Cambiar</button></div>}</div>
           <div className="public-fields">
-            <label>Nombre completo <span className="required-star">*</span><input className={errors.name ? 'input-error' : ''} required autoComplete="name" value={guest.guestName} onChange={(event) => setGuest({ ...guest, guestName: event.target.value })} />{errors.name && <span className="field-error">{errors.name}</span>}</label>
+            <label>Nombre completo <span className="required-star">*</span><input ref={nameInputRef} className={errors.name ? 'input-error' : ''} required autoComplete="name" value={guest.guestName} onChange={(event) => setGuest({ ...guest, guestName: event.target.value })} />{errors.name && <span className="field-error">{errors.name}</span>}</label>
             <label>Teléfono <span className="required-star">*</span><input type="tel" className={errors.phone ? 'input-error' : ''} required autoComplete="tel" value={guest.guestPhone} onChange={(event) => setGuest({ ...guest, guestPhone: event.target.value })} />{errors.phone && <span className="field-error">{errors.phone}</span>}</label>
             <label>Correo<input type="email" className={errors.email ? 'input-error' : ''} autoComplete="email" value={guest.guestEmail} onChange={(event) => setGuest({ ...guest, guestEmail: event.target.value })} />{errors.email && <span className="field-error">{errors.email}</span>}</label>
             <label>Número de personas<input type="number" min="1" max="500" value={guest.partySize} onChange={(event) => setGuest({ ...guest, partySize: Number(event.target.value) })} /></label>
@@ -299,7 +281,7 @@ export function PublicReservationPage() {
           {/* Coupon */}
           {(form.fieldSchema?.some((f) => f.type === 'coupon') || form.designConfig?.couponEnabled !== 'false') && <div className="coupon-section"><div className="booking-step-title"><span>─</span><div><strong>¿Tienes un cupón?</strong></div></div><div className="coupon-row"><input className="input" value={couponCode} onChange={(event) => { setCouponCode(event.target.value); setCouponValid(null); setCouponMsg(''); }} placeholder="Código" /><button type="button" className="btn btn-outline btn-sm" disabled={!couponCode.trim() || validateCoupon.isPending} onClick={() => validateCoupon.mutate()}>{validateCoupon.isPending ? '...' : 'Aplicar'}</button></div>{couponMsg && <div className={`coupon-feedback ${couponValid ? 'coupon-valid' : 'coupon-invalid'}`}>{couponMsg}</div>}</div>}
           {submit.error && <div className="alert alert-error">{submit.error.message}</div>}
-          {submit.error?.message?.includes('acaba de ocuparse') && <div className="slot-alternatives"><strong>Horarios alternativos cercanos:</strong>{slots.filter((s) => s.startsAt !== selected).sort((a, b) => Math.abs(new Date(a.startsAt).getTime() - new Date(selected).getTime()) - Math.abs(new Date(b.startsAt).getTime() - new Date(selected).getTime())).slice(0, 3).map((alt) => <button type="button" key={alt.startsAt} onClick={() => { setSelected(alt.startsAt); submit.reset(); setStep(2); formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>{new Date(alt.startsAt).toLocaleString('es-CL', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</button>)}</div>}
+          {submit.error?.message?.includes('acaba de ocuparse') && <div className="slot-alternatives"><strong>Horarios alternativos cercanos:</strong>{slots.filter((s) => s.startsAt !== selected).sort((a, b) => Math.abs(new Date(a.startsAt).getTime() - new Date(selected).getTime()) - Math.abs(new Date(b.startsAt).getTime() - new Date(selected).getTime())).slice(0, 3).map((alt) => <button type="button" key={alt.startsAt} onClick={() => { setSelected(alt.startsAt); submit.reset(); setStep(2); setTimeout(() => nameInputRef.current?.focus(), 300); formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>{new Date(alt.startsAt).toLocaleString('es-CL', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</button>)}</div>}
           <div className="step-nav"><button type="button" className="btn btn-outline" onClick={goBackToSlots}>← Volver</button><button type="button" className="public-submit" onClick={goToConfirm}>Revisar y confirmar →</button></div>
         </div>}
 

@@ -3782,6 +3782,13 @@ select option[value="table"] { display:none; }
 .calendar-hint .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
 .calendar-hint .dot.available { background:var(--booking-primary,#173f35); }
 .calendar-hint .dot.taken { background:var(--border); }
+.calendar-month-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.calendar-month-nav span { font-size:14px; font-weight:600; text-transform:capitalize; }
+.calendar-load-more { margin:12px auto; display:block; }
+
+/* Coupon stats */
+.coupon-stats { margin-bottom:16px; }
+.reservation-metric-grid-four { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
 
 /* Slot time picker */
 .slot-time-picker { margin:16px 0; }

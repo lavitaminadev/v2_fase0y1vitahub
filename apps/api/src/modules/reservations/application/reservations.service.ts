@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
+import { promises as dns } from 'dns';
 import { ReservationForm } from '../domain/reservation-form.entity';
 import { Reservation } from '../domain/reservation.entity';
 import { AvailabilityBlock } from '../domain/availability-block.entity';
@@ -249,6 +250,7 @@ export class ReservationsService {
     const form = await this.getForm(organizationId, dto.formId, clientId, clientIds);
     const startsAt = new Date(dto.startsAt);
     if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Fecha inválida');
+    await this.validateEmailDomain(dto.guestEmail);
     const partySize = dto.partySize || 1;
     const result = await this.dataSource.transaction(async (manager) => {
       let endsAt: Date;
@@ -320,8 +322,22 @@ export class ReservationsService {
     return this.formEvents.save(this.formEvents.create({ organizationId: form.organizationId, clientId: form.clientId, formId: form.id, type: dto.type, sessionId: dto.sessionId, utmSource: dto.utmSource, utmCampaign: dto.utmCampaign }));
   }
 
+  private async validateEmailDomain(email?: string): Promise<void> {
+    if (!email) return;
+    const domain = email.split('@')[1];
+    if (!domain) throw new BadRequestException('Correo inválido');
+    try {
+      const mx = await dns.resolveMx(domain);
+      if (!mx || mx.length === 0) throw new BadRequestException('El dominio del correo no acepta mensajes');
+    } catch (err: unknown) {
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException('No se pudo verificar el correo');
+    }
+  }
+
   async createPublic(slug: string, dto: PublicReservationDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
     if (dto.website) throw new BadRequestException('Solicitud inválida'); if (dto.renderedAt && Date.now() - new Date(dto.renderedAt).getTime() < 1200) throw new BadRequestException('Completa el formulario antes de enviarlo');
+    await this.validateEmailDomain(dto.guestEmail);
     const result = await this.dataSource.transaction(async (manager) => {
       const form = await this.publishedForm(slug, manager, true); const existingIdempotent = await manager.getRepository(Reservation).findOne({ where: { formId: form.id, idempotencyKey: dto.idempotencyKey } }); if (existingIdempotent) return { booking: existingIdempotent, form, created: false };
       const startsAt = new Date(dto.startsAt); if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Fecha inválida'); const partySize = dto.partySize || 1; const availability = await this.availability(manager, form, startsAt, partySize, dto.serviceId, dto.resourceId);
