@@ -135,7 +135,7 @@ export class ReservationsService {
   }
 
   private validateAnswers(form: ReservationForm, answers: Record<string, unknown>): void {
-    const fields = form.fieldSchema as FieldConfig[]; const byId = new Map(fields.map((field) => [field.id, field]));
+    const fields = (form.fieldSchema as FieldConfig[]).filter((f) => f.type !== 'coupon'); const byId = new Map(fields.map((field) => [field.id, field]));
     const keys = Object.keys(answers); if (keys.length > fields.length || keys.some((key) => !byId.has(key))) throw new BadRequestException('Las respuestas contienen campos no publicados');
     for (const [key, value] of Object.entries(answers)) {
       const field = byId.get(key)!;

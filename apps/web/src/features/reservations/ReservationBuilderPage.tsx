@@ -24,6 +24,7 @@ const FIELD_LIBRARY = [
   ['text', 'Texto corto'], ['textarea', 'Texto largo'], ['email', 'Correo'],
   ['phone', 'Teléfono'], ['select', 'Selector'], ['multi_select', 'Selección múltiple'],
   ['number', 'Número'], ['date', 'Fecha'], ['consent', 'Aceptación'],
+  ['coupon', 'Cupón promocional'],
 ] as const;
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const STEPS = ['Estructura', 'Disponibilidad', 'Diseño', 'Publicación'];
