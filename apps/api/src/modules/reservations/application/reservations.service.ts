@@ -444,6 +444,18 @@ export class ReservationsService {
     return this.coupons.find({ where, order: { createdAt: 'DESC' } });
   }
 
+  async validatePublicCoupon(slug: string, code: string) {
+    const form = await this.publishedForm(slug);
+    const coupon = await this.coupons.findOne({ where: { organizationId: form.organizationId, code: code.trim().toUpperCase(), active: true } });
+    if (!coupon) throw new BadRequestException('Cupón no válido');
+    const now = new Date();
+    if (coupon.validFrom && now < coupon.validFrom) throw new BadRequestException('El cupón aún no está activo');
+    if (coupon.validUntil && now > coupon.validUntil) throw new BadRequestException('El cupón ha expirado');
+    if (coupon.maxUses > 0 && coupon.usageCount >= coupon.maxUses) throw new BadRequestException('El cupón ya no tiene usos disponibles');
+    if (coupon.formIds && coupon.formIds.length > 0 && !coupon.formIds.includes(form.id)) throw new BadRequestException('El cupón no aplica para este formulario');
+    return { valid: true, discountType: coupon.discountType, value: coupon.value };
+  }
+
   private async validateCoupon(code: string | undefined, form: ReservationForm, manager: EntityManager): Promise<ReservationCoupon | undefined> {
     if (!code) return undefined;
     const coupon = await manager.getRepository(ReservationCoupon).findOne({ where: { organizationId: form.organizationId, code: code.trim().toUpperCase(), active: true } });

@@ -3762,3 +3762,73 @@ select option[value="table"] { display:none; }
 .design-custom-panel .color-controls { display:flex; }
 .design-custom-panel .color-controls { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
 .design-custom-panel .design-mini-grid label { margin:0; }
+
+/* Booking steps indicator */
+.booking-steps { display:flex; justify-content:center; gap:12px; margin-bottom:24px; padding:12px 0; border-bottom:1px solid var(--border); }
+.booking-step-dot { display:flex; flex-direction:column; align-items:center; gap:4px; opacity:.4; }
+.booking-step-dot.active { opacity:1; }
+.booking-step-dot span { width:28px; height:28px; border-radius:50%; background:var(--booking-primary,#173f35); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+.booking-step-dot small { font-size:11px; color:var(--booking-text,#3f4e49); }
+
+/* Calendar grid */
+.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin:16px 0; }
+.calendar-day { display:flex; flex-direction:column; align-items:center; padding:8px 4px; border-radius:var(--booking-field-radius,10px); border:1px solid var(--border); background:transparent; cursor:pointer; transition:.15s; }
+.calendar-day.has-slots { border-color:var(--booking-primary,#173f35); }
+.calendar-day.no-slots { opacity:.35; cursor:default; }
+.calendar-day.selected { background:var(--booking-primary,#173f35); color:#fff; }
+.calendar-weekday { font-size:10px; text-transform:uppercase; opacity:.7; }
+.calendar-number { font-size:18px; font-weight:700; }
+.calendar-hint { display:flex; gap:12px; justify-content:center; font-size:12px; margin:8px 0; }
+.calendar-hint .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.calendar-hint .dot.available { background:var(--booking-primary,#173f35); }
+.calendar-hint .dot.taken { background:var(--border); }
+
+/* Slot time picker */
+.slot-time-picker { margin:16px 0; }
+.slot-time-picker h3 { font-size:14px; margin-bottom:8px; }
+.slot-time-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:6px; }
+.slot-time-btn { display:flex; flex-direction:column; align-items:center; padding:10px 6px; border-radius:var(--booking-field-radius,10px); border:1px solid var(--border); background:transparent; cursor:pointer; transition:.15s; }
+.slot-time-btn.active { background:var(--booking-primary,#173f35); color:#fff; border-color:var(--booking-primary,#173f35); }
+.slot-time-btn strong { font-size:14px; }
+.slot-time-btn small { font-size:10px; opacity:.7; }
+
+/* Selected slot badge */
+.booking-selected-slot { margin:8px 0; }
+.selected-slot-badge { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--booking-field-radius,10px); background:var(--booking-primary,#173f35); color:#fff; font-size:13px; }
+.selected-slot-badge button { margin-left:auto; background:rgba(255,255,255,.2); color:#fff; border:none; padding:2px 8px; border-radius:6px; font-size:11px; cursor:pointer; }
+
+/* Required star */
+.required-star { color:var(--danger,#b5332d); }
+.field-error { display:block; font-size:11px; color:var(--danger,#b5332d); margin-top:2px; }
+.input-error { border-color:var(--danger,#b5332d) !important; }
+
+/* Confirm card */
+.confirm-card { border:1px solid var(--border); border-radius:var(--booking-field-radius,10px); padding:12px; margin:12px 0; }
+.confirm-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:14px; }
+.confirm-row:last-child { border-bottom:none; }
+.confirm-row span { color:var(--text,#888); }
+.confirm-row strong { color:var(--booking-text,#3f4e49); }
+
+/* Step navigation */
+.step-nav { display:flex; gap:8px; justify-content:space-between; margin-top:16px; }
+.step-nav .btn { flex:1; }
+
+/* Coupon section */
+.coupon-section { margin:12px 0; padding:12px; border:1px dashed var(--border); border-radius:var(--booking-field-radius,10px); }
+.coupon-row { display:flex; gap:6px; align-items:center; }
+.coupon-row .input { flex:1; }
+.coupon-feedback { font-size:12px; margin-top:4px; }
+.coupon-feedback.coupon-valid { color:var(--success,#1f7a46); }
+.coupon-feedback.coupon-invalid { color:var(--danger,#b5332d); }
+
+/* Loading overlay */
+.booking-loading-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:1000; }
+
+/* Success page */
+.success-icon { display:inline-flex; width:64px; height:64px; border-radius:50%; background:var(--success,#1f7a46); color:#fff; font-size:32px; align-items:center; justify-content:center; margin-bottom:16px; }
+.success-datetime { font-size:18px; font-weight:700; margin:12px 0; }
+.success-code { margin:16px 0; }
+.success-code strong { font-size:20px; letter-spacing:2px; }
+.success-note { display:block; margin:8px 0 16px; font-size:12px; opacity:.7; }
+.success-actions { display:flex; flex-direction:column; gap:8px; align-items:center; }
+.success-actions .btn { width:100%; max-width:280px; }
