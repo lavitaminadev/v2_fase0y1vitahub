@@ -427,21 +427,27 @@ export class ReservationsService {
     else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds });
     const items = await qb.orderBy('r.starts_at', 'DESC').take(10000).getMany();
     const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    return [['codigo','nombre','correo','telefono','fecha','estado','origen','campana'], ...items.map((item) => [item.referenceCode,item.guestName,item.guestEmail,item.guestPhone,item.startsAt.toISOString(),item.status,item.utmSource,item.utmCampaign])].map((row) => row.map(escape).join(',')).join('\r\n');
+    return [['codigo','nombre','correo','telefono','fecha','estado','origen','campana','cupon'], ...items.map((item) => [item.referenceCode,item.guestName,item.guestEmail,item.guestPhone,item.startsAt.toISOString(),item.status,item.utmSource,item.utmCampaign,item.couponCode])].map((row) => row.map(escape).join(',')).join('\r\n');
   }
 
   async createCoupon(organizationId: string, userId: string, dto: CreateCouponDto, clientId?: string) {
     const code = dto.code.trim().toUpperCase();
     const exists = await this.coupons.findOne({ where: { organizationId, code } });
     if (exists) throw new ConflictException('Ya existe un cupón con ese código');
-    const coupon = this.coupons.create({ organizationId, clientId, code, discountType: dto.discountType || 'percentage', value: dto.value ?? 0, maxUses: dto.maxUses ?? 0, validFrom: dto.validFrom ? new Date(dto.validFrom) : undefined, validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined, formIds: dto.formIds });
+    const validDays = Array.isArray(dto.validDaysOfWeek) ? dto.validDaysOfWeek.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6) : undefined;
+    const coupon = this.coupons.create({ organizationId, clientId, code, discountType: dto.discountType || 'percentage', value: dto.value ?? 0, maxUses: dto.maxUses ?? 0, validFrom: dto.validFrom ? new Date(dto.validFrom) : undefined, validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined, formIds: dto.formIds, validDaysOfWeek: validDays });
     return this.coupons.save(coupon);
   }
 
   async updateCoupon(organizationId: string, id: string, dto: UpdateCouponDto) {
     const coupon = await this.coupons.findOne({ where: { id, organizationId } });
     if (!coupon) throw new NotFoundException('Cupón no encontrado');
-    Object.assign(coupon, Object.fromEntries(Object.entries(dto).filter(([, value]) => value !== undefined)));
+    const update: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(dto).filter(([, value]) => value !== undefined)) {
+      if (key === 'validDaysOfWeek') update.validDaysOfWeek = Array.isArray(value) ? (value as unknown[]).filter((d: unknown): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6) : value;
+      else update[key] = value;
+    }
+    Object.assign(coupon, update);
     return this.coupons.save(coupon);
   }
 

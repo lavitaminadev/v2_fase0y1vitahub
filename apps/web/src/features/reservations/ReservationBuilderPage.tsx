@@ -180,11 +180,20 @@ export function ReservationBuilderPage() {
   });
   const batchBlockMutation = useMutation({
     mutationFn: async (body: { startsAt: string; endsAt: string; reason?: string; repeat: number }) => {
-      const starts = new Date(body.startsAt); const ends = new Date(body.endsAt); const duration = ends.getTime() - starts.getTime();
+      const tz = draft?.timezone || 'America/Santiago';
+      const addWeeks = (localStr: string, weeks: number) => {
+        const date = new Date(localStr + 'T00:00:00');
+        date.setDate(date.getDate() + weeks * 7);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const time = localStr.slice(11, 16);
+        return `${y}-${m}-${d}T${time}`;
+      };
       const dtos = Array.from({ length: body.repeat }, (_, index) => {
-        const offset = index * 7 * 24 * 60 * 60 * 1000;
-        const s = new Date(starts.getTime() + offset); const e = new Date(s.getTime() + duration);
-        return { startsAt: localInputToUtc(s.toISOString().slice(0, 16), draft?.timezone || 'America/Santiago'), endsAt: localInputToUtc(e.toISOString().slice(0, 16), draft?.timezone || 'America/Santiago'), reason: body.reason };
+        const s = addWeeks(body.startsAt, index);
+        const e = addWeeks(body.endsAt, index);
+        return { startsAt: localInputToUtc(s, tz), endsAt: localInputToUtc(e, tz), reason: body.reason };
       });
       return api.post(`/reservations/forms/${id}/blocks/batch`, dtos);
     },
