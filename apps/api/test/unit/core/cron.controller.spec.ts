@@ -7,17 +7,14 @@ describe('CronController', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.CRON_SECRET;
+    process.env.CRON_SECRET = 'test-secret';
     controller = new CronController(outbox as never);
   });
 
   describe('verifySecret', () => {
-    it('allows requests when CRON_SECRET is not set', async () => {
-      process.env.CRON_SECRET = '';
-      outbox.processPending.mockResolvedValue({ processed: 5, failed: 0 });
-      const result = await controller.processMetaCapi('some-secret');
-      expect(result.ok).toBe(true);
-      expect(result.processed).toBe(5);
+    it('rejects requests when CRON_SECRET is not configured', async () => {
+      delete process.env.CRON_SECRET;
+      await expect(controller.processMetaCapi('some-secret')).rejects.toThrow('CRON_SECRET not configured');
     });
 
     it('rejects requests with wrong CRON_SECRET', async () => {
@@ -38,7 +35,7 @@ describe('CronController', () => {
   describe('runMetaCapi', () => {
     it('returns processed and failed counts', async () => {
       outbox.processPending.mockResolvedValue({ processed: 5, failed: 1 });
-      const result = await controller.processMetaCapi('any-secret');
+      const result = await controller.processMetaCapi('test-secret');
       expect(result.ok).toBe(true);
       expect(result.processed).toBe(5);
       expect(result.failed).toBe(1);
@@ -47,7 +44,7 @@ describe('CronController', () => {
 
     it('accepts a custom limit via body', async () => {
       outbox.processPending.mockResolvedValue({ processed: 10, failed: 0 });
-      const result = await controller.processMetaCapiPost('any-secret', 100);
+      const result = await controller.processMetaCapiPost('test-secret', 100);
       expect(result.ok).toBe(true);
       expect(outbox.processPending).toHaveBeenCalledWith(100);
     });
@@ -55,8 +52,8 @@ describe('CronController', () => {
     it('skips if already running (mutex)', async () => {
       let resolvePending: (v: any) => void;
       outbox.processPending.mockReturnValue(new Promise((resolve) => { resolvePending = resolve; }));
-      const first = controller.processMetaCapi('any-secret');
-      const result = await controller.processMetaCapi('any-secret');
+      const first = controller.processMetaCapi('test-secret');
+      const result = await controller.processMetaCapi('test-secret');
       expect(result.skipped).toBe('already_running');
       resolvePending!({ processed: 5, failed: 0 });
       await first;

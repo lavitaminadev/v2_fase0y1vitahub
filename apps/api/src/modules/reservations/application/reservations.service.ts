@@ -508,7 +508,7 @@ export class ReservationsService {
     if (coupon.maxUses > 0 && coupon.usageCount >= coupon.maxUses) throw new BadRequestException('El cupón ya no tiene usos disponibles');
     if (coupon.formIds && coupon.formIds.length > 0 && !coupon.formIds.includes(form.id)) throw new BadRequestException('El cupón no aplica para este formulario');
     if (coupon.validDaysOfWeek && coupon.validDaysOfWeek.length > 0) {
-      const today = new Date().getDay();
+      const today = new Date(new Date().toLocaleString('en-US', { timeZone: form.timezone })).getDay();
       if (!coupon.validDaysOfWeek.includes(today)) throw new BadRequestException('El cupón no es válido para el día de hoy');
     }
     return { valid: true, discountType: coupon.discountType, value: coupon.value };
@@ -524,7 +524,7 @@ export class ReservationsService {
     if (coupon.maxUses > 0 && coupon.usageCount >= coupon.maxUses) throw new BadRequestException('El cupón ya no tiene usos disponibles');
     if (coupon.formIds && coupon.formIds.length > 0 && !coupon.formIds.includes(form.id)) throw new BadRequestException('El cupón no aplica para este formulario');
     if (coupon.validDaysOfWeek && coupon.validDaysOfWeek.length > 0) {
-      const today = new Date().getDay();
+      const today = new Date(new Date().toLocaleString('en-US', { timeZone: form.timezone })).getDay();
       if (!coupon.validDaysOfWeek.includes(today)) throw new BadRequestException('El cupón no es válido para el día de hoy');
     }
     return coupon;

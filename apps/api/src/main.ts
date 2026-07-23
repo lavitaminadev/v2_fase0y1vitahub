@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import compression from 'compression';
 import { Logger } from '@nestjs/common';
 import { parseCorsOrigins, validateEnvironment } from './config/environment';
 import type { Application } from 'express';
@@ -15,6 +16,8 @@ async function bootstrap() {
   if (trustProxyHops > 0) {
     (app.getHttpAdapter().getInstance() as Application).set('trust proxy', trustProxyHops);
   }
+
+  app.use(compression());
 
   app.use(helmet({
     contentSecurityPolicy: {

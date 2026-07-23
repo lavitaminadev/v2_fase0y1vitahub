@@ -72,7 +72,11 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
       migrations: [__dirname + '/infrastructure/migrations/*{.ts,.js}'],
       synchronize: false,
       logging: process.env.DB_LOGGING === 'true',
-      extra: { charset: 'utf8mb4_unicode_ci' },
+      extra: {
+        charset: 'utf8mb4_unicode_ci',
+        connectionLimit: 20,
+        ...(process.env.NODE_ENV === 'production' ? { ssl: { rejectUnauthorized: true } } : {}),
+      },
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     EventEmitterModule.forRoot(),

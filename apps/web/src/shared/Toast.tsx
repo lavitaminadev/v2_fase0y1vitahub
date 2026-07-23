@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export const TOAST_EVENT = 'vitahub-toast';
 export interface ToastDetail { message: string; kind?: 'success' | 'error' | 'info' }
@@ -9,6 +9,8 @@ export function triggerToast(message: string, kind: 'success' | 'error' | 'info'
 
 export function ToastContainer() {
   const [toasts, setToasts] = useState<Array<{ id: number; message: string; kind: string }>>([]);
+  const timers = useRef<number[]>([]);
+  const mounted = useRef(true);
 
   useEffect(() => {
     let nextId = 0;
@@ -16,10 +18,18 @@ export function ToastContainer() {
       const { message, kind = 'success' } = (event as CustomEvent<ToastDetail>).detail;
       const id = nextId++;
       setToasts((prev) => [...prev, { id, message, kind }]);
-      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), kind === 'error' ? 7000 : 4000);
+      const timer = window.setTimeout(() => {
+        if (mounted.current) setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, kind === 'error' ? 7000 : 4000);
+      timers.current.push(timer);
     };
     window.addEventListener(TOAST_EVENT, handler);
-    return () => window.removeEventListener(TOAST_EVENT, handler);
+    return () => {
+      mounted.current = false;
+      window.removeEventListener(TOAST_EVENT, handler);
+      timers.current.forEach((t) => clearTimeout(t));
+      timers.current = [];
+    };
   }, []);
 
   return <div className="toast-container">{toasts.map((t) => <div key={t.id} className={`toast toast-${t.kind}`} role="status"><span>{t.message}</span></div>)}</div>;

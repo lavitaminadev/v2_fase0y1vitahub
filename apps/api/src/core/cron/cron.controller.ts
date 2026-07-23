@@ -16,7 +16,7 @@ export class CronController {
 
   private verifySecret(secret?: string): void {
     const expected = process.env.CRON_SECRET;
-    if (!expected) return;
+    if (!expected) throw new ForbiddenException('CRON_SECRET not configured');
     if (!secret || secret !== expected) throw new ForbiddenException('Invalid cron secret');
   }
 

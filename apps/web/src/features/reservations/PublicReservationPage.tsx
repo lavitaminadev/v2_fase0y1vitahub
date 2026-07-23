@@ -30,7 +30,13 @@ export function PublicReservationPage() {
   const [couponValid, setCouponValid] = useState<boolean | null>(null);
   const [couponMsg, setCouponMsg] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [idempotencyKey] = useState(() => uuid());
+  const [idempotencyKey] = useState(() => {
+    const stored = sessionStorage.getItem('vh-booking-key');
+    if (stored) return stored;
+    const key = uuid();
+    sessionStorage.setItem('vh-booking-key', key);
+    return key;
+  });
   const [sessionId] = useState(() => uuid());
   const [renderedAt] = useState(() => new Date().toISOString());
   const [monthOffset, setMonthOffset] = useState(0);
@@ -45,9 +51,10 @@ export function PublicReservationPage() {
   const from = form ? plainDateInZone(new Date(), form.timezone) : new Date().toISOString().slice(0, 10);
   const fromDate = useMemo(() => {
     if (!form) return from;
-    const start = new Date(from + 'T00:00:00');
-    start.setMonth(start.getMonth() + monthOffset);
-    return start.toISOString().slice(0, 10);
+    const [y, m, d] = from.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, d));
+    start.setUTCMonth(start.getUTCMonth() + monthOffset);
+    return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`;
   }, [from, monthOffset, form]);
   const slotParams = new URLSearchParams({ from: fromDate, days: String(slotDays), ...(serviceId ? { serviceId } : {}), ...(resourceId ? { resourceId } : {}) });
   const { data: slots = [], isFetching: loadingSlots } = useQuery<Slot[]>({ queryKey: ['public-slots', slug, fromDate, slotDays, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form), staleTime: 30_000, gcTime: 60_000 });
@@ -195,7 +202,9 @@ export function PublicReservationPage() {
 
   // Success page
   if (submit.data) {
-    const icsBody = 'BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:' + new Date(submit.data.startsAt).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z\nDTEND:' + new Date(new Date(submit.data.startsAt).getTime() + 3600000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z\nSUMMARY:' + form.name + '\nDESCRIPTION:Reserva ' + submit.data.referenceCode + '\nEND:VEVENT\nEND:VCALENDAR';
+    const svcDuration = serviceId ? (form.servicesConfig || []).find((s) => s.id === serviceId)?.durationMinutes : null;
+    const icsDuration = (svcDuration || form.durationMinutes || 60) * 60000;
+    const icsBody = 'BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:' + new Date(submit.data.startsAt).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z\nDTEND:' + new Date(new Date(submit.data.startsAt).getTime() + icsDuration).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z\nSUMMARY:' + form.name + '\nDESCRIPTION:Reserva ' + submit.data.referenceCode + '\nEND:VEVENT\nEND:VCALENDAR';
     return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div><small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions"><a className="btn btn-outline" href={'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsBody)} download={`reserva-${submit.data.referenceCode}.ics`}>Agregar al calendario</a>{submit.data.status === 'pending' ? <small>Recibirás una confirmación pronto.</small> : <Link className="btn btn-outline" to={`/book/${slug}`}>Volver al inicio</Link>}</div></section></main>;
   }
 
@@ -224,20 +233,19 @@ export function PublicReservationPage() {
 
   // Build 28-day calendar grid from "fromDate"
   const calendarDays = useMemo(() => {
-    const start = new Date(fromDate + 'T00:00:00');
+    const [y, m, d] = fromDate.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, d));
     const days: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean }> = [];
     for (let i = 0; i < 28; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const key = d.toLocaleDateString('es-CL', { timeZone: form.timezone });
+      const date = new Date(start);
+      date.setUTCDate(date.getUTCDate() + i);
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const dayNum = String(date.getUTCDate()).padStart(2, '0');
+      const key = `${year}-${month}-${dayNum}`;
+      const weekday = new Intl.DateTimeFormat('es-CL', { weekday: 'short', timeZone: form.timezone }).format(date);
       const daySlots = slotsByDate.get(key) || [];
-      days.push({
-        date: key,
-        day: d.getDate(),
-        weekday: d.toLocaleDateString('es-CL', { weekday: 'short', timeZone: form.timezone }),
-        slots: daySlots,
-        hasSlots: daySlots.length > 0,
-      });
+      days.push({ date: key, day: date.getUTCDate(), weekday, slots: daySlots, hasSlots: daySlots.length > 0 });
     }
     return days;
   }, [fromDate, slotsByDate, form.timezone]);

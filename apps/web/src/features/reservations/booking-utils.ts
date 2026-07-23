@@ -30,5 +30,7 @@ export function visible(value: string | undefined, fallback = true): boolean {
 }
 
 export function slotDateKey(startsAt: string, timezone: string): string {
-  return new Date(startsAt).toLocaleDateString('es-CL', { timeZone: timezone });
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(startsAt));
+  const values = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }

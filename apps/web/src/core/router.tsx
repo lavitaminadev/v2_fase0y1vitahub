@@ -83,9 +83,9 @@ export function AppRouter() {
           <Route path="/clients" element={<ProtectedRoute path="/clients"><SafeSuspense><ClientsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/clients/:id" element={<ProtectedRoute path="/clients"><SafeSuspense><ClientDetailPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/crm/leads" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><LeadsPage /></SafeSuspense></ProtectedRoute>} />
-          <Route path="/crm/opportunities" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><OpportunitiesPage /></SafeSuspense></ProtectedRoute>} />
-          <Route path="/crm/contacts" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><ContactsPage /></SafeSuspense></ProtectedRoute>} />
-          <Route path="/crm/interactions" element={<ProtectedRoute path="/crm/leads"><SafeSuspense><InteractionsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/opportunities" element={<ProtectedRoute path="/crm/opportunities"><SafeSuspense><OpportunitiesPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/contacts" element={<ProtectedRoute path="/crm/contacts"><SafeSuspense><ContactsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/crm/interactions" element={<ProtectedRoute path="/crm/interactions"><SafeSuspense><InteractionsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/production" element={<ProtectedRoute path="/production"><SafeSuspense><ProductionPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/audiovisual" element={<ProtectedRoute path="/audiovisual"><SafeSuspense><AudiovisualPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/content" element={<ProtectedRoute path="/content"><SafeSuspense><ContentGridPage /></SafeSuspense></ProtectedRoute>} />
