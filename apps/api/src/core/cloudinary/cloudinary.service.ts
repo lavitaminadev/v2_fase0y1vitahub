@@ -24,6 +24,29 @@ export interface CloudinaryCredentials {
   apiSecret: string;
 }
 
+export interface CloudinaryResource {
+  publicId: string;
+  url: string;
+  format: string;
+  bytes: number;
+  width?: number;
+  height?: number;
+  createdAt: string;
+}
+
+interface CloudinaryListResponse {
+  resources: Array<{
+    public_id: string;
+    secure_url: string;
+    format: string;
+    bytes: number;
+    width?: number;
+    height?: number;
+    created_at: string;
+  }>;
+  next_cursor?: string;
+}
+
 interface CloudinaryApiResponse {
   public_id: string;
   url: string;
@@ -181,6 +204,46 @@ export class CloudinaryService {
       );
     } catch (error: any) {
       this.logger.warn('Cloudinary destroy failed', error?.response?.data || error?.message);
+    }
+  }
+
+  async listResources(
+    organizationId: string,
+    options: { maxResults?: number; nextCursor?: string; prefix?: string } = {},
+  ): Promise<{ resources: CloudinaryResource[]; nextCursor?: string }> {
+    const credentials = await this.getCredentials(organizationId);
+    if (!credentials?.cloudName || !credentials?.apiKey || !credentials?.apiSecret) {
+      throw new BadRequestException('Cloudinary no está configurado para esta organización');
+    }
+    try {
+      const params: Record<string, string | number> = {
+        max_results: options.maxResults || 30,
+        type: 'upload',
+      };
+      if (options.nextCursor) params.next_cursor = options.nextCursor;
+      if (options.prefix) params.prefix = options.prefix;
+
+      const { data } = await firstValueFrom(
+        this.http.get<CloudinaryListResponse>(
+          `https://api.cloudinary.com/v1_1/${encodeURIComponent(credentials.cloudName)}/resources/image`,
+          { params, auth: { username: credentials.apiKey, password: credentials.apiSecret }, timeout: 15000 },
+        ),
+      );
+      return {
+        resources: (data.resources || []).map((r) => ({
+          publicId: r.public_id,
+          url: r.secure_url,
+          format: r.format,
+          bytes: r.bytes,
+          width: r.width,
+          height: r.height,
+          createdAt: r.created_at,
+        })),
+        nextCursor: data.next_cursor || undefined,
+      };
+    } catch (error: any) {
+      this.logger.warn('Cloudinary list failed', error?.response?.data || error?.message);
+      throw new BadRequestException(error?.response?.data?.error?.message || 'No se pudo consultar Cloudinary');
     }
   }
 

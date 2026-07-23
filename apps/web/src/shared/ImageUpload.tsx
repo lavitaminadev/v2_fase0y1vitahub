@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../core/api';
+import { MediaLibraryModal } from './MediaLibraryModal';
 
 interface ImageUploadProps {
   label: string;
@@ -63,6 +64,7 @@ export function ImageUpload({
   const [dragOver, setDragOver] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [lastPublicId, setLastPublicId] = useState<string | undefined>();
+  const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
 
   const upload = useMutation({
     mutationFn: (file: File) => api.upload<UploadResponse>('/uploads/images', file),
@@ -191,14 +193,20 @@ export function ImageUpload({
       {errorMessage && <div className="alert alert-error" role="alert">{errorMessage}</div>}
       <div className="image-upload-url">
         <small>O usa una URL externa</small>
-        <input
-          className="input"
-          type="url"
-          value={value || ''}
-          onChange={(event) => { setValidationError(null); onChange(event.target.value.trim()); }}
-          placeholder={placeholder}
-        />
+        <div className="image-upload-url-row">
+          <input
+            className="input"
+            type="url"
+            value={value || ''}
+            onChange={(event) => { setValidationError(null); onChange(event.target.value.trim()); }}
+            placeholder={placeholder}
+          />
+          <button type="button" className="btn btn-outline btn-sm" onClick={(e) => { e.stopPropagation(); setMediaLibraryOpen(true); }} title="Elegir de la biblioteca">
+            📁
+          </button>
+        </div>
       </div>
+      <MediaLibraryModal open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} onSelect={(url) => { onChange(url); setMediaLibraryOpen(false); }} />
     </div>
   );
 }

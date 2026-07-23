@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Delete, Body, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Put, Delete, Body, Query, Req, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -93,5 +93,18 @@ export class CloudinaryController {
       await this.integrations.remove(integration);
     }
     return { connected: false };
+  }
+
+  @Get('resources')
+  @ApiOperation({ summary: 'Listar recursos de Cloudinary' })
+  async listResources(
+    @Req() req: AuthenticatedRequest,
+    @Query('next') next?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.cloudinary.listResources(req.organizationId, {
+      maxResults: limit ? Math.min(Number(limit) || 30, 100) : 30,
+      nextCursor: next,
+    });
   }
 }

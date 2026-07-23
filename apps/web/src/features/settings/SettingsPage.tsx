@@ -5,6 +5,7 @@ import { api } from '../../core/api';
 import { useAuth } from '../../core/auth';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { CloudinaryConfigModal } from './CloudinaryConfigModal';
+import { MediaLibraryModal } from '../../shared/MediaLibraryModal';
 
 type SettingsTab = 'general' | 'access';
 type SettingValue = string | number | boolean | null;
@@ -183,6 +184,7 @@ export function SettingsPage() {
   const [draft, setDraft] = useState<Record<string, SettingValue>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [cloudinaryOpen, setCloudinaryOpen] = useState(false);
+  const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
 
   const organizationsQuery = useQuery<OrganizationSummary[]>({
     queryKey: ['organizations'],
@@ -320,11 +322,13 @@ export function SettingsPage() {
           <Link to="/users" className="settings-access-card"><span>02</span><div><strong>Usuarios y accesos</strong><p>Crea cuentas, asócialas a empresa, bloquea accesos y fuerza cambio de contraseña inicial.</p></div><b>Administrar →</b></Link>
           <Link to="/integrations" className="settings-access-card"><span>03</span><div><strong>Meta Pixel + CAPI</strong><p>Gestiona Pixels por empresa, tokens CAPI, evento de prueba y diagnóstico de conversiones.</p></div><b>Ver Meta →</b></Link>
           <button type="button" className="settings-access-card" onClick={() => setCloudinaryOpen(true)}><span>04</span><div><strong>Cloudinary global</strong><p>Configura la cuenta compartida para subir logos e imágenes de fondo de los formularios públicos.</p></div><b>Configurar →</b></button>
+          <button type="button" className="settings-access-card" onClick={() => setMediaLibraryOpen(true)}><span>05</span><div><strong>Biblioteca de imágenes</strong><p>Explora, copia URLs y administra las imágenes subidas a Cloudinary.</p></div><b>Abrir →</b></button>
           <section className="settings-session-card"><span>SESIÓN ACTUAL</span><strong>{user?.email}</strong><p>Al cerrar sesión se revoca el acceso del navegador y se elimina la credencial segura.</p><button className="btn btn-outline" type="button" onClick={logout}>Cerrar sesión de forma segura</button></section>
         </div>
       )}
 
       <CloudinaryConfigModal open={cloudinaryOpen} onClose={() => setCloudinaryOpen(false)} />
+      <MediaLibraryModal open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} onSelect={(url) => { navigator.clipboard?.writeText(url); setMediaLibraryOpen(false); }} />
 
       {changeCount > 0 && (
         <div className="settings-save-bar" role="status">
