@@ -83,7 +83,7 @@ export function DashboardPage() {
         {!personalView && <Card title="UD este Mes" value={data.monthUd ?? 0} icon="📊" color="#27ae60" />}
       </div>}
       {canViewPerformance && widgetVisible('performance') && <div className="section performance-section">
-        <div className="section-title-row"><div><h2>Rendimiento digital</h2><p className="page-subtitle">Ultimos 30 dias consolidados desde Meta y Google.</p></div><span className={`data-health ${performance?.hasData ? 'is-live' : ''}`}>{performance?.hasData ? 'Datos conectados' : 'Sin datos sincronizados'}</span></div>
+        <div className="section-title-row"><div><h2>Rendimiento digital</h2><p className="page-subtitle">Últimos 30 días consolidados desde Meta y Google.</p></div><span className={`data-health ${performance?.hasData ? 'is-live' : ''}`}>{performance?.hasData ? 'Datos conectados' : 'Sin datos sincronizados'}</span></div>
         {performance?.hasData ? <>
           <div className="card-grid">
             <Card title="Inversion" value={`$${Math.round(performance.totals.spend).toLocaleString('es-CL')}`} color="#e76f51" />
@@ -95,7 +95,7 @@ export function DashboardPage() {
             <div className="provider-chart" aria-label="Inversión por plataforma">{performance.providers.map((provider) => <div className="provider-row" key={provider.provider}><span>{PROVIDER_LABELS[provider.provider] ?? statusLabel(provider.provider)}</span><div className="provider-track"><i style={{ width: `${Math.max((provider.spend / maxProviderSpend) * 100, 3)}%` }} /></div><strong>${Math.round(provider.spend).toLocaleString('es-CL')}</strong></div>)}</div>
             <div className="performance-ratios"><div><span>CTR</span><strong>{performance.derived.ctr == null ? 'N/D' : `${performance.derived.ctr.toFixed(1)}%`}</strong></div><div><span>CPC</span><strong>{performance.derived.cpc == null ? 'N/D' : `$${Math.round(performance.derived.cpc).toLocaleString('es-CL')}`}</strong></div><div><span>Tasa de conversión</span><strong>{performance.derived.conversionRate == null ? 'N/D' : `${performance.derived.conversionRate.toFixed(1)}%`}</strong></div></div>
           </div>
-        </> : <div className="empty-insight"><strong>Conecta y asigna cuentas publicitarias</strong><span>El dashboard mostrara metricas cuando exista una sincronizacion valida. No se completan ceros artificiales.</span></div>}
+        </> : <div className="empty-insight"><strong>Conecta y asigna cuentas publicitarias</strong><span>El dashboard mostrará métricas cuando exista una sincronización válida. No se completan ceros artificiales.</span></div>}
       </div>}
       {widgetVisible('flow') && <div className="section master-flow-section">
         <div className="section-title-row"><div><h2>Ciclo Maestro</h2><p className="page-subtitle">Como se conecta la venta con el resultado mensual del cliente.</p></div><span className="flow-caption">Fuente unica de verdad</span></div>

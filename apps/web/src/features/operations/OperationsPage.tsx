@@ -6,6 +6,7 @@ import { StatusBadge } from '../../shared/StatusBadge';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { useAuth } from '../../core/auth';
 import { Modal } from '../../shared/Modal';
+import { EmptyState } from '../../shared/EmptyState';
 import { statusLabel } from '../../shared/status-labels';
 
 interface Pod {
@@ -105,7 +106,7 @@ export function OperationsPage() {
 
   if (isLoading) return <LoadingSpinner text="Cargando operaciones..." />;
   if (error) return <div className="alert alert-error">Error al cargar operaciones</div>;
-  if (!data) return <div className="alert alert-info">No hay datos de operaciones</div>;
+  if (!data) return <EmptyState icon="📊" title="Sin datos" description="No hay información de operaciones disponible en este momento." />;
 
   const utilizationPct = data.totalCapacity > 0 ? Math.round((data.usedCapacity / data.totalCapacity) * 100) : 0;
 
@@ -121,7 +122,7 @@ export function OperationsPage() {
         <div className="section-title-row">
           <div>
             <h2>Ciclos mensuales</h2>
-            <p className="page-subtitle">Control integrado de grilla, produccion, reuniones y reporte del mes.</p>
+            <p className="page-subtitle">Control integrado de grilla, producción, reuniones y reporte del mes.</p>
           </div>
           <span className="cycle-period">{now.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}</span>
         </div>
@@ -215,7 +216,7 @@ export function OperationsPage() {
       <div className="section">
         <h2>Equipo</h2>
         {data.team.length === 0 ? (
-          <div className="alert alert-info">No hay miembros en el equipo</div>
+          <EmptyState icon="👥" title="Equipo vacío" description="No hay miembros registrados en el equipo todavía." />
         ) : (
           <div className="table-wrapper">
             <table className="data-table">
@@ -259,7 +260,7 @@ export function OperationsPage() {
             {canManageObjectives && <button className="btn btn-primary" type="button" onClick={() => setObjectiveOpen(true)}>+ Nuevo objetivo</button>}
           </div>
         </div>
-        {objectives.length === 0 ? <div className="alert alert-info">No hay objetivos definidos.</div> : <div className="objective-grid">
+        {objectives.length === 0 ? <EmptyState icon="🎯" title="Sin objetivos" description="No se han definido objetivos operativos para el equipo." action={canManageObjectives ? <button className="btn btn-primary" type="button" onClick={() => setObjectiveOpen(true)}>+ Nuevo objetivo</button> : undefined} /> : <div className="objective-grid">
           {objectives.map((objective) => <article className="objective-card" key={objective.id}>
             <div className="cycle-card-head"><span className="objective-category">{objective.category}</span><StatusBadge status={objective.status} /></div>
             <h3>{objective.title}</h3>

@@ -5,6 +5,7 @@ import { StatusBadge } from '../../shared/StatusBadge';
 import { statusLabel } from '../../shared/status-labels';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
+import { EmptyState } from '../../shared/EmptyState';
 import { useSearchParams } from 'react-router-dom';
 
 interface ActionItem {
@@ -144,12 +145,12 @@ export function MeetingsPage() {
           <p className="page-subtitle">Registro operativo de reuniones y compromisos asociados para seguimiento semanal y estrategico.</p>
         </div>
         <button className="btn btn-primary" onClick={() => { setForm((current) => ({ ...current, clientId: clientFilter })); setModalOpen(true); }}>
-          + Nueva Reunion
+          + Nueva Reunión
         </button>
       </div>
       <div className="filters"><select className="input" aria-label="Filtrar reuniones por cliente" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}><option value="">Todos los clientes</option>{(clients ?? []).map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><span className="filter-result-count">{sorted.length} reuniones</span></div>
       {sorted.length === 0 ? (
-        <div className="alert alert-info">No hay reuniones programadas</div>
+        <EmptyState icon="📅" title="Sin reuniones" description="Programá tu primera reunión para dar seguimiento a los clientes." action={<button className="btn btn-primary" onClick={() => { setForm((current) => ({ ...current, clientId: clientFilter })); setModalOpen(true); }}>+ Nueva Reunión</button>} />
       ) : (
         <div className="meeting-list">
           {sorted.map((meeting) => {
@@ -225,7 +226,7 @@ export function MeetingsPage() {
           })}
         </div>
       )}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Reunion">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Reunión">
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Cliente</label>

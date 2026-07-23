@@ -258,7 +258,7 @@ export function SettingsPage() {
         <div>
           <span className="page-eyebrow">CONFIGURACIÓN CENTRAL</span>
           <h1>Base simple para operar reservas y conversiones.</h1>
-          <p>Administra identidad, accesos, empresas, Meta Pixel y Cloudinary sin abrir módulos que todavía no corresponden a Fase 1.</p>
+          <p>Administrá identidad, accesos, empresas, Meta Pixel y Cloudinary.</p>
         </div>
         <div className="settings-hero-mark" aria-hidden="true"><span>LV</span><small>control</small></div>
       </section>

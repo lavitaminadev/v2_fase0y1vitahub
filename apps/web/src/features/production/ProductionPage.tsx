@@ -4,6 +4,7 @@ import { api } from '../../core/api';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { EmptyState } from '../../shared/EmptyState';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
@@ -94,6 +95,7 @@ export function ProductionPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [form, setForm] = useState<PieceFormState>(EMPTY_FORM);
   const [versionForm, setVersionForm] = useState({ fileName: '', driveFileId: '' });
+  const [deliverPieceId, setDeliverPieceId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const role = currentUser?.role ?? '';
   const canAssign = ['admin', 'art_director', 'operations_director'].includes(role);
@@ -175,10 +177,11 @@ export function ProductionPage() {
     {canAssign && piece.status !== 'delivered' && <button className="btn btn-sm btn-outline" onClick={() => { setFeedbackMessage(null); setAssignModal({ open: true, pieceId: piece.id }); }}>{piece.assignedTo ? 'Reasignar' : 'Asignar'}</button>}
     {canStart && piece.status === 'assigned' && <button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'start' })}>Iniciar</button>}
     {canStart && piece.status === 'correction' && <button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'start' })}>Retomar</button>}
-    {canSubmitVersion && piece.status === 'in_progress' && <button className="btn btn-sm btn-primary" onClick={() => { setFeedbackMessage(null); setVersionForm({ fileName: '', driveFileId: '' }); setVersionModal({ open: true, pieceId: piece.id }); }}>Enviar versión</button>}
-    {canSendToClient && piece.status === 'internal_review' && <button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'send-to-client' })}>Enviar cliente</button>}
+    {canSubmitVersion && piece.status === 'in_progress' && <button className="btn btn-sm btn-primary" title="Subir archivos y notificar al revisor" onClick={() => { setFeedbackMessage(null); setVersionForm({ fileName: '', driveFileId: '' }); setVersionModal({ open: true, pieceId: piece.id }); }}>Enviar versión</button>}
+    {canSendToClient && piece.status === 'internal_review' && <button className="btn btn-sm btn-outline" title="Enviar al cliente para validación" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'send-to-client' })}>Enviar cliente</button>}
     {piece.status === 'client_validation' && <Link className="btn btn-sm btn-outline" to="/approvals">Ver aprobación</Link>}
-    {canDeliver && piece.status === 'approved' && <button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'deliver' })}>Entregar</button>}
+    {canDeliver && piece.status === 'client_validation' && <button className="btn btn-sm btn-primary" title="Aprobar la entrega final" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'approve' })}>Aprobar</button>}
+    {canDeliver && piece.status === 'approved' && <button className="btn btn-sm btn-outline" title="Marcar como entregado y cerrar el ciclo" onClick={() => setDeliverPieceId(piece.id)}>Entregar</button>}
   </div>;
 
   const assignMutation = useMutation({
@@ -203,13 +206,14 @@ export function ProductionPage() {
   });
 
   const transitionMutation = useMutation({
-    mutationFn: ({ pieceId, action }: { pieceId: string; action: 'start' | 'send-to-client' | 'deliver' }) =>
+    mutationFn: ({ pieceId, action }: { pieceId: string; action: 'start' | 'send-to-client' | 'deliver' | 'approve' }) =>
       api.post(`/production/pieces/${pieceId}/${action}`),
     onSuccess: (_data, variables) => {
       const messages: Record<string, string> = {
         start: 'La pieza paso a En progreso.',
         'send-to-client': 'La pieza fue enviada a validacion del cliente.',
         deliver: 'La pieza fue marcada como entregada.',
+        approve: 'La pieza fue aprobada.',
       };
       void refreshPieces(messages[variables.action]);
     },
@@ -234,8 +238,8 @@ export function ProductionPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Produccion</h1>
-          <p className="page-subtitle">Flujo alineado al Maestro: backlog, asignacion, progreso, revision interna, validacion cliente, correccion, aprobado y entregado.</p>
+          <h1>Producción</h1>
+          <p className="page-subtitle">Gestión visual del flujo de piezas.</p>
         </div>
         <div className="portal-item-actions">
           <div className="view-switch" role="group" aria-label="Vista de produccion">
@@ -271,9 +275,10 @@ export function ProductionPage() {
 
       {(pieces?.length ?? 0) === 0 ? (
         <EmptyState
-          icon="[]"
-          title="Sin piezas en produccion"
-          description="Todavia no hay piezas activas para este filtro."
+          icon="🎨"
+          title="Sin piezas en producción"
+          description="Todavía no hay piezas activas para este filtro."
+          action={canCreate ? <button className="btn btn-primary" onClick={() => { setFeedbackMessage(null); setForm((current) => ({ ...current, clientId: clientFilter })); setCreateModalOpen(true); }}>Nueva pieza</button> : undefined}
         />
       ) : viewMode === 'board' ? (
         <div className="production-board">
@@ -461,6 +466,16 @@ export function ProductionPage() {
           </button>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(deliverPieceId)}
+        title="Entregar pieza"
+        description="Al marcar como entregada, se cerrará el ciclo de esta pieza. Esta acción no se puede deshacer."
+        confirmLabel="Entregar"
+        pending={transitionMutation.isPending}
+        onClose={() => setDeliverPieceId(null)}
+        onConfirm={() => { if (deliverPieceId) { transitionMutation.mutate({ pieceId: deliverPieceId, action: 'deliver' }, { onSuccess: () => setDeliverPieceId(null) }); } }}
+      />
     </div>
   );
 }

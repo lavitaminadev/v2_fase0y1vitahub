@@ -77,6 +77,7 @@ export function Layout(): JSX.Element {
                     to={item.path}
                     className={`nav-item ${active ? 'active' : ''}`}
                     onClick={closeSidebar}
+                    aria-label={item.label}
                   >
                     <NavGlyph label={item.label} />
                     <span className="nav-label">{item.label}</span>
@@ -101,7 +102,7 @@ export function Layout(): JSX.Element {
           </button>
         </div>
       </aside>
-      {sidebarOpen && <button className="sidebar-backdrop" onClick={closeSidebar} aria-label="Cerrar navegacion" />}
+      {sidebarOpen && <button className="sidebar-backdrop" onClick={closeSidebar} aria-label="Cerrar navegación" />}
       <div className="app-workspace">
         <header className="workspace-header">
           <div className="workspace-heading"><span>Espacio de trabajo</span><strong>{currentItem?.label ?? 'VITAHUB'}</strong></div>

@@ -4,8 +4,10 @@ import { api } from '../../core/api';
 import { useAuth } from '../../core/auth';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { matchesSearch } from '../../shared/search';
+import { EmptyState } from '../../shared/EmptyState';
 import { statusLabel } from '../../shared/status-labels';
 
 interface ClientOption { id: string; name: string }
@@ -33,6 +35,7 @@ export function AudiovisualPage() {
   const [sessionOpen, setSessionOpen] = useState(false);
   const [moodboardForm, setMoodboardForm] = useState(EMPTY_MOODBOARD);
   const [sessionForm, setSessionForm] = useState(EMPTY_SESSION);
+  const [confirmDialog, setConfirmDialog] = useState<{ type: 'session-confirm' | 'session-complete' | 'moodboard-approve' | null; id: string | null }>({ type: null, id: null });
 
   const canManageMoodboards = ['admin', 'creative_director', 'av_director'].includes(user?.role ?? '');
   const canManageSessions = ['admin', 'operations_director', 'av_director'].includes(user?.role ?? '');
@@ -154,11 +157,11 @@ export function AudiovisualPage() {
               <div className="portal-item-actions">{(item.assignedTeam ?? []).map((id) => <span className="date-chip" key={id}>{userMap.get(id) ?? (id === user?.id ? 'Tú' : 'Equipo asignado')}</span>)}</div>
             </div>
             {canManageSessions && <div className="portal-item-actions">
-              {item.status !== 'confirmed' && item.status !== 'completed' && <button className="btn btn-sm btn-outline" onClick={() => updateSession.mutate({ id: item.id, status: 'confirmed' })}>Confirmar</button>}
-              {item.status !== 'completed' && <button className="btn btn-sm btn-primary" onClick={() => updateSession.mutate({ id: item.id, status: 'completed' })}>Completar</button>}
+              {item.status !== 'confirmed' && item.status !== 'completed' && <button className="btn btn-sm btn-outline" onClick={() => setConfirmDialog({ type: 'session-confirm', id: item.id })}>Confirmar</button>}
+              {item.status !== 'completed' && <button className="btn btn-sm btn-primary" onClick={() => setConfirmDialog({ type: 'session-complete', id: item.id })}>Completar</button>}
             </div>}
           </article>
-        ))}</div> : <div className="alert alert-info">No hay sesiones para estos filtros.</div>
+        ))}</div> : <EmptyState icon="🎬" title="Sin sesiones" description="No se encontraron sesiones con los filtros aplicados." action={canManageSessions ? <button className="btn btn-primary" type="button" onClick={() => setSessionOpen(true)}>+ Nueva sesión</button> : undefined} />
       ) : moodboardsLoading ? <LoadingSpinner text="Cargando moodboards..." /> : (
         moodboards.length ? <div className="objective-grid">{moodboards.map((item) => (
           <article className="objective-card" key={item.id}>
@@ -168,10 +171,10 @@ export function AudiovisualPage() {
             <small>{item.images?.length ?? 0} referencias visuales</small>
             {canManageMoodboards && <div className="objective-controls">
               {item.status === 'draft' && <button className="btn btn-sm btn-outline" onClick={() => updateMoodboard.mutate({ id: item.id, status: 'review' })}>Enviar a revisión</button>}
-              {item.status !== 'approved' && <button className="btn btn-sm btn-primary" onClick={() => updateMoodboard.mutate({ id: item.id, status: 'approved' })}>Aprobar</button>}
+              {item.status !== 'approved' && <button className="btn btn-sm btn-primary" onClick={() => setConfirmDialog({ type: 'moodboard-approve', id: item.id })}>Aprobar</button>}
             </div>}
           </article>
-        ))}</div> : <div className="alert alert-info">No hay moodboards para estos filtros.</div>
+        ))}</div> : <EmptyState icon="🎨" title="Sin moodboards" description="No se encontraron moodboards con los filtros aplicados." action={canManageMoodboards ? <button className="btn btn-outline" type="button" onClick={() => setMoodboardOpen(true)}>+ Moodboard</button> : undefined} />
       )}
       {(updateMoodboard.error || updateSession.error) && <div className="alert alert-error">No fue posible actualizar el estado. Intenta nuevamente.</div>}
 
@@ -202,6 +205,33 @@ export function AudiovisualPage() {
           <button className="btn btn-primary btn-block" disabled={createSession.isPending}>{createSession.isPending ? 'Creando...' : 'Crear sesión'}</button>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirmDialog.type)}
+        title={
+          confirmDialog.type === 'session-confirm' ? 'Confirmar sesión' :
+          confirmDialog.type === 'session-complete' ? 'Completar sesión' :
+          'Aprobar moodboard'
+        }
+        description={
+          confirmDialog.type === 'session-confirm' ? 'La sesión quedará confirmada en la agenda audiovisual.' :
+          confirmDialog.type === 'session-complete' ? 'La sesión se marcará como completada. Esta acción no se puede deshacer.' :
+          'El moodboard quedará aprobado como referencia visual definitiva.'
+        }
+        confirmLabel={
+          confirmDialog.type === 'session-confirm' ? 'Confirmar' :
+          confirmDialog.type === 'session-complete' ? 'Completar' :
+          'Aprobar'
+        }
+        pending={updateSession.isPending || updateMoodboard.isPending}
+        onClose={() => setConfirmDialog({ type: null, id: null })}
+        onConfirm={() => {
+          if (!confirmDialog.id) return;
+          if (confirmDialog.type === 'session-confirm') updateSession.mutate({ id: confirmDialog.id, status: 'confirmed' }, { onSuccess: () => setConfirmDialog({ type: null, id: null }) });
+          else if (confirmDialog.type === 'session-complete') updateSession.mutate({ id: confirmDialog.id, status: 'completed' }, { onSuccess: () => setConfirmDialog({ type: null, id: null }) });
+          else updateMoodboard.mutate({ id: confirmDialog.id, status: 'approved' }, { onSuccess: () => setConfirmDialog({ type: null, id: null }) });
+        }}
+      />
     </div>
   );
 }

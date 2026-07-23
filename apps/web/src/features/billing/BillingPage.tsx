@@ -4,6 +4,7 @@ import { api } from '../../core/api';
 import { DataTable } from '../../shared/DataTable';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { StatusBadge } from '../../shared/StatusBadge';
+import { EmptyState } from '../../shared/EmptyState';
 
 interface Invoice {
   id: string;
@@ -51,7 +52,7 @@ export function BillingPage() {
       <div className="section">
         <h2>Extras por valorizar</h2>
         <p className="page-subtitle">La cuarta correccion y las siguientes quedan detenidas aqui antes de emitir una factura.</p>
-        {chargeNotes.length === 0 ? <div className="alert alert-info">No hay cobros adicionales pendientes.</div> : (
+        {chargeNotes.length === 0 ? <EmptyState icon="💰" title="Sin cobros pendientes" description="No hay cobros adicionales por valorizar en este momento." /> : (
           <div className="table-wrapper"><table className="data-table"><thead><tr><th>Motivo</th><th>Estado</th><th>Monto CLP</th><th>Accion</th></tr></thead><tbody>
             {chargeNotes.map((note) => <tr key={note.id}>
               <td>{note.reason}</td><td><StatusBadge status={note.status} /></td>

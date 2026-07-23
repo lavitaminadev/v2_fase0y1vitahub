@@ -169,7 +169,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
 
   return <div className="page reservation-module">
     <section className="reservation-hero">
-      <div><span className="reservation-brand">VITAHUB RESERVAS Y FORMULARIOS</span><h1>Captura, agenda y mide en un solo flujo.</h1><p>Crea formularios y encuestas con campos arrastrables, publícalos por empresa y convierte cada respuesta en información operativa.</p></div>
+      <div><span className="reservation-brand">VITAHUB RESERVAS Y FORMULARIOS</span><h1>Captura, agenda y mide en un solo flujo.</h1><p>Creá formularios con campos arrastrables y publicalos por empresa.</p></div>
       {!clientView && <button className="btn reservation-cta" onClick={() => { setFormData((current) => ({ ...current, clientId: clientFilter })); setCreateOpen(true); }}>Crear formulario</button>}
     </section>
     <nav className="reservation-tabs" aria-label="Secciones de reservas">

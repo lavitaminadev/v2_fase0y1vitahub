@@ -31,9 +31,7 @@ export function IntegrationsPage() {
   return (
     <div className="page">
       <h1>Integraciones de conversiones</h1>
-      <p className="page-subtitle">
-        En Fase 1 dejamos visible solo lo que conecta campaña, reserva y conversión real: Meta Pixel + CAPI por empresa y Cloudinary global para assets.
-      </p>
+      <p className="page-subtitle">Conecta tus campañas de Meta con las reservas para medir conversiones reales.</p>
 
       <h2>Meta Pixel y Conversions API</h2>
       <MetaConnectCard integration={metaIntegration} />
@@ -47,16 +45,14 @@ export function IntegrationsPage() {
             <div className="integration-provider">Logos, fondos e imágenes de formularios públicos</div>
           </div>
         </div>
-        <p className="page-subtitle">
-          Cloudinary se configura una sola vez para VitaHub. Cada formulario guarda sus URLs públicas y, si falla una imagen, la experiencia pública debe seguir funcionando con colores o degradado.
-        </p>
+        <p className="page-subtitle">Configura Cloudinary para subir logos e imágenes de fondo. Las credenciales son tuyas.</p>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setCloudinaryOpen(true)}>
           Configurar Cloudinary
         </button>
       </section>
 
       <div className="alert alert-info">
-        Google Ads, Analytics, Calendar, Drive y otras integraciones quedan fuera del flujo visible de Fase 1. La medición activa por ahora vive en Pixel + CAPI.
+        Google Ads, Analytics, Calendar y Drive estarán disponibles en futuras fases.
       </div>
 
       <CloudinaryConfigModal open={cloudinaryOpen} onClose={() => setCloudinaryOpen(false)} />
