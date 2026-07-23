@@ -23,6 +23,17 @@ export class MetaConversionOutboxService {
     return this.outbox.save(this.outbox.create({ organizationId, pixelId, eventId, eventData: event as any }));
   }
 
+  async stats(): Promise<{ pending: number; retry: number; failed: number; processed: number; total: number }> {
+    const [pending, retry, failed, processed, total] = await Promise.all([
+      this.outbox.count({ where: { status: 'pending' } }),
+      this.outbox.count({ where: { status: 'retry' } }),
+      this.outbox.count({ where: { status: 'failed' } }),
+      this.outbox.count({ where: { status: 'processed' } }),
+      this.outbox.count(),
+    ]);
+    return { pending, retry, failed, processed, total };
+  }
+
   async processPending(limit = 25): Promise<{ processed: number; failed: number }> {
     const now = new Date();
     const items = await this.outbox.find({

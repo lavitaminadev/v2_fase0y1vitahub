@@ -9,8 +9,8 @@ import type { Request } from 'express';
 @Public() @ApiTags('Reservas públicas') @Controller('public/reservations')
 export class PublicReservationsController {
   constructor(private service: ReservationsService) {}
-  @Get(':slug') form(@Param('slug') slug: string) { return this.service.publicForm(slug); }
-  @Get(':slug/slots') slots(@Param('slug') slug: string, @Query('from') from: string, @Query('days') days?: string, @Query('serviceId') serviceId?: string, @Query('resourceId') resourceId?: string) { return this.service.slots(slug, from, Number(days || 14), serviceId, resourceId); }
+  @Get(':slug') @Throttle({ default: { limit: 60, ttl: 60000 } }) form(@Param('slug') slug: string) { return this.service.publicForm(slug); }
+  @Get(':slug/slots') @Throttle({ default: { limit: 120, ttl: 60000 } }) slots(@Param('slug') slug: string, @Query('from') from: string, @Query('days') days?: string, @Query('serviceId') serviceId?: string, @Query('resourceId') resourceId?: string) { return this.service.slots(slug, from, Number(days || 14), serviceId, resourceId); }
   @Post(':slug/events') @Throttle({ default: { limit: 30, ttl: 60000 } }) event(@Param('slug') slug: string, @Body() dto: PublicFormEventDto) { return this.service.trackPublicEvent(slug, dto); }
   @Post(':slug/coupon-validate') @Throttle({ default: { limit: 30, ttl: 60000 } }) async validateCoupon(@Param('slug') slug: string, @Body('code') code: string) {
     if (!code) throw new BadRequestException('Código requerido');

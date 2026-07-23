@@ -160,9 +160,10 @@ export class MetaClientPixelService {
     };
   }
 
-  async resolveByPixel(organizationId: string, pixelId: string) {
+  async resolveByPixel(organizationId: string, pixelId: string): Promise<string | undefined> {
     const integration = await this.organizationIntegration(organizationId);
     const record = integration ? Object.values(this.records(integration)).find((item) => item.pixelId === pixelId) : undefined;
-    return process.env.META_CONVERSIONS_ACCESS_TOKEN || revealSecret(record?.accessToken);
+    const token = process.env.META_CONVERSIONS_ACCESS_TOKEN || (record?.accessToken ? revealSecret(record.accessToken) : undefined);
+    return token || undefined;
   }
 }

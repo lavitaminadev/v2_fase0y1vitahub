@@ -25,6 +25,9 @@
     "lint:web": "cd apps/web && npm run lint",
     "lint:shared": "cd packages/shared && npm run lint",
     "test:api": "cd apps/api && npm run test",
+    "test:web": "cd apps/web && npm run test",
+    "test": "npm run test:api && npm run test:web",
+    "validate:env": "node scripts/validate-env.js",
     "deploy:web:cpanel": "powershell -NoProfile -Command \"$dest = Join-Path $HOME 'public_html'; New-Item -ItemType Directory -Force -Path $dest | Out-Null; if (Test-Path (Join-Path $dest 'assets')) { Remove-Item -Recurse -Force (Join-Path $dest 'assets') }; Copy-Item -Recurse -Force apps/web/dist/* $dest\"",
     "migration:run": "cd apps/api && npx typeorm-ts-node-commonjs migration:run -d src/infrastructure/database-data-source.ts",
     "migration:revert": "cd apps/api && npx typeorm-ts-node-commonjs migration:revert -d src/infrastructure/database-data-source.ts"

@@ -48,6 +48,7 @@ import { AccountCyclesModule } from './modules/account-cycles/account-cycles.mod
 import { ObjectivesModule } from './modules/objectives/objectives.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { AccountAccessModule } from './core/client-scope/account-access.module';
+import { CronModule } from './core/cron/cron.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { PodsModule } from './modules/pods/pods.module';
 
@@ -118,6 +119,7 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
     ReservationsModule,
     WorkflowsModule,
     PodsModule,
+    CronModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

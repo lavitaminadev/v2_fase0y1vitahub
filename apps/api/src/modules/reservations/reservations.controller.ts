@@ -134,7 +134,7 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async deleteBlock(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const scope = await this.scope(req);
-    return this.service.removeBlock(req.organizationId, id, scope.clientId, scope.clientIds);
+    return this.service.removeBlock(req.organizationId, id, scope.clientId, scope.clientIds, req.user.id);
   }
 
   @Post('manual')
@@ -199,9 +199,9 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async exportCsv(@Req() req: AuthenticatedRequest, @Query() query: ReservationScopeDto, @Res() res: Response) {
     const scope = await this.requestedScope(req, query.clientId);
-    const csv = await this.service.exportCsv(req.organizationId, scope.clientId, scope.clientIds);
+    const csv = await this.service.exportCsv(req.organizationId, scope.clientId, scope.clientIds, query.from, query.to, query.limit);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="reservas.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send(`\uFEFF${csv}`);
   }
 
@@ -209,6 +209,6 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async metrics(@Req() req: AuthenticatedRequest, @Query() query: ReservationScopeDto) {
     const scope = await this.requestedScope(req, query.clientId);
-    return this.service.metrics(req.organizationId, scope.clientId, scope.clientIds);
+    return this.service.metrics(req.organizationId, scope.clientId, scope.clientIds, query.from || '30');
   }
 }

@@ -100,4 +100,9 @@ export class UpdateCouponDto {
   @IsOptional() @IsArray() validDaysOfWeek?: number[];
 }
 
-export class ReservationScopeDto { @IsOptional() @IsUUID() clientId?: string; }
+export class ReservationScopeDto {
+  @IsOptional() @IsUUID() clientId?: string;
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) limit?: number;
+}

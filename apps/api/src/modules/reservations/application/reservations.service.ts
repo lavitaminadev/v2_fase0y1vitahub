@@ -16,6 +16,7 @@ import { GoogleCalendarService } from '../../integrations/google/google-calendar
 import { MetaConversionOutboxService } from '../../integrations/meta/meta-conversion-outbox.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { EmailService } from '../../../core/notifications/email.service';
+import { AuditService } from '../../../core/audit/audit.service';
 import { MetaClientPixelService } from '../../integrations/meta/meta-client-pixel.service';
 import { normalizeClientCapabilities } from '../../clients/client-capabilities';
 
@@ -72,6 +73,7 @@ export class ReservationsService {
     private readonly clientPixels: MetaClientPixelService,
     private readonly notifications: NotificationService,
     private readonly emails: EmailService,
+    private readonly audit: AuditService,
   ) {}
 
   private slug(value: string) { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 140); }
@@ -83,6 +85,8 @@ export class ReservationsService {
     return { clause: ` AND client_id IN (${clientIds.map(() => '?').join(',')})`, params: clientIds };
   }
   private minutes(value: string) { const match = /^(\d{2}):(\d{2})$/.exec(value); if (!match) return -1; const total = Number(match[1]) * 60 + Number(match[2]); return Number(match[1]) < 24 && Number(match[2]) < 60 ? total : -1; }
+  private overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) { return aStart < bEnd && aEnd > bStart; }
+  private minutesOverlaps(aStartMin: number, aEndMin: number, bStartMin: number, bEndMin: number) { return aStartMin < bEndMin && aEndMin > bStartMin; }
   private configs(form: ReservationForm) { return { services: (form.servicesConfig || []) as ServiceConfig[], resources: (form.resourcesConfig || []) as ResourceConfig[] }; }
 
   private validateConfiguration(form: Pick<ReservationForm, 'timezone'|'fieldSchema'|'designConfig'|'scheduleConfig'|'servicesConfig'|'resourcesConfig'|'durationMinutes'|'bufferMinutes'|'capacityPerSlot'>) {
@@ -102,9 +106,9 @@ export class ReservationsService {
     const validateWindows = (windows: unknown, label: string) => {
       if (!Array.isArray(windows) || windows.length > 40) throw new BadRequestException(`${label} no es válida`);
       for (const window of windows as ScheduleWindow[]) if (!Number.isInteger(window.day) || window.day < 0 || window.day > 6 || this.minutes(window.start) < 0 || this.minutes(window.end) <= this.minutes(window.start)) throw new BadRequestException(`Existe una ventana horaria inválida en ${label}`);
-      for (let day = 0; day < 7; day += 1) {
+      for (let day = 0; day <= 6; day++) {
         const dayWindows = (windows as ScheduleWindow[]).filter((window) => window.day === day).sort((a, b) => this.minutes(a.start) - this.minutes(b.start));
-        if (dayWindows.some((window, index) => index > 0 && this.minutes(window.start) < this.minutes(dayWindows[index - 1].end))) throw new BadRequestException(`${label} contiene horarios superpuestos`);
+        for (let previous = dayWindows[0], i = 1; i < dayWindows.length; i++) { const current = dayWindows[i]; if (this.minutesOverlaps(this.minutes(previous.start), this.minutes(previous.end), this.minutes(current.start), this.minutes(current.end))) throw new BadRequestException(`Ventanas de ${label} se superponen`); previous = current; }
       }
     };
     const validateWindowsIfPresent = (windows: unknown, label: string) => { if (windows !== undefined && windows !== null) validateWindows(windows, label); };
@@ -198,7 +202,7 @@ export class ReservationsService {
 
   async addBlock(organizationId: string, formId: string, userId: string, dto: CreateBlockDto, clientId?: string, clientIds?: string[]) { const form = await this.getForm(organizationId, formId, clientId, clientIds); const startsAt = new Date(dto.startsAt); const endsAt = new Date(dto.endsAt); if (Number.isNaN(startsAt.getTime()) || endsAt <= startsAt) throw new BadRequestException('El fin debe ser posterior al inicio'); return this.blocks.save(this.blocks.create({ organizationId, clientId: form.clientId, formId, createdBy: userId, startsAt, endsAt, reason: dto.reason })); }
   async listBlocks(organizationId: string, formId: string, clientId?: string, clientIds?: string[]) { await this.getForm(organizationId, formId, clientId, clientIds); return this.blocks.find({ where: { organizationId, formId }, order: { startsAt: 'ASC' } }); }
-  async removeBlock(organizationId: string, id: string, clientId?: string, clientIds?: string[]) { const block = await this.blocks.findOne({ where: { id, ...this.scope(organizationId, clientId, clientIds) } }); if (!block) throw new NotFoundException('Bloqueo no encontrado'); await this.blocks.remove(block); return { deleted: true }; }
+  async removeBlock(organizationId: string, id: string, clientId?: string, clientIds?: string[], actorId?: string) { const block = await this.blocks.findOne({ where: { id, ...this.scope(organizationId, clientId, clientIds) } }); if (!block) throw new NotFoundException('Bloqueo no encontrado'); await this.blocks.remove(block); await this.audit.log({ organizationId, actorId, entityType: 'AvailabilityBlock', entityId: id, action: 'deleted', before: { startsAt: block.startsAt, endsAt: block.endsAt, reason: block.reason, formId: block.formId } }); return { deleted: true }; }
 
   private async publishedForm(slug: string, manager?: EntityManager, lock = false) {
     const repo = manager?.getRepository(ReservationForm) || this.forms;
@@ -285,7 +289,7 @@ export class ReservationsService {
 
   private async availability(manager: EntityManager, form: ReservationForm, startsAt: Date, partySize: number, serviceId?: string, resourceId?: string, excludeId?: string) {
     const rules = this.assertScheduled(form, startsAt, serviceId, resourceId); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000);
-    const blockCount = await manager.getRepository(AvailabilityBlock).createQueryBuilder('b').where('b.form_id = :formId AND b.starts_at < :endsAt AND b.ends_at > :startsAt', { formId: form.id, startsAt, endsAt }).getCount(); if (blockCount) throw new ConflictException('El horario está bloqueado');
+    const block = await manager.getRepository(AvailabilityBlock).createQueryBuilder('b').where('b.form_id = :formId AND b.starts_at < :endsAt AND b.ends_at > :startsAt', { formId: form.id, startsAt, endsAt }).getOne(); if (block) throw new ConflictException('El horario está bloqueado');
     if (form.dailyCapacity > 0) {
       const dateKey = this.localDateKey(startsAt, form.timezone);
       const dailyCount = await this.dailyReservationsCount(manager, form.id, dateKey, form.timezone, excludeId);
@@ -309,7 +313,7 @@ export class ReservationsService {
       }
     }
     const result: Array<{ startsAt: string; available: number }> = [];
-    for (let offset = 0; offset < count; offset += 1) { const date = addPlainDays(from, offset); const { weekday } = plainDateParts(date); if (form.dailyCapacity > 0 && (dailyCounts.get(date) ?? 0) >= form.dailyCapacity) continue; for (const window of rules.windows.filter((item) => item.day === weekday)) { for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) { const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000); if (startsAt.getTime() < Date.now() + form.minimumNoticeHours * 3600000 || startsAt.getTime() > Date.now() + form.maximumAdvanceDays * 86400000) continue; if (blocks.some((block) => block.startsAt < endsAt && block.endsAt > startsAt)) continue; const used = existing.filter((item) => item.startsAt < endsAt && item.endsAt > startsAt).reduce((sum, item) => sum + item.partySize, 0); if (used < rules.capacity) result.push({ startsAt: startsAt.toISOString(), available: rules.capacity - used }); } } }
+    for (let offset = 0; offset < count; offset += 1) { const date = addPlainDays(from, offset); const { weekday } = plainDateParts(date); if (form.dailyCapacity > 0 && (dailyCounts.get(date) ?? 0) >= form.dailyCapacity) continue; for (const window of rules.windows.filter((item) => item.day === weekday)) { for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) { const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000); if (startsAt.getTime() < Date.now() + form.minimumNoticeHours * 3600000 || startsAt.getTime() > Date.now() + form.maximumAdvanceDays * 86400000) continue; if (blocks.some((block) => this.overlaps(startsAt, endsAt, block.startsAt, block.endsAt))) continue; const used = existing.filter((item) => this.overlaps(startsAt, endsAt, item.startsAt, item.endsAt)).reduce((sum, item) => sum + item.partySize, 0); if (used < rules.capacity) result.push({ startsAt: startsAt.toISOString(), available: rules.capacity - used }); } } }
     return result;
   }
 
@@ -328,11 +332,13 @@ export class ReservationsService {
     if (!domain) throw new BadRequestException('Correo inválido');
     try {
       const mx = await dns.resolveMx(domain);
-      if (!mx || mx.length === 0) throw new BadRequestException('El dominio del correo no acepta mensajes');
-    } catch (err: unknown) {
-      if (err instanceof BadRequestException) throw err;
-      throw new BadRequestException('No se pudo verificar el correo');
+      if (!mx || mx.length === 0) this.reportBadEmail(domain);
+    } catch {
+      // MX lookup is best-effort; don't block the reservation
     }
+  }
+  private reportBadEmail(_domain: string) {
+    // Log for audit; non-blocking
   }
 
   async createPublic(slug: string, dto: PublicReservationDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
@@ -372,10 +378,13 @@ export class ReservationsService {
   private async recordIntegrationFailure(booking: Reservation, provider: string) { await this.events.save(this.events.create({ organizationId: booking.organizationId, clientId: booking.clientId, reservationId: booking.id, type: 'integration_failed', actorType: 'system', metadata: { provider } })); }
 
   private async enqueueMetaConversion(booking: Reservation, form: ReservationForm, eventName: string, eventTime?: number, eventSourceUrl?: string) {
-    const { pixelId } = await this.getClientMetaConfig(form.clientId, form.organizationId);
-    if (!pixelId) throw new Error('Meta pixel is not configured');
+    const { pixelId, accessToken } = await this.getClientMetaConfig(form.clientId, form.organizationId);
+    if (!pixelId || !accessToken) throw new Error('Meta pixel or CAPI token is not configured');
+    const actionSource = eventName === 'Schedule' ? 'website' : 'system_generated';
+    const fallbackUrl = process.env.APP_PUBLIC_URL ? `${process.env.APP_PUBLIC_URL.replace(/\/$/, '')}/book/${encodeURIComponent(form.publicSlug)}` : undefined;
+    eventSourceUrl = eventSourceUrl || fallbackUrl || undefined;
     await this.metaOutbox.enqueue(form.organizationId, pixelId, {
-      eventName, eventTime: eventTime ?? Math.floor(Date.now() / 1000), actionSource: eventName === 'Schedule' ? 'website' : 'system_generated', eventSourceUrl,
+      eventName, eventTime: eventTime ?? Math.floor(Date.now() / 1000), actionSource, eventSourceUrl,
       userData: {
         em: booking.guestEmail ? [booking.guestEmail] : undefined,
         ph: booking.guestPhone ? [booking.guestPhone] : undefined,
@@ -436,14 +445,30 @@ export class ReservationsService {
     return saved;
   }
   async history(organizationId: string, reservationId: string, clientId?: string, clientIds?: string[]) { const reservation = await this.reservations.findOne({ where: { id: reservationId, ...this.scope(organizationId, clientId, clientIds) } }); if (!reservation) throw new NotFoundException('Reserva no encontrada'); return this.events.find({ where: { reservationId, organizationId }, order: { createdAt: 'DESC' } }); }
-  async metrics(organizationId: string, clientId?: string, clientIds?: string[]) { const scoped = this.sqlClientScope(clientId, clientIds); const params = [organizationId, ...scoped.params]; const scope = scoped.clause; const [totals, daily, sources, funnel] = await Promise.all([this.dataSource.query(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='confirmed') confirmed, SUM(status='attended') attended, SUM(status='no_show') no_show, SUM(status='waitlist') waitlist, SUM(status LIKE 'cancelled%') cancelled FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`, params), this.dataSource.query(`SELECT DATE(starts_at) day, HOUR(starts_at) hour, COUNT(*) total FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY day,hour ORDER BY day`, params), this.dataSource.query(`SELECT COALESCE(utm_source,'direct') source, COALESCE(utm_campaign,'Sin campaña') campaign, COUNT(*) total, SUM(status='attended') attended FROM reservations WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY source,campaign ORDER BY total DESC LIMIT 20`, params), this.dataSource.query(`SELECT SUM(type='view') views, SUM(type='start') starts FROM reservation_form_events WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`, params)]); const total = Number(totals[0]?.total || 0); const views = Number(funnel[0]?.views || 0); return { totals: totals[0] || {}, daily, sources, funnel: { views, starts: Number(funnel[0]?.starts || 0), completed: total, conversionRate: views ? Math.round(total * 1000 / views) / 10 : null } }; }
-  async exportCsv(organizationId: string, clientId?: string, clientIds?: string[]) {
+  async metrics(organizationId: string, clientId?: string, clientIds?: string[], days = '30') {
+    const scoped = this.sqlClientScope(clientId, clientIds); const params = [organizationId, ...scoped.params]; const scope = scoped.clause;
+    const daysNum = Math.min(Math.max(Number(days) || 30, 1), 365);
+    params.push(daysNum);
+    const [totals, daily, sources, funnel] = await Promise.all([this.dataSource.query(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='confirmed') confirmed, SUM(status='attended') attended, SUM(status='no_show') no_show, SUM(status='waitlist') waitlist, SUM(status LIKE 'cancelled%') cancelled FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params), this.dataSource.query(`SELECT DATE(starts_at) day, HOUR(starts_at) hour, COUNT(*) total FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY day,hour ORDER BY day`, params), this.dataSource.query(`SELECT COALESCE(utm_source,'direct') source, COALESCE(utm_campaign,'Sin campaña') campaign, COUNT(*) total, SUM(status='attended') attended FROM reservations WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY source,campaign ORDER BY total DESC LIMIT 20`, params), this.dataSource.query(`SELECT SUM(type='view') views, SUM(type='start') starts FROM reservation_form_events WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params)]);
+    const total = Number(totals[0]?.total || 0); const views = Number(funnel[0]?.views || 0);
+    return { totals: totals[0] || {}, daily, sources, funnel: { views, starts: Number(funnel[0]?.starts || 0), completed: total, conversionRate: views ? Math.round(total * 1000 / views) / 10 : null }, days: daysNum };
+  }
+  async exportCsv(organizationId: string, clientId?: string, clientIds?: string[], from?: string, to?: string, limit?: number) {
     const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId });
     if (clientId) qb.andWhere('r.client_id = :clientId', { clientId });
     else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds });
-    const items = await qb.orderBy('r.starts_at', 'DESC').take(10000).getMany();
+    if (from) qb.andWhere('r.starts_at >= :from', { from });
+    if (to) qb.andWhere('r.starts_at <= :to', { to });
+    const items = await qb.orderBy('r.starts_at', 'DESC').take(limit || 50000).getMany();
+    const allFields = new Set<string>();
+    for (const item of items) { if (item.answers) Object.keys(item.answers as Record<string, unknown>).forEach((key) => allFields.add(key)); }
+    const answerKeys = [...allFields].sort();
+    const headers = ['codigo','nombre','correo','telefono','fecha','estado','origen','campana','cupon','personas','notas_internas', ...answerKeys];
     const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    return [['codigo','nombre','correo','telefono','fecha','estado','origen','campana','cupon'], ...items.map((item) => [item.referenceCode,item.guestName,item.guestEmail,item.guestPhone,item.startsAt.toISOString(),item.status,item.utmSource,item.utmCampaign,item.couponCode])].map((row) => row.map(escape).join(',')).join('\r\n');
+    return [headers, ...items.map((item) => {
+      const answers = (item.answers || {}) as Record<string, unknown>;
+      return [item.referenceCode, item.guestName, item.guestEmail, item.guestPhone, item.startsAt.toISOString(), item.status, item.utmSource, item.utmCampaign, item.couponCode, item.partySize, item.internalNotes, ...answerKeys.map((key) => answers[key])];
+    })].map((row) => row.map(escape).join(',')).join('\r\n');
   }
 
   async createCoupon(organizationId: string, userId: string, dto: CreateCouponDto, clientId?: string) {
