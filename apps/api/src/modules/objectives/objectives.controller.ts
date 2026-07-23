@@ -1,4 +1,6 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Put, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { AuthenticatedRequest } from '@shared/types/request';
@@ -9,6 +11,9 @@ import { Client } from '../clients/client.entity';
 import { User } from '../users/user.entity';
 import { CreateObjectiveDto, UpdateObjectiveDto } from './dto/objective.dto';
 
+@ApiTags('Objetivos')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
 @Controller('objectives')
 export class ObjectivesController {
   constructor(

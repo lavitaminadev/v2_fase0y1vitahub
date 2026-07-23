@@ -156,8 +156,9 @@ export class ReservationsService {
     if (!Array.isArray(rows) || rows.length === 0) throw new ForbiddenException('El cliente no pertenece a esta organización');
   }
 
-  private async clientCapabilities(organizationId: string, clientId: string) {
-    const rows = await this.dataSource.query('SELECT capabilities FROM clients WHERE id = ? AND organization_id = ? LIMIT 1', [clientId, organizationId]);
+  private async clientCapabilities(organizationId: string, clientId: string, queryFn?: (sql: string, params?: unknown[]) => Promise<unknown[]>) {
+    const q = queryFn || this.dataSource.query.bind(this.dataSource);
+    const rows = await q('SELECT capabilities FROM clients WHERE id = ? AND organization_id = ? LIMIT 1', [clientId, organizationId]);
     if (!Array.isArray(rows) || rows.length === 0) throw new ForbiddenException('El cliente no pertenece a esta organización');
     const raw = rows[0]?.capabilities;
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -208,7 +209,7 @@ export class ReservationsService {
     const repo = manager?.getRepository(ReservationForm) || this.forms;
     const qb = repo.createQueryBuilder('form').where('form.public_slug = :slug AND form.status = :status', { slug, status: 'published' }); if (lock) qb.setLock('pessimistic_write');
     const form = await qb.getOne(); if (!form) throw new NotFoundException('Este formulario no está disponible');
-    const capabilities = await this.clientCapabilities(form.organizationId, form.clientId);
+    const capabilities = await this.clientCapabilities(form.organizationId, form.clientId, manager?.query.bind(manager));
     if (!capabilities.reservations) throw new NotFoundException('Este formulario no está disponible');
     this.validateConfiguration(form); return form;
   }
@@ -257,6 +258,7 @@ export class ReservationsService {
     await this.validateEmailDomain(dto.guestEmail);
     const partySize = dto.partySize || 1;
     const result = await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(ReservationForm).createQueryBuilder('f').setLock('pessimistic_write').where('f.id = :id', { id: form.id }).getOne();
       let endsAt: Date;
       if (dto.skipAvailability) {
         const rules = this.effectiveRules(form, dto.serviceId, dto.resourceId);
@@ -295,7 +297,7 @@ export class ReservationsService {
       const dailyCount = await this.dailyReservationsCount(manager, form.id, dateKey, form.timezone, excludeId);
       if (dailyCount >= form.dailyCapacity) throw new ConflictException('Este día ya alcanzó su tope de reservas');
     }
-    const qb = manager.getRepository(Reservation).createQueryBuilder('r').where('r.form_id = :formId AND r.starts_at < :endsAt AND r.ends_at > :startsAt AND r.status IN (:...statuses)', { formId: form.id, startsAt, endsAt, statuses: ACTIVE_STATUSES });
+    const qb = manager.getRepository(Reservation).createQueryBuilder('r').where('r.form_id = :formId AND r.starts_at < :endsAt AND r.ends_at > :startsAt AND r.status IN (:...statuses)', { formId: form.id, startsAt, endsAt, statuses: ACTIVE_STATUSES }).setLock('pessimistic_write');
     if (resourceId) qb.andWhere('r.resource_id = :resourceId', { resourceId }); if (excludeId) qb.andWhere('r.id != :excludeId', { excludeId });
     const existing = await qb.getMany(); const used = existing.reduce((sum, item) => sum + item.partySize, 0); if (used + partySize > rules.capacity) throw new ConflictException('Ese horario acaba de ocuparse. Selecciona una alternativa.'); return { ...rules, endsAt, available: rules.capacity - used };
   }
@@ -338,7 +340,7 @@ export class ReservationsService {
     }
   }
   private reportBadEmail(_domain: string) {
-    // Log for audit; non-blocking
+    this.dataSource.query('INSERT INTO audit_logs (organization_id, entity_type, entity_id, action, metadata, occurred_at) VALUES (?, ?, ?, ?, ?, NOW())', [null, 'email_validation', _domain, 'mx_failed', JSON.stringify({ domain: _domain })]).catch(() => undefined);
   }
 
   async createPublic(slug: string, dto: PublicReservationDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
@@ -368,7 +370,7 @@ export class ReservationsService {
     if (result.created && result.form.metaCapiEnabled && capabilities.metaConversions) {
       try {
         await this.enqueueMetaConversion(result.booking, result.form, 'Schedule', Math.floor(result.booking.createdAt.getTime() / 1000), eventSourceUrl);
-        void this.metaOutbox.processPending(1);
+        void this.metaOutbox.processPending(1).catch(() => undefined);
       } catch { await this.recordIntegrationFailure(result.booking, 'meta_capi'); }
     }
     if (result.created) await this.notifyNewBooking(result.form, result.booking);

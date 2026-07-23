@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../core/api';
@@ -130,6 +130,7 @@ export function ReservationBuilderPage() {
     window.addEventListener('beforeunload', warnBeforeLeaving);
     return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
   }, [saved]);
+  useEffect(() => () => clearTimeout(copyTimeoutRef.current), []);
   const change = useCallback((patch: Partial<ReservationForm>) => { setDraft((current) => (current ? { ...current, ...patch } : current)); setSaved(false); }, []);
   const publicUrl = useMemo(() => draft ? publicReservationUrl(draft.publicSlug, draft.publicUrl) : '', [draft]);
   const publicUrlReady = APP_PUBLIC_URL_IS_HTTPS || publicUrl.startsWith('https://');
@@ -213,7 +214,8 @@ export function ReservationBuilderPage() {
   const updateWindow = (index: number, patch: { start?: string; end?: string }) => change({ scheduleConfig: { windows: windows.map((window, current) => current === index ? { ...window, ...patch } : window) } });
   const addWindow = (day: number) => change({ scheduleConfig: { windows: [...windows, { day, start: '20:00', end: '23:00' }] } });
   const removeWindow = (index: number) => change({ scheduleConfig: { windows: windows.filter((_, current) => current !== index) } });
-  const copyLink = async () => { await navigator.clipboard.writeText(campaignUrl); setCopied(true); window.setTimeout(() => setCopied(false), 1800); };
+  const copyTimeoutRef = useRef<number>(0);
+  const copyLink = async () => { await navigator.clipboard.writeText(campaignUrl); setCopied(true); clearTimeout(copyTimeoutRef.current); copyTimeoutRef.current = window.setTimeout(() => setCopied(false), 1800); };
   const publicPreviewReady = draft.status === 'published' && saved;
   const publishedButDirty = draft.status === 'published' && !saved;
   const previewLabel = publicPreviewReady ? 'Vista previa pública' : 'Vista previa interna';

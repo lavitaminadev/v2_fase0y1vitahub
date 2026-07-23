@@ -155,8 +155,8 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async updateReservation(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() dto: UpdateReservationDto) {
     const scope = await this.scope(req);
-    if (req.user.role === UserRole.CLIENT && (dto.internalNotes !== undefined || dto.status && dto.status !== 'cancelled_client')) {
-      throw new ForbiddenException('El portal cliente solo permite reagendar o cancelar una reserva');
+    if (req.user.role === UserRole.CLIENT && (dto.internalNotes !== undefined || dto.startsAt !== undefined || (dto.status && dto.status !== 'cancelled_client'))) {
+      throw new ForbiddenException('El portal cliente solo permite cancelar una reserva');
     }
     return this.service.updateReservation(
       req.organizationId,

@@ -63,6 +63,13 @@ export function PublicReservationPage() {
   const pageDescription = useMemo(() => form ? `Reserva tu hora para ${form.name}. ${form.designConfig?.welcome || 'Agenda fácil y segura.'}` : 'Agenda tu hora de forma fácil y segura.', [form]);
 
   useEffect(() => {
+    const prevTitle = document.title;
+    const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    const ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement | null;
+    const ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
+    const prevDesc = metaDesc?.content;
+    const prevOgTitle = ogTitle?.content;
+    const prevOgDesc = ogDesc?.content;
     document.title = pageTitle;
     const setMeta = (selector: string, content: string) => { const el = document.querySelector(selector) as HTMLMetaElement | null; if (el) el.content = content; };
     setMeta('meta[name="description"]', pageDescription);
@@ -70,6 +77,12 @@ export function PublicReservationPage() {
     setMeta('meta[property="og:description"]', pageDescription);
     setMeta('meta[property="og:type"]', 'website');
     setMeta('meta[property="og:url"]', window.location.href);
+    return () => {
+      document.title = prevTitle;
+      if (metaDesc && prevDesc !== undefined) metaDesc.content = prevDesc;
+      if (ogTitle && prevOgTitle !== undefined) ogTitle.content = prevOgTitle;
+      if (ogDesc && prevOgDesc !== undefined) ogDesc.content = prevOgDesc;
+    };
   }, [pageTitle, pageDescription]);
 
   useEffect(() => {

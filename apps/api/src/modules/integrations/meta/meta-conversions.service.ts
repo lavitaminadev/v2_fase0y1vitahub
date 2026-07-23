@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { createHash } from 'node:crypto';
@@ -29,6 +29,7 @@ export interface ConversionEvent {
 
 @Injectable()
 export class MetaConversionsService {
+  private readonly logger = new Logger(MetaConversionsService.name);
   constructor(private readonly http: HttpService) {}
 
   async sendEvent(pixelId: string, accessToken: string, event: ConversionEvent): Promise<any> {
@@ -68,8 +69,10 @@ export class MetaConversionsService {
         ),
       );
       return data;
-    } catch {
-      throw new BadGatewayException('Meta Conversions API rejected the event');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Meta CAPI failed: ${message}`);
+      throw new BadGatewayException(`Meta Conversions API rejected the event: ${message}`);
     }
   }
 

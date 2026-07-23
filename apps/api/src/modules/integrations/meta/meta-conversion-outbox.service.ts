@@ -43,6 +43,7 @@ export class MetaConversionOutboxService {
       ],
       order: { createdAt: 'ASC' },
       take: limit,
+      lock: { mode: 'pessimistic_write' },
     });
     let processed = 0;
     let failed = 0;
@@ -61,7 +62,7 @@ export class MetaConversionOutboxService {
         item.lastError = error instanceof Error ? error.message : 'Unknown CAPI error';
         item.nextAttemptAt = new Date(Date.now() + Math.min(60, 2 ** item.attempts) * 60_000);
         failed += 1;
-        this.logger.warn(`CAPI outbox ${item.id} failed (attempt ${item.attempts})`);
+        this.logger.warn(`CAPI outbox ${item.id} failed (attempt ${item.attempts}): ${item.lastError}`);
       }
       await this.outbox.save(item);
     }
