@@ -49,6 +49,8 @@ services:
       API_PUBLIC_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL must be set}
       INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:?INTEGRATION_ENCRYPTION_KEY must be set}
       OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:?OAUTH_STATE_SECRET must be set}
+      VITE_API_URL: ${API_PUBLIC_URL}
+      UPLOAD_DIR: /app/uploads
     depends_on:
       mysql:
         condition: service_healthy
