@@ -25,7 +25,7 @@ export interface ProtectedRouteProps {
  * Wraps routes that require an authenticated session.
  */
 export function ProtectedRoute({ children, path, allowedRoles }: ProtectedRouteProps): JSX.Element {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth((s) => ({ user: s.user, loading: s.loading }));
   if (loading) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.mustChangePassword && path !== '/change-password') {

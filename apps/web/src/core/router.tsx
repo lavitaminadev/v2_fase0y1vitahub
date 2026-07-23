@@ -56,14 +56,14 @@ function SafeSuspense({ children }: { children: React.ReactNode }) {
 }
 
 function HomeRedirect() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth((s) => ({ user: s.user, loading: s.loading }));
   if (loading) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={user.role === 'client' ? '/portal' : '/dashboard'} replace />;
 }
 
 function LoginRoute() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth((s) => ({ user: s.user, loading: s.loading }));
   if (loading) return <LoadingSpinner text="Restaurando tu sesión..." />;
   if (user) return <Navigate to={user.role === 'client' ? '/portal' : '/dashboard'} replace />;
   return <SafeSuspense><LoginPage /></SafeSuspense>;

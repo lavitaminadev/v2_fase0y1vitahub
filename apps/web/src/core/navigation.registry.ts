@@ -9,22 +9,34 @@ import type { FeatureManifest } from './feature.manifest';
 /** Registered features sorted by insertion order. */
 let features: FeatureManifest[] = [];
 
-const PHASE_ONE_NAVIGATION_ORDER = [
+/** Preferred sidebar order for enabled features. Unlisted features append alphabetically. */
+const NAVIGATION_ORDER: string[] = [
   '/dashboard',
   '/clients',
   '/users',
   '/reservations',
   '/crm/contacts',
+  '/crm/leads',
+  '/production',
+  '/audiovisual',
+  '/content',
+  '/documents',
+  '/briefs',
+  '/approvals',
+  '/meetings',
+  '/reports',
+  '/billing',
+  '/contracts',
+  '/gamification',
+  '/catalog',
+  '/knowledge',
   '/integrations',
+  '/onboarding',
+  '/direction',
+  '/operations',
+  '/governance',
   '/settings',
-] as const;
-
-const PHASE_ONE_NAVIGATION_LABELS: Partial<Record<(typeof PHASE_ONE_NAVIGATION_ORDER)[number], string>> = {
-  '/dashboard': 'Inicio',
-  '/clients': 'Empresas',
-  '/reservations': 'Reservas',
-  '/crm/contacts': 'Contactos',
-};
+];
 
 /**
  * Registers a feature manifest.
@@ -45,7 +57,6 @@ export function getFeatures(_userRole?: UserRole): FeatureManifest[] {
   return features.filter((f) => {
     if (f.enabled === false) return false;
     if (!f.permissions?.length && !f.dependencies?.length) return true;
-    // Role filtering can be extended here once permission rules are defined.
     return true;
   });
 }
@@ -54,18 +65,17 @@ export function getFeatures(_userRole?: UserRole): FeatureManifest[] {
  * Returns the navigation entries visible for the given role.
  *
  * @param userRole - Current user role.
- * @returns Filtered navigation items.
+ * @returns Filtered navigation items sorted by configured order.
  */
 export function getNavigation(userRole?: UserRole): FeatureManifest['navigation'] {
   const roleAwareItems = getFeatures(userRole)
     .flatMap((f) => f.navigation)
     .filter((item) => !item.roles || !userRole || item.roles.includes(userRole));
 
-  return PHASE_ONE_NAVIGATION_ORDER.flatMap((path) => {
-    const item = roleAwareItems.find((candidate) => candidate.path === path);
-    if (!item) return [];
-    return [{ ...item, label: PHASE_ONE_NAVIGATION_LABELS[path] ?? item.label }];
-  });
+  const orderMap = new Map(NAVIGATION_ORDER.map((p, i) => [p, i]));
+  return roleAwareItems
+    .slice()
+    .sort((a, b) => (orderMap.get(a.path) ?? 999) - (orderMap.get(b.path) ?? 999));
 }
 
 /**

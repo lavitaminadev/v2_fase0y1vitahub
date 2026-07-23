@@ -7,19 +7,20 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../core/auth';
 import { getNavigation } from '../core/navigation.registry';
-import { NotificationBell } from '../features/notifications/NotificationBell';
 import { NavGlyph } from './NavGlyph';
 import { ApiErrorToast } from './ApiErrorToast';
 import { ToastContainer } from './Toast';
 import { BrandMark } from './Brand';
 import { CommandPalette } from './CommandPalette';
 import { PwaInstallButton } from './PwaInstallButton';
+import { NotificationBell } from '../features/notifications/NotificationBell';
 
-const NAV_GROUPS = [
+const NAV_GROUPS: { label: string; paths: string[] }[] = [
   { label: 'Medir', paths: ['/dashboard'] },
-  { label: 'Operar', paths: ['/reservations', '/crm/contacts'] },
-  { label: 'Configurar', paths: ['/clients', '/users', '/integrations', '/settings'] },
-] as const;
+  { label: 'Operar', paths: ['/reservations', '/crm/contacts', '/crm/leads', '/production', '/audiovisual', '/content', '/documents', '/briefs', '/approvals', '/catalog'] },
+  { label: 'Colaborar', paths: ['/meetings', '/reports', '/billing', '/contracts', '/gamification'] },
+  { label: 'Configurar', paths: ['/clients', '/users', '/integrations', '/knowledge', '/onboarding', '/direction', '/operations', '/governance', '/settings'] },
+];
 
 /**
  * Main layout shell rendered for authenticated users.
