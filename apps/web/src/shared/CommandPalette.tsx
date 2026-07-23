@@ -43,7 +43,8 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open) return;
     setActiveIndex(0);
-    window.setTimeout(() => inputRef.current?.focus(), 30);
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 30);
+    return () => window.clearTimeout(timer);
   }, [open, taskMode]);
 
   const clientsQuery = useQuery<ClientResult[]>({ queryKey: ['command-clients'], queryFn: () => api.get('/clients'), enabled: open && hasPath('/clients'), retry: false });

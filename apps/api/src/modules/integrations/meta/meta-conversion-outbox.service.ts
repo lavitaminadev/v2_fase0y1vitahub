@@ -57,15 +57,35 @@ export class MetaConversionOutboxService {
         item.lastError = undefined;
         processed += 1;
       } catch (error) {
+        const statusCode = (error as any)?.response?.status;
+        const isNonRetryable = typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 && statusCode !== 429;
+        const bodyMsg: string = (error as any)?.response?.data?.error?.message ?? (error as any)?.response?.data?.error?.error_user_msg ?? '';
+        const isExpiredToken = /expired|invalid.*token|permission|revoked|unauthorized/i.test(bodyMsg);
+
         item.attempts += 1;
-        item.status = item.attempts >= 8 ? 'failed' : 'retry';
+        if (isNonRetryable || isExpiredToken || item.attempts >= 8) {
+          item.status = 'failed';
+        } else {
+          item.status = 'retry';
+        }
         item.lastError = error instanceof Error ? error.message : 'Unknown CAPI error';
-        item.nextAttemptAt = new Date(Date.now() + Math.min(60, 2 ** item.attempts) * 60_000);
+        if (statusCode) item.lastError = `HTTP ${statusCode}: ${item.lastError}`;
+        if (isExpiredToken) item.lastError = `[TOKEN] ${item.lastError}`;
+        item.nextAttemptAt = item.status === 'retry'
+          ? new Date(Date.now() + Math.min(60, 2 ** item.attempts) * 60_000)
+          : undefined as any;
         failed += 1;
-        this.logger.warn(`CAPI outbox ${item.id} failed (attempt ${item.attempts}): ${item.lastError}`);
+        this.logger.warn(`CAPI outbox ${item.id} failed${isNonRetryable || isExpiredToken ? ' (non-retryable)' : ''} (attempt ${item.attempts}): ${item.lastError}`);
       }
       await this.outbox.save(item);
     }
     return { processed, failed };
+  }
+
+  async cleanup(olderThanDays = 7): Promise<{ deleted: number }> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60_000);
+    const result = await this.outbox.delete({ status: 'processed', processedAt: LessThanOrEqual(cutoff) });
+    const failedResult = await this.outbox.delete({ status: 'failed', createdAt: LessThanOrEqual(cutoff) });
+    return { deleted: (result.affected ?? 0) + (failedResult.affected ?? 0) };
   }
 }

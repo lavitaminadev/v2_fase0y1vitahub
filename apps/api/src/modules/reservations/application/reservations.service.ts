@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -75,6 +75,7 @@ export class ReservationsService {
     private readonly emails: EmailService,
     private readonly audit: AuditService,
   ) {}
+  private readonly logger = new Logger(ReservationsService.name);
 
   private slug(value: string) { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 140); }
   private scope(organizationId: string, clientId?: string, clientIds?: string[]) { return { organizationId, ...(clientId ? { clientId } : clientIds !== undefined ? { clientId: In(clientIds) } : {}) }; }
@@ -282,9 +283,9 @@ export class ReservationsService {
 
   private async dailyReservationsCount(manager: EntityManager, formId: string, dateKey: string, timeZone: string, excludeId?: string) {
     const start = localToUtc(dateKey, '00:00', timeZone);
-    const end = localToUtc(dateKey, '23:59:59', timeZone);
+    const end = localToUtc(addPlainDays(dateKey, 1), '00:00', timeZone);
     const qb = manager.getRepository(Reservation).createQueryBuilder('r')
-      .where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at <= :end AND r.status IN (:...statuses)', { formId, start, end, statuses: ACTIVE_STATUSES });
+      .where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { formId, start, end, statuses: ACTIVE_STATUSES });
     if (excludeId) qb.andWhere('r.id != :excludeId', { excludeId });
     return qb.getCount();
   }
@@ -335,7 +336,8 @@ export class ReservationsService {
     try {
       const mx = await dns.resolveMx(domain);
       if (!mx || mx.length === 0) this.reportBadEmail(domain);
-    } catch {
+    } catch (err) {
+      this.logger.warn(`MX lookup failed for domain ${domain}: ${err instanceof Error ? err.message : err}`);
       // MX lookup is best-effort; don't block the reservation
     }
   }
@@ -365,13 +367,12 @@ export class ReservationsService {
       await manager.save(ReservationEvent, manager.create(ReservationEvent, { organizationId: form.organizationId, clientId: form.clientId, reservationId: booking.id, type: 'created', toStatus: status, actorType: 'guest', metadata: { startsAt: startsAt.toISOString(), serviceId: dto.serviceId, resourceId: dto.resourceId } })); return { booking, form, created: true };
     });
     const capabilities = await this.clientCapabilities(result.form.organizationId, result.form.clientId);
-    if (result.created && result.form.crmEnabled && capabilities.crm) { try { await this.leadIntake.captureLead({ organizationId: result.form.organizationId, clientId: result.form.clientId, name: result.booking.guestName, email: result.booking.guestEmail, phone: result.booking.guestPhone, source: 'vitahub_reservations', sourceDetail: result.form.name, status: 'reserved', externalLeadId: `reservation:${result.booking.id}`, externalFormId: result.form.id, externalCampaignId: result.form.campaignId, campaignName: result.booking.utmCampaign, consentCapturedAt: new Date(), metadata: { reservationId: result.booking.id, referenceCode: result.booking.referenceCode, startsAt: result.booking.startsAt } }); } catch { await this.recordIntegrationFailure(result.booking, 'crm'); } }
-    if (result.created && result.form.calendarEnabled) { try { const event = await this.calendar.createEvent(result.form.organizationId, { summary: `${result.form.name}: ${result.booking.guestName}`, description: `Reserva ${result.booking.referenceCode}`, start: result.booking.startsAt, durationMinutes: Math.round((result.booking.endsAt.getTime() - result.booking.startsAt.getTime()) / 60000) }); result.booking.calendarEventId = event.externalId; result.booking.calendarUrl = event.calendarUrl; await this.reservations.save(result.booking); } catch { await this.recordIntegrationFailure(result.booking, 'google_calendar'); } }
+    if (result.created && result.form.crmEnabled && capabilities.crm) { try { await this.leadIntake.captureLead({ organizationId: result.form.organizationId, clientId: result.form.clientId, name: result.booking.guestName, email: result.booking.guestEmail, phone: result.booking.guestPhone, source: 'vitahub_reservations', sourceDetail: result.form.name, status: 'reserved', externalLeadId: `reservation:${result.booking.id}`, externalFormId: result.form.id, externalCampaignId: result.form.campaignId, campaignName: result.booking.utmCampaign, consentCapturedAt: new Date(), metadata: { reservationId: result.booking.id, referenceCode: result.booking.referenceCode, startsAt: result.booking.startsAt } }); } catch (err) { this.logger.warn(`CRM intake failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(result.booking, 'crm'); } }
+    if (result.created && result.form.calendarEnabled) { try { const event = await this.calendar.createEvent(result.form.organizationId, { summary: `${result.form.name}: ${result.booking.guestName}`, description: `Reserva ${result.booking.referenceCode}`, start: result.booking.startsAt, durationMinutes: Math.round((result.booking.endsAt.getTime() - result.booking.startsAt.getTime()) / 60000) }); result.booking.calendarEventId = event.externalId; result.booking.calendarUrl = event.calendarUrl; await this.reservations.save(result.booking); } catch (err) { this.logger.warn(`Google Calendar event failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(result.booking, 'google_calendar'); } }
     if (result.created && result.form.metaCapiEnabled && capabilities.metaConversions) {
       try {
         await this.enqueueMetaConversion(result.booking, result.form, 'Schedule', Math.floor(result.booking.createdAt.getTime() / 1000), eventSourceUrl);
-        void this.metaOutbox.processPending(1).catch(() => undefined);
-      } catch { await this.recordIntegrationFailure(result.booking, 'meta_capi'); }
+      } catch (err) { this.logger.warn(`Meta CAPI enqueue failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(result.booking, 'meta_capi'); }
     }
     if (result.created) await this.notifyNewBooking(result.form, result.booking);
     return result.booking;
@@ -411,7 +412,8 @@ export class ReservationsService {
         const html = `<h2>Nueva reserva recibida</h2><p><strong>${booking.guestName}</strong> reservó <strong>${form.name}</strong>.</p><p>Fecha: ${booking.startsAt.toLocaleString('es-CL')}<br>Personas: ${booking.partySize}<br>Código: ${booking.referenceCode}</p>`;
         await Promise.all(teamEmails.map((email) => this.emails.send(email, `Nueva reserva - ${form.name}`, html)));
       }
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Notification failed for booking ${booking.id}: ${err instanceof Error ? err.message : err}`);
       // Notifications are helpful but must never roll back a confirmed booking.
     }
   }
@@ -442,8 +444,8 @@ export class ReservationsService {
       }
       if (dto.internalNotes !== undefined) item.internalNotes = dto.internalNotes; const result = await repo.save(item); const changedStart = previousStart.getTime() !== result.startsAt.getTime(); if (previousStatus !== result.status || changedStart) await manager.save(ReservationEvent, manager.create(ReservationEvent, { organizationId, clientId: result.clientId, reservationId: result.id, type: changedStart ? 'rescheduled' : 'status_changed', fromStatus: previousStatus, toStatus: result.status, actorId, actorType, metadata: changedStart ? { from: previousStart.toISOString(), to: result.startsAt.toISOString() } : undefined })); return result; });
     const capabilities = formForMeta ? await this.clientCapabilities(organizationId, formForMeta.clientId) : undefined;
-    if (statusChangedTo === 'attended' && formForMeta?.metaCapiEnabled && capabilities?.metaConversions) { try { await this.enqueueMetaConversion(saved, formForMeta, 'Reserva_Asistida'); void this.metaOutbox.processPending(1); } catch { await this.recordIntegrationFailure(saved, 'meta_capi'); } }
-    if (statusChangedTo === 'attended' || statusChangedTo === 'no_show') { try { await this.leadIntake.updateStatusByContact(organizationId, statusChangedTo === 'attended' ? 'attended' : 'no_show', saved.guestEmail, saved.guestPhone, saved.clientId); } catch { /* CRM sync is best-effort */ } }
+    if (statusChangedTo === 'attended' && formForMeta?.metaCapiEnabled && capabilities?.metaConversions) { try { await this.enqueueMetaConversion(saved, formForMeta, 'Reserva_Asistida'); } catch (err) { this.logger.warn(`Meta CAPI attended event failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(saved, 'meta_capi'); } }
+    if (statusChangedTo === 'attended' || statusChangedTo === 'no_show') { try { await this.leadIntake.updateStatusByContact(organizationId, statusChangedTo === 'attended' ? 'attended' : 'no_show', saved.guestEmail, saved.guestPhone, saved.clientId); } catch (err) { this.logger.warn(`CRM status sync failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); /* CRM sync is best-effort */ } }
     return saved;
   }
   async history(organizationId: string, reservationId: string, clientId?: string, clientIds?: string[]) { const reservation = await this.reservations.findOne({ where: { id: reservationId, ...this.scope(organizationId, clientId, clientIds) } }); if (!reservation) throw new NotFoundException('Reserva no encontrada'); return this.events.find({ where: { reservationId, organizationId }, order: { createdAt: 'DESC' } }); }

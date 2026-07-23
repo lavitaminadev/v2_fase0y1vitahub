@@ -64,7 +64,6 @@ export class LeadConvertedHandler {
         },
         eventId,
       });
-      void this.outbox.processPending(1);
       this.logger.log(`CAPI event queued for Lead ${lead.id}`);
     } catch (error) {
       this.logger.error(`Error sending CAPI event for Lead ${payload.leadId}:`, error);

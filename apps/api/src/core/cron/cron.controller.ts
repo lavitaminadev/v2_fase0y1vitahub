@@ -53,4 +53,12 @@ export class CronController {
     const stats = await this.capiOutbox.stats();
     return { ok: true, ...stats, timestamp: new Date().toISOString() };
   }
+
+  @Post('meta-capi/cleanup')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async cleanupOutbox(@Headers('x-cron-secret') secret: string, @Body('olderThanDays') olderThanDays?: number) {
+    this.verifySecret(secret);
+    const result = await this.capiOutbox.cleanup(olderThanDays ?? 7);
+    return { ok: true, ...result, timestamp: new Date().toISOString() };
+  }
 }

@@ -45,6 +45,7 @@ export function PublicReservationPage() {
   const formRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
+  const focusTimerRef = useRef<number>(0);
   const utmSource = params.get('utm_source') || undefined;
   const utmCampaign = params.get('utm_campaign') || undefined;
   const { data: form, isLoading, error } = useQuery<ReservationForm>({ queryKey: ['public-form', slug], queryFn: () => api.get(`/public/reservations/${slug}`), retry: false });
@@ -148,7 +149,8 @@ export function PublicReservationPage() {
     if (!selectedDate && selected) setSelectedDate(slotDateKey(selected, form!.timezone));
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setStep(2);
-    setTimeout(() => nameInputRef.current?.focus(), 300);
+    window.clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = window.setTimeout(() => nameInputRef.current?.focus(), 300);
   };
 
   const goBackToSlots = () => {
@@ -316,7 +318,7 @@ export function PublicReservationPage() {
           {/* Coupon */}
           {(form.fieldSchema?.some((f) => f.type === 'coupon') || form.designConfig?.couponEnabled !== 'false') && <div className="coupon-section"><div className="booking-step-title"><span>─</span><div><strong>¿Tienes un cupón?</strong></div></div><div className="coupon-row"><input className="input" value={couponCode} onChange={(event) => { setCouponCode(event.target.value); setCouponValid(null); setCouponMsg(''); }} placeholder="Código" /><button type="button" className="btn btn-outline btn-sm" disabled={!couponCode.trim() || validateCoupon.isPending} onClick={() => validateCoupon.mutate()}>{validateCoupon.isPending ? '...' : 'Aplicar'}</button></div>{couponMsg && <div className={`coupon-feedback ${couponValid ? 'coupon-valid' : 'coupon-invalid'}`}>{couponMsg}</div>}</div>}
           {submit.error && <div className="alert alert-error">{submit.error.message}</div>}
-          {submit.error?.message?.includes('acaba de ocuparse') && <div className="slot-alternatives"><strong>Horarios alternativos cercanos:</strong>{slots.filter((s) => s.startsAt !== selected).sort((a, b) => Math.abs(new Date(a.startsAt).getTime() - new Date(selected).getTime()) - Math.abs(new Date(b.startsAt).getTime() - new Date(selected).getTime())).slice(0, 3).map((alt) => <button type="button" key={alt.startsAt} onClick={() => { setSelected(alt.startsAt); submit.reset(); setStep(2); setTimeout(() => nameInputRef.current?.focus(), 300); formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>{new Date(alt.startsAt).toLocaleString('es-CL', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</button>)}<button type="button" className="btn btn-sm btn-retry" onClick={retrySubmit}>Reintentar</button></div>}
+          {submit.error?.message?.includes('acaba de ocuparse') && <div className="slot-alternatives"><strong>Horarios alternativos cercanos:</strong>{slots.filter((s) => s.startsAt !== selected).sort((a, b) => Math.abs(new Date(a.startsAt).getTime() - new Date(selected).getTime()) - Math.abs(new Date(b.startsAt).getTime() - new Date(selected).getTime())).slice(0, 3).map((alt) => <button type="button" key={alt.startsAt} onClick={() => { setSelected(alt.startsAt); submit.reset(); setStep(2); window.clearTimeout(focusTimerRef.current); focusTimerRef.current = window.setTimeout(() => nameInputRef.current?.focus(), 300); formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>{new Date(alt.startsAt).toLocaleString('es-CL', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</button>)}<button type="button" className="btn btn-sm btn-retry" onClick={retrySubmit}>Reintentar</button></div>}
           <div className="step-nav"><button type="button" className="btn btn-outline" onClick={goBackToSlots}>← Volver</button><button type="button" className="public-submit" onClick={goToConfirm}>Revisar y confirmar →</button></div>
         </div>}
 

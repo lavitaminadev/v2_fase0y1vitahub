@@ -72,6 +72,7 @@ export class MetaConversionsService {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Meta CAPI failed: ${message}`);
+      if (error && typeof error === 'object' && 'response' in error) throw error;
       throw new BadGatewayException(`Meta Conversions API rejected the event: ${message}`);
     }
   }
