@@ -1,4 +1,4 @@
-import { IsString, IsEmail, MinLength, MaxLength, IsOptional, IsUUID, IsEnum, IsIn, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsEmail, Matches, MinLength, MaxLength, IsOptional, IsUUID, IsEnum, IsIn, IsNumber, Min, Max } from 'class-validator';
 import { UserRole } from '../../organizations/user-role.enum';
 
 /**
@@ -11,8 +11,8 @@ export class CreateUserDto {
   /** Unique email address. */
   @IsEmail() email: string;
 
-  /** Plain-text initial password. */
-  @IsString() @MinLength(8) @MaxLength(128) password: string;
+  /** Plain-text initial password (min 8 chars, must include uppercase, lowercase and number). */
+  @IsString() @MinLength(8) @MaxLength(128) @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/, { message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número' }) password: string;
 
   /** Optional phone number. */
   @IsOptional() @IsString() @MaxLength(20) phone?: string;

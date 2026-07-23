@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsEnum, IsIn, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsIn, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { UserRole } from '../../organizations/user-role.enum';
 
 export class UpdateUserDto {
@@ -14,7 +14,7 @@ export class UpdateUserDto {
 
   @IsOptional() @IsBoolean() isActive?: boolean;
 
-  @IsOptional() @IsString() @MinLength(8) @MaxLength(128) password?: string;
+  @IsOptional() @IsString() @MinLength(8) @MaxLength(128) @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/, { message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número' }) password?: string;
 
   @IsOptional() @IsIn(['presential', 'hybrid', 'remote']) workMode?: 'presential' | 'hybrid' | 'remote';
 

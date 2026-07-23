@@ -30,6 +30,7 @@ export function LoginPage() {
   const rememberedLogin = useMemo(getRememberedLogin, []);
   const sessionHostWarning = useMemo(getSessionHostWarning, []);
   const [email, setEmail] = useState(rememberedLogin);
+  const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
   const [rememberLogin, setRememberLogin] = useState(Boolean(rememberedLogin));
   const [error, setError] = useState('');
@@ -93,17 +94,22 @@ export function LoginPage() {
         </div>
         <div className="form-group">
           <label htmlFor="password">Contraseña</label>
-          <input
-            id="password"
-            name="password"
-            className="input"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-          />
+          <div className="input-group">
+            <input
+              id="password"
+              name="password"
+              className="input"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <button type="button" className="btn btn-icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} tabIndex={-1}>
+              {showPassword ? '🙈' : '👁'}
+            </button>
+          </div>
         </div>
         <label className="login-remember">
           <input
