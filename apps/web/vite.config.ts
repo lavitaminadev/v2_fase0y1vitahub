@@ -26,13 +26,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id: string) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'vendor-react';
-          if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
-          if (id.includes('node_modules/react-router')) return 'vendor-router';
-          if (id.includes('node_modules/axios')) return 'vendor-http';
-          if (id.includes('node_modules')) return 'vendor';
-        },
+          manualChunks(id: string) {
+            if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'vendor-react';
+            if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
+            if (id.includes('node_modules/react-router')) return 'vendor-router';
+            if (id.includes('node_modules')) return 'vendor';
+          },
       },
     },
   },
