@@ -40,7 +40,7 @@
 body {
   margin: 0;
   font-family: var(--font);
-  font-size: 15px;
+  font-size: clamp(14px, 1.8vw, 17px);
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
@@ -573,7 +573,7 @@ select.input {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--primary);
 }
 
@@ -1681,7 +1681,6 @@ select.input {
   --radius-sm: 9px;
   --radius-md: 14px;
   --radius-lg: 20px;
-  --sidebar-width: 264px;
   --font: 'Vitamina Sans', 'Trebuchet MS', sans-serif;
   --font-display: 'Vitamina Sans', 'Trebuchet MS', sans-serif;
 }
