@@ -119,6 +119,16 @@ export function ReservationBuilderPage() {
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop');
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [confirmDeleteField, setConfirmDeleteField] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<FormField | null>(null);
+  const [editingDraft, setEditingDraft] = useState<FormField | null>(null);
+  const openEditor = (field: FormField) => { setEditingField(field); setEditingDraft({ ...field }); };
+  const closeEditor = (save: boolean) => {
+    if (save && editingDraft) {
+      change({ fieldSchema: fields.map((f) => f.id === editingField?.id ? editingDraft : f) });
+    }
+    setEditingField(null); setEditingDraft(null);
+  };
+  const updateEditor = (patch: Partial<FormField>) => { if (editingDraft) setEditingDraft({ ...editingDraft, ...patch }); };
   const [confirmDeleteBlock, setConfirmDeleteBlock] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<ReservationForm>({ queryKey: ['reservation-form', id], queryFn: () => api.get(`/reservations/forms/${id}`) });
@@ -185,20 +195,11 @@ export function ReservationBuilderPage() {
 
   if (isLoading || !draft) return <LoadingSpinner text="Abriendo constructor..." />;
   const fields = draft.fieldSchema || [];
-  const active = fields.find((field) => field.id === selected);
   const windows = draft.scheduleConfig?.windows || [];
 
   const addField = (type: string) => {
     const field: FormField = { id: `field_${uuid().slice(0, 8)}`, type, label: FIELD_LIBRARY.find(([key]) => key === type)?.[1] || 'Campo', required: false, ...(['select', 'multi_select'].includes(type) ? { options: ['Opción 1', 'Opción 2'] } : {}) };
     change({ fieldSchema: [...fields, field] }); setSelected(field.id);
-  };
-  const duplicateField = (field: FormField) => {
-    const copy: FormField = { ...field, id: `field_${uuid().slice(0, 8)}`, label: `${field.label} copia`, system: false };
-    const index = fields.findIndex((item) => item.id === field.id);
-    const next = [...fields];
-    next.splice(index + 1, 0, copy);
-    change({ fieldSchema: next });
-    setSelected(copy.id);
   };
   const moveField = (fieldId: string, direction: -1 | 1) => {
     const from = fields.findIndex((field) => field.id === fieldId); const to = from + direction;
@@ -210,7 +211,6 @@ export function ReservationBuilderPage() {
     if (from < 0 || to < 0 || from === to) return;
     const next = [...fields]; const [moved] = next.splice(from, 1); next.splice(to, 0, moved); change({ fieldSchema: next });
   };
-  const updateField = (patch: Partial<FormField>) => change({ fieldSchema: fields.map((field) => field.id === selected ? { ...field, ...patch } : field) });
   const toggleDay = (day: number) => change({ scheduleConfig: { windows: windows.some((window) => window.day === day) ? windows.filter((window) => window.day !== day) : [...windows, { day, start: '09:00', end: '18:00' }] } });
   const updateWindow = (index: number, patch: { start?: string; end?: string }) => change({ scheduleConfig: { windows: windows.map((window, current) => current === index ? { ...window, ...patch } : window) } });
   const addWindow = (day: number) => change({ scheduleConfig: { windows: [...windows, { day, start: '20:00', end: '23:00' }] } });
@@ -242,16 +242,34 @@ export function ReservationBuilderPage() {
 
     {step === 0 && <Fragment>
       <div className="builder-grid">
-        <aside className="field-library"><span className="page-eyebrow">BIBLIOTECA DE CAMPOS</span><h3>Agrega campos</h3><p>Arrastra al formulario o usa el botón Agregar. En celular, usa los botones.</p><div className="field-library-help"><strong>Recomendados para Meta</strong><small>Nombre, teléfono, correo y consentimiento mejoran la calidad de match.</small></div>{FIELD_LIBRARY.map(([type, label]) => <button draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('new-field', type); }} onDragEnd={() => setCanvasDragOver(false)} onClick={() => addField(type)} key={type} className={RECOMMENDED_FIELDS.has(type) ? 'recommended' : ''}><span>{label.slice(0, 2).toUpperCase()}</span><div><strong>{label}</strong><small>{RECOMMENDED_FIELDS.has(type) ? 'Recomendado para reservas' : 'Campo opcional'}</small></div><em>Agregar</em></button>)}</aside>
+        <aside className="field-library"><span className="page-eyebrow">BIBLIOTECA DE CAMPOS</span><h3>Agrega campos</h3><p>Arrastra al formulario o usa el boton Agregar. En celular, usa los botones.</p><div className="field-library-help"><strong>Recomendados para Meta</strong><small>Nombre, telefono, correo y consentimiento mejoran la calidad de match.</small></div>{FIELD_LIBRARY.map(([type, label]) => <button draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('new-field', type); }} onDragEnd={() => setCanvasDragOver(false)} onClick={() => addField(type)} key={type} className={RECOMMENDED_FIELDS.has(type) ? 'recommended' : ''}><span>{label.slice(0, 2).toUpperCase()}</span><div><strong>{label}</strong><small>{RECOMMENDED_FIELDS.has(type) ? 'Recomendado para reservas' : 'Campo opcional'}</small></div><em>Agregar</em></button>)}</aside>
         <main className={`builder-canvas ${canvasDragOver ? 'drag-over' : ''}`} onDragEnter={() => setCanvasDragOver(true)} onDragLeave={(event) => { if (event.currentTarget === event.target) setCanvasDragOver(false); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = event.dataTransfer.types.includes('new-field') ? 'copy' : 'move'; setCanvasDragOver(true); }} onDrop={(event) => { event.preventDefault(); setCanvasDragOver(false); const type = event.dataTransfer.getData('new-field'); if (type) { addField(type); return; } const from = event.dataTransfer.getData('field-id'); if (from && fields.length > 1) { const current = fields.find((field) => field.id === from); if (current && fields[fields.length - 1]?.id !== from) change({ fieldSchema: [...fields.filter((field) => field.id !== from), current] }); } }}>
-          <div className="canvas-intro"><span>FORMULARIO</span><h2>{draft.designConfig.title || draft.name}</h2><p>{draft.designConfig.welcome}</p><small>Toda esta superficie recibe campos arrastrados. También puedes ordenar arrastrando cada fila o usar Subir/Bajar.</small></div>
+          <div className="canvas-intro"><span>FORMULARIO</span><h2>{draft.designConfig.title || draft.name}</h2><p>{draft.designConfig.welcome}</p><small>Toda esta superficie recibe campos arrastrados. Tambien podes ordenar arrastrando cada fila o usar Subir/Bajar.</small></div>
           {fields.map((field, index) => <article tabIndex={0} draggable onDragStart={(event) => event.dataTransfer.setData('field-id', field.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const from = event.dataTransfer.getData('field-id'); if (from) reorder(from, field.id); }} className={`canvas-field ${selected === field.id ? 'selected' : ''}`} key={field.id} onClick={() => setSelected(field.id)} onFocus={() => setSelected(field.id)}>
-            <span className="drag-handle" aria-label="Arrastrar para ordenar">⠿</span><div><label>{field.label}{field.required && ' *'}{field.system && <em> Protegido</em>}</label><div className="field-preview-input">{field.placeholder || (['select', 'multi_select'].includes(field.type) ? 'Selecciona una opción' : 'Respuesta del visitante')}</div></div><div className="field-order"><button type="button" aria-label={`Subir ${field.label}`} disabled={index === 0} onClick={(event) => { event.stopPropagation(); moveField(field.id, -1); }}>Subir</button><button type="button" aria-label={`Bajar ${field.label}`} disabled={index === fields.length - 1} onClick={(event) => { event.stopPropagation(); moveField(field.id, 1); }}>Bajar</button><button type="button" aria-label={`Duplicar ${field.label}`} onClick={(event) => { event.stopPropagation(); duplicateField(field); }}>Duplicar</button></div>
+            <span className="drag-handle" aria-label="Arrastrar para ordenar">⠿</span><div><label>{field.label}{field.required && ' *'}{field.system && <em> Protegido</em>}</label><div className="field-preview-input">{field.placeholder || (['select', 'multi_select'].includes(field.type) ? 'Selecciona una opcion' : 'Respuesta del visitante')}</div></div><div className="field-actions">
+              <button type="button" className="btn btn-sm btn-outline" aria-label={`Editar ${field.label}`} onClick={(e) => { e.stopPropagation(); openEditor(field); }} title="Editar campo">✏️</button>
+              {!field.system && <button type="button" className="btn btn-sm btn-outline btn-danger" aria-label={`Eliminar ${field.label}`} onClick={(e) => { e.stopPropagation(); setConfirmDeleteField(field.id); }} title="Eliminar campo">🗑</button>}
+              <button type="button" className="btn btn-sm btn-outline" aria-label={`Subir ${field.label}`} disabled={index === 0} onClick={(e) => { e.stopPropagation(); moveField(field.id, -1); }} title="Subir">↑</button>
+              <button type="button" className="btn btn-sm btn-outline" aria-label={`Bajar ${field.label}`} disabled={index === fields.length - 1} onClick={(e) => { e.stopPropagation(); moveField(field.id, 1); }} title="Bajar">↓</button>
+            </div>
           </article>)}
           <div className="canvas-drop"><strong>Todo este formulario es zona para arrastrar</strong><span>Suelta en cualquier espacio libre para agregar al final, o sobre un campo para ordenar.</span></div>
         </main>
-        <aside className="field-settings">{active ? <><span className="page-eyebrow">CONFIGURACIÓN</span><h3>{active.label}</h3>{active.system && <div className="alert alert-info">Campo protegido: puedes editar texto y orden, pero no eliminarlo porque ayuda a crear la reserva o medir conversiones.</div>}<label>Etiqueta<input className="input" value={active.label} onChange={(event) => updateField({ label: event.target.value })} /></label><label>Texto de ayuda<input className="input" value={active.placeholder || ''} onChange={(event) => updateField({ placeholder: event.target.value })} /></label><label className="toggle-row"><input type="checkbox" checked={active.required} onChange={(event) => updateField({ required: event.target.checked })} /> Campo obligatorio</label>{active.options && <label>Opciones<textarea className="input" rows={6} value={active.options.join('\n')} onChange={(event) => updateField({ options: event.target.value.split('\n').map((value) => value.trim()).filter(Boolean) })} /></label>}<div className="field-settings-actions"><button type="button" className="btn btn-outline btn-sm" onClick={() => duplicateField(active)}>Duplicar</button>{!active.system && <button className="btn btn-outline btn-danger btn-sm" onClick={() => setConfirmDeleteField(active.id)}>Eliminar campo</button>}</div></> : <div className="settings-empty"><strong>Selecciona un campo</strong><p>Aquí podrás editar su etiqueta, validación y opciones. Para agregar, usa botones o arrastra desde la biblioteca.</p></div>}</aside>
       </div>
+      {editingField && editingDraft && <div className="field-editor-overlay" onClick={() => closeEditor(true)}><div className="field-editor-popup" onClick={(e) => e.stopPropagation()}>
+        <div className="field-editor-header"><h3>Editar {editingDraft.label}</h3><button type="button" className="btn btn-sm btn-outline" onClick={() => closeEditor(true)}>✕</button></div>
+        <div className="field-editor-body">
+          <label>Etiqueta<input className="input" value={editingDraft.label} onChange={(e) => updateEditor({ label: e.target.value })} /></label>
+          <label>Texto de ayuda<input className="input" value={editingDraft.placeholder || ''} onChange={(e) => updateEditor({ placeholder: e.target.value })} /></label>
+          {!editingDraft.system && <label className="toggle-row"><input type="checkbox" checked={editingDraft.required} onChange={(e) => updateEditor({ required: e.target.checked })} /> Campo obligatorio</label>}
+          {editingDraft.options && <label>Opciones (una por linea)<textarea className="input" rows={6} value={editingDraft.options.join('\n')} onChange={(e) => updateEditor({ options: e.target.value.split('\n').map((v) => v.trim()).filter(Boolean) })} /></label>}
+          <div className="field-editor-actions">
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => { const copy = { ...editingDraft, id: editingDraft.id, label: `${editingDraft.label} copia`, system: false }; const idx = fields.findIndex((f) => f.id === editingDraft.id); const next = [...fields]; next.splice(idx + 1, 0, copy); change({ fieldSchema: next }); closeEditor(false); }}>Duplicar</button>
+            {!editingDraft.system && <button type="button" className="btn btn-outline btn-danger btn-sm" onClick={() => { const id = editingDraft.id; closeEditor(false); setConfirmDeleteField(id); }}>Eliminar campo</button>}
+          </div>
+        </div>
+        <div className="field-editor-footer"><button type="button" className="btn btn-outline btn-sm" onClick={() => closeEditor(false)}>Descartar cambios</button><button type="button" className="btn btn-primary btn-sm" onClick={() => closeEditor(true)}>Guardar</button></div>
+      </div></div>}
     </Fragment>}
 
     {step === 1 && <div className="builder-stage"><div className="stage-heading"><span className="page-eyebrow">AGENDA Y CAPACIDAD</span><h2>¿Cuándo pueden reservar?</h2><p>Define el horario habitual y usa bloqueos para cierres, feriados o excepciones.</p></div><div className="schedule-layout">
