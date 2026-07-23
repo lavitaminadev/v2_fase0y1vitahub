@@ -130,6 +130,7 @@ export function ReservationBuilderPage() {
     window.addEventListener('beforeunload', warnBeforeLeaving);
     return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
   }, [saved]);
+  const copyTimeoutRef = useRef<number>(0);
   useEffect(() => () => clearTimeout(copyTimeoutRef.current), []);
   const change = useCallback((patch: Partial<ReservationForm>) => { setDraft((current) => (current ? { ...current, ...patch } : current)); setSaved(false); }, []);
   const publicUrl = useMemo(() => draft ? publicReservationUrl(draft.publicSlug, draft.publicUrl) : '', [draft]);
@@ -214,7 +215,6 @@ export function ReservationBuilderPage() {
   const updateWindow = (index: number, patch: { start?: string; end?: string }) => change({ scheduleConfig: { windows: windows.map((window, current) => current === index ? { ...window, ...patch } : window) } });
   const addWindow = (day: number) => change({ scheduleConfig: { windows: [...windows, { day, start: '20:00', end: '23:00' }] } });
   const removeWindow = (index: number) => change({ scheduleConfig: { windows: windows.filter((_, current) => current !== index) } });
-  const copyTimeoutRef = useRef<number>(0);
   const copyLink = async () => { await navigator.clipboard.writeText(campaignUrl); setCopied(true); clearTimeout(copyTimeoutRef.current); copyTimeoutRef.current = window.setTimeout(() => setCopied(false), 1800); };
   const publicPreviewReady = draft.status === 'published' && saved;
   const publishedButDirty = draft.status === 'published' && !saved;
