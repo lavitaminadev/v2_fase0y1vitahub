@@ -3,7 +3,7 @@ import { registerFeature } from '../../core/navigation.registry';
 registerFeature({
   id: 'audiovisual',
   name: 'Audiovisual',
-  enabled: false,
+  enabled: true,
   navigation: [{
     label: 'Audiovisual',
     path: '/audiovisual',
