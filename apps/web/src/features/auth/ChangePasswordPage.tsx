@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../core/api';
 import { useAuth } from '../../core/auth';
 
@@ -59,7 +59,7 @@ export function ChangePasswordPage() {
       <PasswordField label="Confirmar nueva contraseña" value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} required />
       {feedback && <div className="alert alert-error">{feedback}</div>}
       <button className="btn btn-primary btn-block" disabled={saving || !allRulesPassed}>{saving ? 'Protegiendo cuenta...' : 'Guardar y continuar'}</button>
-      <Link to="/login" className="auth-secondary-link">← Volver al inicio de sesión</Link>
+      <button type="button" className="auth-secondary-link" onClick={async () => { await useAuth.getState().logout(); navigate('/login', { replace: true }); }}>← Volver al inicio de sesión</button>
     </form>
   </section></main>;
 }
