@@ -209,6 +209,6 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async metrics(@Req() req: AuthenticatedRequest, @Query() query: ReservationScopeDto) {
     const scope = await this.requestedScope(req, query.clientId);
-    return this.service.metrics(req.organizationId, scope.clientId, scope.clientIds, query.from || '30');
+    return this.service.metrics(req.organizationId, scope.clientId, scope.clientIds, query.days ? String(query.days) : '30');
   }
 }

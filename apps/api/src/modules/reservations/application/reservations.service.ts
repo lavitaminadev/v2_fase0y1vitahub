@@ -342,7 +342,7 @@ export class ReservationsService {
   }
 
   async createPublic(slug: string, dto: PublicReservationDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
-    if (dto.website) throw new BadRequestException('Solicitud inválida'); if (dto.renderedAt && Date.now() - new Date(dto.renderedAt).getTime() < 1200) throw new BadRequestException('Completa el formulario antes de enviarlo');
+    if (dto.website) throw new BadRequestException('Solicitud inválida'); if (dto.renderedAt && Date.now() - new Date(dto.renderedAt).getTime() < 800) throw new BadRequestException('Completa el formulario antes de enviarlo');
     await this.validateEmailDomain(dto.guestEmail);
     const result = await this.dataSource.transaction(async (manager) => {
       const form = await this.publishedForm(slug, manager, true); const existingIdempotent = await manager.getRepository(Reservation).findOne({ where: { formId: form.id, idempotencyKey: dto.idempotencyKey } }); if (existingIdempotent) return { booking: existingIdempotent, form, created: false };

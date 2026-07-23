@@ -138,10 +138,19 @@ export function PublicReservationPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const retryRef = useRef(false);
+
   const retrySubmit = () => {
+    retryRef.current = true;
     submit.reset();
-    setTimeout(() => submit.mutate(), 100);
   };
+
+  useEffect(() => {
+    if (retryRef.current && !submit.isPending && !submit.error && !submit.data) {
+      retryRef.current = false;
+      submit.mutate();
+    }
+  }, [submit.isPending, submit.error, submit.data]);
 
   useEffect(() => {
     if (submit.isError && submit.error?.message?.includes('acaba de ocuparse')) {
