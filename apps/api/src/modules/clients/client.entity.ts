@@ -25,6 +25,8 @@ export class Client {
   @Column({ name: 'drive_folder_id', type: 'varchar', length: 255, nullable: true }) driveFolderId?: string;
   @Column({ name: 'default_ud_budget', type: 'decimal', precision: 8, scale: 2, default: 20 }) defaultUdBudget: number;
   @Column({ type: 'json', nullable: true }) capabilities?: ClientCapabilities;
+  @Column({ name: 'logo_url', type: 'varchar', length: 500, nullable: true }) logoUrl?: string;
+  @Column({ name: 'logo_public_id', type: 'varchar', length: 255, nullable: true }) logoPublicId?: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 

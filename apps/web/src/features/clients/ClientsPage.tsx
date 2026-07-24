@@ -7,6 +7,8 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { matchesSearch } from '../../shared/search';
+import { LogoUpload } from './LogoUpload';
+import { triggerToast } from '../../shared/Toast';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
 
@@ -25,6 +27,8 @@ interface ClientRecord {
   renewalAt?: string;
   whatsappGroup?: string;
   driveFolderId?: string;
+  logoUrl?: string;
+  logoPublicId?: string;
   capabilities?: ClientCapabilities;
   createdAt: string;
 }
@@ -59,6 +63,8 @@ interface ClientFormState {
   renewalAt: string;
   whatsappGroup: string;
   driveFolderId: string;
+  logoUrl: string;
+  logoPublicId: string;
   capabilities: ClientCapabilities;
   pixelMode: 'none' | 'manual' | 'existing';
   pixelId: string;
@@ -80,6 +86,8 @@ const EMPTY_FORM: ClientFormState = {
   renewalAt: '',
   whatsappGroup: '',
   driveFolderId: '',
+  logoUrl: '',
+  logoPublicId: '',
   capabilities: { reservations: true, crm: true, metaConversions: false },
   pixelMode: 'none',
   pixelId: '',
@@ -225,6 +233,8 @@ export function ClientsPage() {
         renewalAt: form.renewalAt || undefined,
         whatsappGroup: form.whatsappGroup.trim() || undefined,
         driveFolderId: form.driveFolderId.trim() || undefined,
+        logoUrl: form.logoUrl.trim() || undefined,
+        logoPublicId: form.logoPublicId.trim() || undefined,
       } : {}),
     };
     if (editingId) updateMutation.mutate({ id: editingId, body });
@@ -255,6 +265,8 @@ export function ClientsPage() {
       renewalAt: client.renewalAt?.slice(0, 10) || '',
       whatsappGroup: client.whatsappGroup || '',
       driveFolderId: client.driveFolderId || '',
+      logoUrl: client.logoUrl || '',
+      logoPublicId: client.logoPublicId || '',
       capabilities: {
         reservations: client.capabilities?.reservations ?? true,
         crm: client.capabilities?.crm ?? true,
@@ -464,6 +476,20 @@ export function ClientsPage() {
             </div>
             <div className="form-group"><label>Grupo de WhatsApp</label><input className="input" value={form.whatsappGroup} onChange={(e) => setForm({ ...form, whatsappGroup: e.target.value })} placeholder="Nombre o enlace operativo" /></div>
             <div className="form-group"><label>Carpeta principal de Google Drive</label><input className="input" value={form.driveFolderId} onChange={(e) => setForm({ ...form, driveFolderId: e.target.value })} placeholder="ID de la carpeta del cliente" /></div>
+            <section style={{ borderTop: '1px solid var(--line, #E5E7EB)', paddingTop: '20px', marginTop: '20px' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--txt-muted, #6B7280)' }}>Logo de la empresa</h3>
+              <LogoUpload
+                currentLogoUrl={form.logoUrl}
+                clientId={editingId}
+                onSuccess={(logoUrl, logoPublicId) => {
+                  setForm({ ...form, logoUrl, logoPublicId });
+                  triggerToast('Logo actualizado correctamente', 'success');
+                }}
+                onError={(error) => {
+                  triggerToast(error, 'error');
+                }}
+              />
+            </section>
           </>}
           <button className="btn btn-primary btn-block" type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
             {createMutation.isPending || updateMutation.isPending ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear cliente'}
