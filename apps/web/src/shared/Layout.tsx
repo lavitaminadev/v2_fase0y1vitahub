@@ -9,6 +9,7 @@ import { useAuth } from '../core/auth';
 import { getNavigation } from '../core/navigation.registry';
 import { NavGlyph } from './NavGlyph';
 import { ToastContainer } from './Toast';
+import { NotificationCenter } from './NotificationCenter';
 import { BrandMark } from './Brand';
 import { CommandPalette } from './CommandPalette';
 import { PwaInstallButton } from './PwaInstallButton';
@@ -55,6 +56,7 @@ export function Layout(): JSX.Element {
   return (
     <div className="app-layout">
       <ToastContainer />
+      <NotificationCenter />
       <CommandPalette />
       {!online && <div className="offline-banner" role="alert"><strong>Sin conexión</strong><span>Puedes revisar la pantalla actual, pero los cambios no se enviarán hasta recuperar internet.</span></div>}
       <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Abrir navegación" aria-expanded={sidebarOpen}>
