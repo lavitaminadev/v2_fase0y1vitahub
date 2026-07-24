@@ -13,6 +13,7 @@ import { BrandMark } from './Brand';
 import { CommandPalette } from './CommandPalette';
 import { PwaInstallButton } from './PwaInstallButton';
 import { NotificationBell } from '../features/notifications/NotificationBell';
+import { ContextHelpDrawer } from './help/ContextHelpDrawer';
 
 const NAV_GROUPS: { label: string; paths: string[] }[] = [
   { label: 'Medir', paths: ['/dashboard'] },
@@ -33,6 +34,7 @@ export function Layout(): JSX.Element {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
   useEffect(() => { const updateConnection = () => setOnline(navigator.onLine); window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection); return () => { window.removeEventListener('online', updateConnection); window.removeEventListener('offline', updateConnection); }; }, []);
 
@@ -104,9 +106,10 @@ export function Layout(): JSX.Element {
       <div className="app-workspace">
         <header className="workspace-header">
           <div className="workspace-heading"><span>Espacio de trabajo</span><strong>{currentItem?.label ?? 'VITAHUB'}</strong></div>
-          <div className="workspace-header-actions"><button className="workspace-command" onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}><span>Buscar o ejecutar</span><kbd>Ctrl K</kbd></button><div className="workspace-user"><span className="online-dot" />{user?.name}</div></div>
+          <div className="workspace-header-actions"><button className="workspace-command" onClick={() => setHelpOpen(true)} title="Ayuda"><span>? Ayuda</span></button><button className="workspace-command" onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}><span>Buscar o ejecutar</span><kbd>Ctrl K</kbd></button><div className="workspace-user"><span className="online-dot" />{user?.name}</div></div>
         </header>
         <main className="main-content"><Outlet /></main>
+        <ContextHelpDrawer open={helpOpen} onClose={() => setHelpOpen(false)} />
       </div>
     </div>
   );
