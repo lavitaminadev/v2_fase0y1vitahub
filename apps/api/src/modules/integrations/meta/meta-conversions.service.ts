@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { createHash } from 'node:crypto';
 import { BadGatewayException } from '@nestjs/common';
+import { normalizeGeoValue } from '../../../shared/geo-inference';
 
 export interface ConversionEvent {
   eventName: string;
@@ -19,6 +20,12 @@ export interface ConversionEvent {
     fbc?: string;
     fbp?: string;
     externalId?: string[];
+    /** Ciudad normalizada (minúsculas, sin acentos ni espacios). */
+    ct?: string[];
+    /** Región/estado normalizado. */
+    st?: string[];
+    /** ISO 3166-1 alpha-2 en minúsculas, ej. 'cl'. */
+    country?: string[];
   };
   customData?: {
     currency?: string;
@@ -48,6 +55,9 @@ export class MetaConversionsService {
           fn: event.userData.fn,
           ln: event.userData.ln,
           external_id: event.userData.externalId,
+          ct: event.userData.ct,
+          st: event.userData.st,
+          country: event.userData.country,
           client_ip_address: event.userData.client_ip_address,
           client_user_agent: event.userData.client_user_agent,
           fbc: event.userData.fbc,
@@ -89,6 +99,13 @@ export class MetaConversionsService {
       fn: event.userData.fn?.map(f => createHash('sha256').update(f.trim().toLowerCase()).digest('hex')),
       ln: event.userData.ln?.map(l => createHash('sha256').update(l.trim().toLowerCase()).digest('hex')),
       externalId: event.userData.externalId?.map(id => createHash('sha256').update(id).digest('hex')),
+      // ct/st/country ya llegan normalizados desde geo-inference (minúsculas,
+      // sin acentos ni espacios), que es el formato que Meta exige antes de
+      // hashear. Se aplica normalizeGeoValue igualmente por si el valor viene
+      // de otra fuente.
+      ct: event.userData.ct?.map(c => createHash('sha256').update(normalizeGeoValue(c)).digest('hex')),
+      st: event.userData.st?.map(s => createHash('sha256').update(normalizeGeoValue(s)).digest('hex')),
+      country: event.userData.country?.map(c => createHash('sha256').update(normalizeGeoValue(c)).digest('hex')),
     };
     return this.sendEvent(pixelId, accessToken, { ...event, userData: hashed });
   }

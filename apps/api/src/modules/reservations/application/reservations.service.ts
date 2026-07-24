@@ -18,6 +18,7 @@ import { NotificationService } from '../../../core/notifications/notification.se
 import { EmailService } from '../../../core/notifications/email.service';
 import { AuditService } from '../../../core/audit/audit.service';
 import { MetaClientPixelService } from '../../integrations/meta/meta-client-pixel.service';
+import { inferLocationFromPhone } from '../../../shared/geo-inference';
 import { normalizeClientCapabilities } from '../../clients/client-capabilities';
 
 type ScheduleWindow = { day: number; start: string; end: string };
@@ -504,6 +505,10 @@ export class ReservationsService {
     eventSourceUrl = isWebEvent ? (eventSourceUrl || fallbackUrl || undefined) : undefined;
     const [firstName, ...lastNameParts] = (booking.guestName ?? '').trim().split(/\s+/);
     const lastName = lastNameParts.join(' ');
+    // Ubicación aproximada derivada del teléfono (sin proveedor externo): sube
+    // el Match Quality de Meta al aportar country/ct/st, que Meta no puede
+    // deducir por sí solo del client_ip_address.
+    const location = inferLocationFromPhone(booking.guestPhone);
     await this.metaOutbox.enqueue(form.organizationId, pixelId, {
       eventName, eventTime: eventTime ?? Math.floor(Date.now() / 1000), actionSource, eventSourceUrl,
       userData: {
@@ -512,6 +517,9 @@ export class ReservationsService {
         fn: firstName ? [firstName] : undefined,
         ln: lastName ? [lastName] : undefined,
         externalId: [booking.id],
+        ct: location.city ? [location.city] : undefined,
+        st: location.region ? [location.region] : undefined,
+        country: location.country ? [location.country] : undefined,
         fbc: booking.fbc ?? undefined,
         fbp: booking.fbp ?? undefined,
         client_ip_address: booking.clientIpAddress ?? undefined,
