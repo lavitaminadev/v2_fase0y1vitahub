@@ -25,7 +25,8 @@ interface ChargeNote {
 export function BillingPage() {
   const queryClient = useQueryClient();
   const [prices, setPrices] = useState<Record<string, string>>({});
-  const { data, isLoading, error } = useQuery<Invoice[]>({ queryKey: ['invoices'], queryFn: () => api.get('/billing/invoices') });
+  const { data: invoicesResp, isLoading, error } = useQuery<{ data: Invoice[] }>({ queryKey: ['invoices'], queryFn: () => api.get('/billing/invoices') });
+  const invoices = (invoicesResp?.data ?? []) as Invoice[];
   const { data: chargeData } = useQuery<ChargeNote[]>({ queryKey: ['charge-notes'], queryFn: () => api.get('/billing/invoices/charge-notes') });
   const priceMutation = useMutation({
     mutationFn: ({ id, amount }: { id: string; amount: number }) => api.put(`/billing/invoices/charge-notes/${id}/price`, { amount }),
@@ -33,7 +34,6 @@ export function BillingPage() {
   });
   if (isLoading) return <LoadingSpinner />;
   if (error) return <div className="alert alert-error">Error al cargar facturas</div>;
-  const invoices = Array.isArray(data) ? data : [];
   const chargeNotes = Array.isArray(chargeData) ? chargeData : [];
   return (
     <div className="page">

@@ -70,10 +70,11 @@ export function OnboardingPage() {
     queryFn: () => api.get<{ data: OnboardingItem[] }>('/onboarding'),
   });
 
-  const { data: clients } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
+  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
 
   const { data: users } = useQuery<UserOption[]>({
     queryKey: ['users'],

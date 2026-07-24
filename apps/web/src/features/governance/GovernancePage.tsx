@@ -35,7 +35,8 @@ export function GovernancePage() {
   const workflowsQuery = useQuery<Workflow[]>({ queryKey: ['workflows'], queryFn: () => api.get('/workflows') });
   const podsQuery = useQuery<Pod[]>({ queryKey: ['pods'], queryFn: () => api.get('/pods') });
   const usersQuery = useQuery<UserOption[]>({ queryKey: ['governance-users'], queryFn: () => api.get('/users?isActive=true') });
-  const clientsQuery = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clientsQuery = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clients = (clientsQuery.data as any)?.data ?? [];
 
   const workflowMutation = useMutation({
     mutationFn: (workflow: Workflow) => api.put(`/workflows/${workflow.id}`, { name: workflow.name, description: workflow.description, isActive: workflow.isActive, steps: workflow.steps }),
@@ -65,7 +66,6 @@ export function GovernancePage() {
   });
 
   const users = (usersQuery.data ?? []).filter((user) => user.role !== 'client');
-  const clients = clientsQuery.data ?? [];
   const openWorkflow = (workflow: Workflow) => { const copy = structuredClone(workflow); setEditingWorkflow(workflow); setWorkflowDraft(copy); setFeedback(null); };
   const moveStep = (index: number, direction: -1 | 1) => setWorkflowDraft((current) => {
     if (!current) return current; const target = index + direction; if (target < 0 || target >= current.steps.length) return current;

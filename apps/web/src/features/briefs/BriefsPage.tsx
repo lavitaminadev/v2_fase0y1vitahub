@@ -39,7 +39,8 @@ export function BriefsPage() {
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const qc = useQueryClient();
   const briefsQuery = useQuery<{ data: BriefRow[] }>({ queryKey: ['briefs'], queryFn: () => api.get('/briefs') });
-  const { data: clients = [] } = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clients = (clientsResp as any)?.data ?? [];
   const close = () => { setOpen(false); setEditingId(null); setForm(EMPTY_FORM); };
   const success = async (text: string) => { await qc.invalidateQueries({ queryKey: ['briefs'] }); close(); setFeedback({ tone: 'success', text }); };
   const createMutation = useMutation({ mutationFn: (body: Record<string, unknown>) => api.post('/briefs', body), onSuccess: () => success('Brief creado correctamente.'), onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }) });

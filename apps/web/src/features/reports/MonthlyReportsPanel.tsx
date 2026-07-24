@@ -23,7 +23,8 @@ export function MonthlyReportsPanel() {
   const [salesGenerated, setSalesGenerated] = useState('0');
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const { data: reports = [], isLoading, error } = useQuery<MonthlyReport[]>({ queryKey: ['monthly-reports'], queryFn: () => api.get('/reporting/monthly-reports') });
-  const { data: clients = [] } = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clients = (clientsResp as any)?.data ?? [];
   const refresh = async (text: string) => { await qc.invalidateQueries({ queryKey: ['monthly-reports'] }); setFeedback({ tone: 'success', text }); };
   const generate = useMutation({ mutationFn: () => api.post('/reporting/monthly-reports/generate', { clientId, year: Number(year), month: Number(month) }), onSuccess: async () => { setGenerateOpen(false); await refresh('Reporte generado con datos reales. Revísalo antes de publicarlo.'); }, onError: (mutationError: Error) => setFeedback({ tone: 'error', text: mutationError.message }) });
   const update = useMutation({ mutationFn: () => api.put(`/reporting/monthly-reports/${editing!.id}`, { executiveSummary: summary, insights: insights.split('\n').map((value) => value.trim()).filter(Boolean), recommendations, salesGenerated: Number(salesGenerated) }), onSuccess: async () => { setEditing(null); await refresh('Contenido editorial guardado.'); }, onError: (mutationError: Error) => setFeedback({ tone: 'error', text: mutationError.message }) });

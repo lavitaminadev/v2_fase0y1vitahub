@@ -59,8 +59,8 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const clientQuery = clientFilter ? `?clientId=${encodeURIComponent(clientFilter)}` : '';
   const { data: formsArray = [], isLoading, error: formsError, refetch: refetchForms, isFetching: fetchingForms } = useQuery<ReservationForm[]>({ queryKey: ['reservation-forms', clientFilter], queryFn: () => api.get(`/reservations/forms${clientQuery}`) });
   const forms = Array.isArray(formsArray) ? formsArray : [];
-  const { data: clientsData = [] } = useQuery<Client[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: !clientView });
-  const clients = Array.isArray(clientsData) ? clientsData : [];
+  const { data: clientsResp } = useQuery<{ data: Client[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: !clientView });
+  const clients = Array.isArray((clientsResp as any)?.data) ? (clientsResp as any).data : [];
   const query = new URLSearchParams({ page: String(page), pageSize: '20', ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.status ? { status: filters.status } : {}), ...(filters.formId ? { formId: filters.formId } : {}) });
   const { data: bookingPage, isFetching: loadingBookings } = useQuery<ReservationPage>({ queryKey: ['reservations', page, clientFilter, search, filters.status, filters.formId], queryFn: () => api.get(`/reservations?${query}`), enabled: tab === 'bookings', placeholderData: (previous) => previous });
   const bookingsData = bookingPage?.items || [];

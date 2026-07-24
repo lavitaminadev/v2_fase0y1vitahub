@@ -49,10 +49,11 @@ export function MetaConnectCard({ integration }: MetaConnectCardProps) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
-  const { data: clients = [] } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
+  const clients = (clientsResp as any)?.data ?? [];
 
   const catalogQuery = useQuery<MetaPixelCatalog>({
     queryKey: ['meta-client-pixel-catalog'],

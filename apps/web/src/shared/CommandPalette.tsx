@@ -47,8 +47,8 @@ export function CommandPalette() {
     return () => window.clearTimeout(timer);
   }, [open, taskMode]);
 
-  const clientsQuery = useQuery<ClientResult[]>({ queryKey: ['command-clients'], queryFn: () => api.get('/clients'), enabled: open && hasPath('/clients'), retry: false });
-  const leadsQuery = useQuery<LeadResult[]>({ queryKey: ['command-leads'], queryFn: () => api.get('/crm/leads'), enabled: open && hasPath('/crm'), retry: false });
+  const clientsQuery = useQuery<{ data: ClientResult[] }>({ queryKey: ['command-clients'], queryFn: () => api.get('/clients'), enabled: open && hasPath('/clients'), retry: false });
+  const leadsQuery = useQuery<{ data: LeadResult[] }>({ queryKey: ['command-leads'], queryFn: () => api.get('/crm/leads'), enabled: open && hasPath('/crm'), retry: false });
   const documentsQuery = useQuery<{ data: DocumentResult[] }>({ queryKey: ['command-documents'], queryFn: () => api.get('/documents'), enabled: open && hasPath('/documents'), retry: false });
   const formsQuery = useQuery<FormResult[]>({ queryKey: ['command-forms'], queryFn: () => api.get('/reservations/forms'), enabled: open && hasPath('/reservations'), retry: false });
   const reservationsQuery = useQuery<{ items: ReservationResult[] }>({ queryKey: ['command-reservations'], queryFn: () => api.get('/reservations?page=1&pageSize=50'), enabled: open && hasPath('/reservations'), retry: false });
@@ -73,8 +73,8 @@ export function CommandPalette() {
     if (hasPath('/reservations')) actions.unshift({ id: 'action-new-form', group: 'Acciones rápidas', title: 'Crear formulario o encuesta', description: 'Abrir el constructor guiado', path: '/reservations?create=1' });
     if (hasPath('/meetings')) actions.unshift({ id: 'action-new-task', group: 'Acciones rápidas', title: 'Crear tarea de reunión', description: 'Registrar una acción sin abandonar la pantalla', action: () => setTaskMode(true) });
     const records: SearchItem[] = [
-      ...(clientsQuery.data || []).map((client) => ({ id: `client-${client.id}`, group: 'Clientes', title: client.name, description: `${client.industry || 'Sin industria'} · ${client.status}`, path: `/clients/${client.id}` })),
-      ...(leadsQuery.data || []).map((lead) => ({ id: `lead-${lead.id}`, group: 'Leads', title: lead.name, description: `${lead.company || lead.email || 'Sin empresa'} · ${lead.status}`, path: `/crm/leads?focus=${lead.id}` })),
+      ...(clientsQuery.data?.data || []).map((client) => ({ id: `client-${client.id}`, group: 'Clientes', title: client.name, description: `${client.industry || 'Sin industria'} · ${client.status}`, path: `/clients/${client.id}` })),
+      ...(leadsQuery.data?.data || []).map((lead) => ({ id: `lead-${lead.id}`, group: 'Leads', title: lead.name, description: `${lead.company || lead.email || 'Sin empresa'} · ${lead.status}`, path: `/crm/leads?focus=${lead.id}` })),
       ...(documentsQuery.data?.data || []).map((document) => ({ id: `document-${document.id}`, group: 'Documentos', title: document.name, description: `${document.type} · ${document.status}`, path: `/documents?q=${encodeURIComponent(document.name)}` })),
       ...(formsQuery.data || []).map((form) => ({ id: `form-${form.id}`, group: 'Reservas y formularios', title: form.name, description: `${form.status} · ${publicReservationUrl(form.publicSlug, form.publicUrl)}`, path: `/reservations/forms/${form.id}` })),
       ...(reservationsQuery.data?.items || []).map((reservation) => ({ id: `reservation-${reservation.id}`, group: 'Reservas', title: reservation.guestName, description: `#${reservation.referenceCode} · ${reservation.guestEmail || reservation.guestPhone || reservation.status}`, path: `/reservations?tab=bookings&search=${encodeURIComponent(reservation.referenceCode)}` })),

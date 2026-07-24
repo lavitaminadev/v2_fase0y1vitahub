@@ -50,11 +50,12 @@ export function AudiovisualPage() {
     queryFn: () => api.get('/moodboards?limit=100'),
     enabled: canSeeMoodboards,
   });
-  const { data: clients = [] } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
     enabled: canManageMoodboards || canManageSessions,
   });
+  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
   const { data: assignees = [] } = useQuery<UserOption[]>({
     queryKey: ['production-assignees'],
     queryFn: () => api.get('/production/pieces/options/assignees'),

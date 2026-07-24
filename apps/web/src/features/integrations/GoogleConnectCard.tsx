@@ -28,7 +28,8 @@ export function GoogleConnectCard({ integration }: GoogleConnectCardProps) {
     queryFn: () => api.get(`/integrations/google/auth-url?redirect_uri=${encodeURIComponent(REDIRECT_URI)}`),
     enabled: statusQuery.data?.configured === true && !isConnected,
   });
-  const { data: clients = [] } = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: isConnected });
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: isConnected });
+  const clients = (clientsResp as any)?.data ?? [];
   const accountsQuery = useQuery<GoogleAccount[]>({
     queryKey: ['google-accounts', integration?.id],
     queryFn: () => api.get(`/integrations/google/${integration!.id}/accounts`),

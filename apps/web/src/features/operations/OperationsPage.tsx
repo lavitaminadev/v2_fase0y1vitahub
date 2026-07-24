@@ -77,11 +77,12 @@ export function OperationsPage() {
     queryFn: () => api.get('/users?isActive=true'),
     enabled: canManageObjectives,
   });
-  const { data: clients = [] } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
     enabled: canManageObjectives,
   });
+  const clients = (clientsResp as any)?.data ?? [];
   const objectiveMutation = useMutation({ mutationFn: ({ id, progress }: { id: string; progress: number }) => api.put(`/objectives/${id}`, { progress }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['objectives'] }) });
   const createObjective = useMutation({
     mutationFn: () => api.post('/objectives', {

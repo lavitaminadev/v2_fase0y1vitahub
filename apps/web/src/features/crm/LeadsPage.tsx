@@ -78,10 +78,11 @@ export function LeadsPage() {
   const [createOpen, setCreateOpen] = useState(searchParams.get('create') === '1');
   const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', company: '', source: 'manual', notes: '' });
 
-  const { data: leads, isLoading, error, refetch, isFetching } = useQuery<Lead[]>({
+  const { data: leadsResp, isLoading, error, refetch, isFetching } = useQuery<{ data: Lead[] }>({
     queryKey: ['leads'],
     queryFn: () => api.get('/crm/leads'),
   });
+  const leads = (leadsResp as { data: Lead[] } | undefined)?.data ?? [];
 
   const visibleLeads = useMemo(() => {
     if (!leads) return [];

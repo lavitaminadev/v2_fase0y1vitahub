@@ -108,7 +108,8 @@ export function UsersPage() {
     queryKey: ['users', query],
     queryFn: () => api.get(`/users${query ? `?${query}` : ''}`),
   });
-  const { data: clients = [] } = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
 
   const closeModal = () => {
     setModalOpen(false);

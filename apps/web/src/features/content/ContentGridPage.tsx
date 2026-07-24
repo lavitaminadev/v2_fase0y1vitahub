@@ -62,7 +62,8 @@ export function ContentGridPage() {
     queryKey: ['content-grids', selectedMonth, clientFilter],
     queryFn: () => api.get(`/content/grids?${query}`),
   });
-  const { data: clients = [] } = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clients = (clientsResp as any)?.data ?? [];
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['content-grids'] });
   const createGrid = useMutation({

@@ -74,10 +74,11 @@ export function MeetingsPage() {
     queryFn: () => api.get('/meetings'),
   });
 
-  const { data: clients } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
+  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/meetings', body),

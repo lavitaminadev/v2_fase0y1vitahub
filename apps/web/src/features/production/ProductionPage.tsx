@@ -122,11 +122,12 @@ export function ProductionPage() {
     enabled: canAssign,
   });
 
-  const { data: clients } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
     enabled: canCreate,
   });
+  const clients = (clientsResp as any)?.data ?? [];
 
   const assignableUsers = useMemo(
     () => (users ?? []).filter((user) => ['designer', 'audiovisual', 'art_director'].includes(user.role)),

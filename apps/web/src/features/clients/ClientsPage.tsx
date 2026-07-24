@@ -110,10 +110,11 @@ export function ClientsPage() {
   const [bulkStatusPending, setBulkStatusPending] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: clients, isLoading, error } = useQuery<ClientRecord[]>({
+  const { data: clientsResp, isLoading, error } = useQuery<{ data: ClientRecord[] }>({
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
+  const clients = (clientsResp as any)?.data ?? [];
 
   const { data: users } = useQuery<UserOption[]>({
     queryKey: ['client-manager-options'],

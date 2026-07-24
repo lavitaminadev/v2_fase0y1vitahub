@@ -79,10 +79,11 @@ export function DocumentsPage() {
     queryFn: () => api.get<{ data: DocumentRecord[] }>('/documents'),
   });
 
-  const { data: clients } = useQuery<ClientOption[]>({
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({
     queryKey: ['clients'],
-    queryFn: () => api.get<ClientOption[]>('/clients'),
+    queryFn: () => api.get('/clients'),
   });
+  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => api.post('/documents', payload),

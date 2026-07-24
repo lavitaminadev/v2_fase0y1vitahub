@@ -46,7 +46,8 @@ export function ContractsPage() {
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const qc = useQueryClient();
   const contractsQuery = useQuery<{ data: ContractRow[] }>({ queryKey: ['contracts'], queryFn: () => api.get('/contracts') });
-  const { data: clients = [] } = useQuery<ClientOption[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const clients = (clientsResp as any)?.data ?? [];
   const { data: packs = [] } = useQuery<PackOption[]>({ queryKey: ['catalog-packs'], queryFn: () => api.get('/catalog/packs') });
   const close = () => { setOpen(false); setEditingId(null); setForm(EMPTY_FORM); };
   const success = async (text: string) => { await qc.invalidateQueries({ queryKey: ['contracts'] }); close(); setFeedback({ tone: 'success', text }); };
