@@ -19,6 +19,7 @@ import { EmailService } from '../../../core/notifications/email.service';
 import { AuditService } from '../../../core/audit/audit.service';
 import { MetaClientPixelService } from '../../integrations/meta/meta-client-pixel.service';
 import { inferLocationFromPhone } from '../../../shared/geo-inference';
+import { GoogleConversionOutboxService } from '../../integrations/google/google-conversion-outbox.service';
 import { normalizeClientCapabilities } from '../../clients/client-capabilities';
 
 type ScheduleWindow = { day: number; start: string; end: string };
@@ -75,6 +76,10 @@ export class ReservationsService {
     private readonly notifications: NotificationService,
     private readonly emails: EmailService,
     private readonly audit: AuditService,
+    // Se agrega al final a propósito: las pruebas instancian el servicio con
+    // argumentos posicionales, así que insertarlo en medio desplazaría las
+    // dependencias existentes.
+    private readonly googleOutbox: GoogleConversionOutboxService,
   ) {}
   private readonly logger = new Logger(ReservationsService.name);
 
@@ -477,6 +482,15 @@ export class ReservationsService {
       }
     }
 
+    if (result.created) {
+      try {
+        await this.enqueueGoogleConversion(result.booking, result.form, 'schedule', result.booking.createdAt);
+      } catch (err) {
+        this.logger.warn(`Google Ads enqueue failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`);
+        await this.recordIntegrationFailure(result.booking, 'google_ads');
+      }
+    }
+
     if (result.created) await this.notifyNewBooking(result.form, result.booking);
     return result.booking;
   }
@@ -490,6 +504,39 @@ export class ReservationsService {
       actorType: 'system',
       metadata: { provider },
     }));
+  }
+
+  /**
+   * Encola la conversión equivalente hacia Google Ads.
+   *
+   * Se omite en silencio si el cliente no tiene Ads conectado o no configuró
+   * la acción de conversión: la reserva no debe fallar por eso. El gclid viene
+   * de `clickId`, capturado desde la URL del anuncio; si no hay, Google puede
+   * atribuir igual vía enhanced conversions con los datos hasheados.
+   */
+  private async enqueueGoogleConversion(booking: Reservation, form: ReservationForm, eventKey: string, conversionDate: Date) {
+    if (!this.googleOutbox) return;
+    const config = await this.googleOutbox.resolveConfig(form.organizationId, form.clientId, eventKey);
+    if (!config) return;
+
+    const [firstName, ...lastNameParts] = (booking.guestName ?? '').trim().split(/\s+/);
+    const location = inferLocationFromPhone(booking.guestPhone);
+
+    await this.googleOutbox.enqueue(form.organizationId, config, `${eventKey}:${booking.id}`, {
+      gclid: booking.clickId ?? undefined,
+      orderId: booking.id,
+      conversionDateTime: conversionDate,
+      timezone: form.timezone,
+      userData: {
+        email: booking.guestEmail ?? undefined,
+        phone: booking.guestPhone ?? undefined,
+        firstName: firstName || undefined,
+        lastName: lastNameParts.join(' ') || undefined,
+        country: location.country,
+        region: location.region,
+        city: location.city,
+      },
+    });
   }
 
   private async enqueueMetaConversion(booking: Reservation, form: ReservationForm, eventName: string, eventTime?: number, eventSourceUrl?: string) {
@@ -579,6 +626,7 @@ export class ReservationsService {
     // de conversión real. Ambos resultados igual se sincronizan al CRM abajo para que el equipo
     // pueda ver/reportar las inasistencias internamente.
     if (statusChangedTo === 'attended' && formForMeta?.metaCapiEnabled && capabilities?.metaConversions) { try { await this.enqueueMetaConversion(saved, formForMeta, 'Reserva_Asistida', Math.floor(saved.startsAt.getTime() / 1000)); } catch (err) { this.logger.warn(`Meta CAPI attended event failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(saved, 'meta_capi'); } }
+    if (statusChangedTo === 'attended' && formForMeta) { try { await this.enqueueGoogleConversion(saved, formForMeta, 'attended', saved.startsAt); } catch (err) { this.logger.warn(`Google Ads attended event failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(saved, 'google_ads'); } }
     if (statusChangedTo === 'attended' || statusChangedTo === 'no_show') { try { await this.leadIntake.updateStatusByContact(organizationId, statusChangedTo === 'attended' ? 'attended' : 'no_show', saved.guestEmail, saved.guestPhone, saved.clientId); } catch (err) { this.logger.warn(`CRM status sync failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); /* CRM sync is best-effort */ } }
     return saved;
   }

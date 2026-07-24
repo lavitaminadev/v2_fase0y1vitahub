@@ -58,7 +58,9 @@ describe('ReservationsService', () => {
     forms.exist.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     const result = await service.createForm('org-1', 'user-1', { clientId: 'client-1', name: 'Clínica Centro' });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('organization_id'), ['client-1', 'org-1']);
-    expect(result.publicSlug).toMatch(/^clinica-centro-[a-f0-9]{8}$/);
+    // randomBytes(3) produce 6 caracteres hex. El sufijo solo se agrega cuando
+    // el slug ya existe, y el bucle reintenta ante colision, asi que 6 basta.
+    expect(result.publicSlug).toMatch(/^clinica-centro-[a-f0-9]{6}$/);
     expect(result.fieldSchema).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'consent', required: true })]));
   });
 

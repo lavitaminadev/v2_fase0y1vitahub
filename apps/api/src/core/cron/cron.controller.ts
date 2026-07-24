@@ -4,6 +4,7 @@ import { timingSafeEqual } from 'crypto';
 import { Public } from '../auth/decorators/public.decorator';
 import { SkipTenancy } from '../tenancy/skip-tenancy.decorator';
 import { MetaConversionOutboxService } from '../../modules/integrations/meta/meta-conversion-outbox.service';
+import { GoogleConversionOutboxService } from '../../modules/integrations/google/google-conversion-outbox.service';
 
 @Controller('cron')
 @Public()
@@ -13,6 +14,7 @@ export class CronController {
 
   constructor(
     private readonly capiOutbox: MetaConversionOutboxService,
+    private readonly googleOutbox: GoogleConversionOutboxService,
   ) {}
 
   private verifySecret(secret?: string): void {
@@ -56,6 +58,40 @@ export class CronController {
   async capiDiagnostics(@Headers('x-cron-secret') secret: string) {
     this.verifySecret(secret);
     const stats = await this.capiOutbox.stats();
+    return { ok: true, ...stats, timestamp: new Date().toISOString() };
+  }
+
+  @Post('google-ads')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processGoogleAdsPost(@Headers('x-cron-secret') secret: string, @Body('limit') limit?: number) {
+    this.verifySecret(secret);
+    return this.runGoogleAds(limit);
+  }
+
+  @Get('google-ads')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processGoogleAds(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runGoogleAds();
+  }
+
+  private async runGoogleAds(limit?: number) {
+    const lockKey = 'google-ads';
+    if (this.running.has(lockKey)) return { ok: true, skipped: 'already_running' };
+    this.running.add(lockKey);
+    try {
+      const result = await this.googleOutbox.processPending(limit ?? 50);
+      return { ok: true, processed: result.processed, failed: result.failed, timestamp: new Date().toISOString() };
+    } finally {
+      this.running.delete(lockKey);
+    }
+  }
+
+  @Get('google-ads/diagnostics')
+  @Throttle({ default: { limit: 12, ttl: 60000 } })
+  async googleAdsDiagnostics(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    const stats = await this.googleOutbox.stats();
     return { ok: true, ...stats, timestamp: new Date().toISOString() };
   }
 
