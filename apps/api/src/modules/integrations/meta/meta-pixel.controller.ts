@@ -5,6 +5,7 @@ import { Throttle } from '@nestjs/throttler';
 import { MetaPixelService } from './meta-pixel.service';
 import { MetaConversionsService } from './meta-conversions.service';
 import { MetaOAuthService } from './meta-oauth.service';
+import { MetaAssetDiscoveryService } from './meta-asset-discovery.service';
 import { MetaLeadAdsService } from './meta-lead-ads.service';
 import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
@@ -23,6 +24,7 @@ export class MetaPixelController {
     private pixel: MetaPixelService,
     private conversions: MetaConversionsService,
     private oauth: MetaOAuthService,
+    private assetDiscovery: MetaAssetDiscoveryService,
     private metaLeadAds: MetaLeadAdsService,
     private insights: MetaInsightsService,
     private clientPixels: MetaClientPixelService,
@@ -101,14 +103,14 @@ export class MetaPixelController {
   @ApiOperation({ summary: 'Discover available Meta assets and current selection' })
   @Roles(UserRole.ADMIN)
   assets(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.oauth.discoverAssets(id, req.organizationId);
+    return this.assetDiscovery.discoverAssets(id, req.organizationId);
   }
 
   @Post(':id/assets')
   @ApiOperation({ summary: 'Persist selected Meta assets' })
   @Roles(UserRole.ADMIN)
   saveAssets(@Param('id') id: string, @Body() dto: MetaAssetSelectionDto, @Req() req: AuthenticatedRequest) {
-    return this.oauth.saveSelectedAssets(id, req.organizationId, dto);
+    return this.assetDiscovery.saveSelectedAssets(id, req.organizationId, dto);
   }
 
   @Get(':id/health')

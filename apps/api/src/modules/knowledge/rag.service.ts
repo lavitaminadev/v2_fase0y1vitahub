@@ -18,13 +18,13 @@ export class RagService {
     private readonly store: KnowledgeStore,
   ) {}
 
-  storeChunk(
+  async storeChunk(
     tenantId: string,
     content: string,
     embedding: number[],
     metadata: { sourceName: string; chunkIndex: number; tokenCount: number },
-  ): void {
-    this.store.add({
+  ): Promise<void> {
+    await this.store.add({
       id: randomUUID(),
       tenantId,
       content,
@@ -39,7 +39,7 @@ export class RagService {
   async semanticSearch(tenantId: string, query: string, limit = 5): Promise<RagSearchResult[]> {
     try {
       const queryEmbedding = await this.embeddings.create(query);
-      const results = this.store.search(tenantId, queryEmbedding, limit);
+      const results = await this.store.search(tenantId, queryEmbedding, limit);
       return results.map((r) => ({ content: r.content, sourceName: r.sourceName, score: r.score }));
     } catch (error) {
       this.logger.warn(`Semantic search unavailable: ${error instanceof Error ? error.message : 'unknown error'}`);
@@ -64,10 +64,10 @@ export class RagService {
   }
 
   async deleteSource(tenantId: string, sourceName: string): Promise<void> {
-    this.store.deleteBySource(tenantId, sourceName);
+    await this.store.deleteBySource(tenantId, sourceName);
   }
 
-  stats(tenantId: string) {
+  async stats(tenantId: string) {
     return this.store.stats(tenantId);
   }
 }

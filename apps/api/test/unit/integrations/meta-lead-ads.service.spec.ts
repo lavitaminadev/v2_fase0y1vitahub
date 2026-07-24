@@ -6,6 +6,7 @@ const accountsRepo = {
 };
 
 const eventsRepo = {
+  find: vi.fn(),
   findOne: vi.fn(),
   create: vi.fn(),
   save: vi.fn(),
@@ -22,6 +23,8 @@ describe('MetaLeadAdsService', () => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
     service = new MetaLeadAdsService(accountsRepo as any, eventsRepo as any, leadIntake as any);
+    accountsRepo.find.mockResolvedValue([]);
+    eventsRepo.find.mockResolvedValue([]);
     eventsRepo.create.mockImplementation((data) => data);
     eventsRepo.findOne.mockResolvedValue(null);
     eventsRepo.save.mockImplementation(async (data) => ({ id: 'evt-1', ...data }));
@@ -121,17 +124,16 @@ describe('MetaLeadAdsService', () => {
   });
 
   it('does not process an already completed webhook event twice', async () => {
-    eventsRepo.findOne.mockResolvedValue({
+    eventsRepo.find.mockResolvedValue([{
       id: 'evt-existing',
       pageId: 'page-1',
       leadgenId: 'leadgen-1',
       processingStatus: 'processed',
-    });
+    }]);
 
     const result = await service.syncSingleLead('page-1', 'leadgen-1', 'org-1');
 
     expect(result).toEqual({ accepted: 1, createdOrUpdated: 0 });
-    expect(accountsRepo.find).not.toHaveBeenCalled();
     expect(leadIntake.captureLead).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,5 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
-import { v4 as uuidv4 } from 'uuid';
 import { Request, Response } from 'express';
 import { LoggerService } from './logger.service';
 import { MetricsService } from './metrics.service';
@@ -17,12 +16,12 @@ export class LoggingInterceptor implements NestInterceptor {
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
 
-    const requestId = uuidv4();
-    (request as any).requestId = requestId;
+    // RequestIdMiddleware runs earlier in the pipeline and owns request id generation.
+    const requestId = request.requestId ?? 'unknown';
 
     const { method, url } = request;
-    const userId = (request as any).user?.id;
-    const organizationId = (request as any).organizationId;
+    const userId = request.user?.id;
+    const organizationId = request.organizationId;
 
     this.logger.setRequestId(requestId);
     if (userId) this.logger.setUserId(userId);

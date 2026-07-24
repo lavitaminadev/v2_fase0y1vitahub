@@ -25,28 +25,34 @@ export class CloseXpPeriodsJob {
       where: { status: 'open', weekEnd: LessThanOrEqual(closeThrough) },
     });
 
+    // try/catch por periodo: un error calculando el XP de un diseñador (ej. datos
+    // inconsistentes) no debe dejar sin cerrar los periodos del resto del equipo.
     for (const period of openPeriods) {
-      const result = await this.eventRepo
-        .createQueryBuilder('e')
-        .select('COALESCE(SUM(e.points), 0)', 'total')
-        .where('e.xp_period_id = :periodId', { periodId: period.id })
-        .getRawOne();
+      try {
+        const result = await this.eventRepo
+          .createQueryBuilder('e')
+          .select('COALESCE(SUM(e.points), 0)', 'total')
+          .where('e.xp_period_id = :periodId', { periodId: period.id })
+          .getRawOne();
 
-      const penaltyCount = await this.eventRepo.count({ where: { xpPeriodId: period.id, eventType: XPEventType.CORRECTION_PENALTY } });
-      if (penaltyCount === 0) {
-        await this.eventRepo.save(this.eventRepo.create({ xpPeriodId: period.id, userId: period.userId, eventType: XPEventType.NO_ERROR_WEEK_BONUS, points: 15, description: 'Semana cerrada sin correcciones atribuibles al diseñador' }));
+        const penaltyCount = await this.eventRepo.count({ where: { xpPeriodId: period.id, eventType: XPEventType.CORRECTION_PENALTY } });
+        if (penaltyCount === 0) {
+          await this.eventRepo.save(this.eventRepo.create({ xpPeriodId: period.id, userId: period.userId, eventType: XPEventType.NO_ERROR_WEEK_BONUS, points: 15, description: 'Semana cerrada sin correcciones atribuibles al diseñador' }));
+        }
+        const totalXp = Number(result?.total ?? 0) + (penaltyCount === 0 ? 15 : 0);
+        const tier = calculateWeeklyTier(totalXp);
+
+        await this.periodRepo.update(period.id, {
+          status: 'closed',
+          totalXp,
+          tier: tier ?? undefined,
+          closedAt: new Date(),
+        });
+
+        this.logger.log(`Closed period ${period.id}: ${totalXp} XP, tier ${tier ?? 'none'}`);
+      } catch (error) {
+        this.logger.error(`Failed to close XP period ${period.id}: ${error instanceof Error ? error.message : error}`);
       }
-      const totalXp = Number(result?.total ?? 0) + (penaltyCount === 0 ? 15 : 0);
-      const tier = calculateWeeklyTier(totalXp);
-
-      await this.periodRepo.update(period.id, {
-        status: 'closed',
-        totalXp,
-        tier: tier ?? undefined,
-        closedAt: new Date(),
-      });
-
-      this.logger.log(`Closed period ${period.id}: ${totalXp} XP, tier ${tier ?? 'none'}`);
     }
 
     this.logger.log(`Closed ${openPeriods.length} periods`);

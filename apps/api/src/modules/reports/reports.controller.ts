@@ -167,48 +167,6 @@ export class ReportingController {
       clientParams.push(...allowedClientIds);
     }
 
-    const [revRow] = await this.dataSource.query(
-      `SELECT COALESCE(SUM(total),0) as total FROM invoices WHERE ${invoiceConditions.join(' AND ')} AND status = 'paid'`,
-      invoiceParams,
-    );
-    const [projRow] = await this.dataSource.query(
-      `SELECT COUNT(*) as total FROM pieces WHERE ${pieceConditions.join(' AND ')} AND status NOT IN ('delivered','cancelled')`,
-      pieceParams,
-    );
-    const [avgUdRow] = await this.dataSource.query(
-      `SELECT COALESCE(AVG(default_ud_budget),0) as avg FROM clients WHERE ${clientConditions.join(' AND ')}`,
-      clientParams,
-    );
-
-    const monthlyRows = await this.dataSource.query<MonthlyReportRow[]>(
-      `SELECT months.month,
-              COALESCE(revenue.total, 0) AS revenue,
-              COALESCE(production.ud, 0) AS ud
-       FROM (
-         SELECT DATE_FORMAT(created_at, '%Y-%m') AS month FROM invoices
-          WHERE ${invoiceConditions.join(' AND ')} AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-         UNION
-         SELECT DATE_FORMAT(created_at, '%Y-%m') AS month FROM pieces
-          WHERE ${pieceConditions.join(' AND ')} AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-       ) months
-       LEFT JOIN (
-         SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, SUM(total) AS total
-         FROM invoices WHERE ${invoiceConditions.join(' AND ')} AND status = 'paid'
-         GROUP BY month
-       ) revenue ON revenue.month = months.month
-       LEFT JOIN (
-         SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, SUM(ud_amount) AS ud
-         FROM pieces WHERE ${pieceConditions.join(' AND ')} GROUP BY month
-       ) production ON production.month = months.month
-       ORDER BY months.month ASC`,
-      [...invoiceParams, ...pieceParams, ...invoiceParams, ...pieceParams],
-    );
-    const monthly = monthlyRows.map((r) => ({
-      month: r.month,
-      revenue: Number(r.revenue),
-      ud: Number(r.ud),
-    }));
-
     const topConditions = ['c.organization_id = ?'];
     const topParams = [orgId];
     if (clientId) {
@@ -220,13 +178,56 @@ export class ReportingController {
         : '1 = 0');
       topParams.push(...allowedClientIds);
     }
-    const topRows = await this.dataSource.query<TopClientRow[]>(
-      `SELECT c.name, COALESCE(SUM(CASE WHEN i.status = 'paid' THEN i.total ELSE 0 END),0) as revenue
-       FROM clients c LEFT JOIN invoices i ON i.client_id = c.id
-       WHERE ${topConditions.join(' AND ')}
-       GROUP BY c.id ORDER BY revenue DESC LIMIT 5`,
-      topParams,
-    );
+
+    const [[revRow], [projRow], [avgUdRow], monthlyRows, topRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT COALESCE(SUM(total),0) as total FROM invoices WHERE ${invoiceConditions.join(' AND ')} AND status = 'paid'`,
+        invoiceParams,
+      ),
+      this.dataSource.query(
+        `SELECT COUNT(*) as total FROM pieces WHERE ${pieceConditions.join(' AND ')} AND status NOT IN ('delivered','cancelled')`,
+        pieceParams,
+      ),
+      this.dataSource.query(
+        `SELECT COALESCE(AVG(default_ud_budget),0) as avg FROM clients WHERE ${clientConditions.join(' AND ')}`,
+        clientParams,
+      ),
+      this.dataSource.query<MonthlyReportRow[]>(
+        `SELECT months.month,
+                COALESCE(revenue.total, 0) AS revenue,
+                COALESCE(production.ud, 0) AS ud
+         FROM (
+           SELECT DATE_FORMAT(created_at, '%Y-%m') AS month FROM invoices
+            WHERE ${invoiceConditions.join(' AND ')} AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+           UNION
+           SELECT DATE_FORMAT(created_at, '%Y-%m') AS month FROM pieces
+            WHERE ${pieceConditions.join(' AND ')} AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+         ) months
+         LEFT JOIN (
+           SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, SUM(total) AS total
+           FROM invoices WHERE ${invoiceConditions.join(' AND ')} AND status = 'paid'
+           GROUP BY month
+         ) revenue ON revenue.month = months.month
+         LEFT JOIN (
+           SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, SUM(ud_amount) AS ud
+           FROM pieces WHERE ${pieceConditions.join(' AND ')} GROUP BY month
+         ) production ON production.month = months.month
+         ORDER BY months.month ASC`,
+        [...invoiceParams, ...pieceParams, ...invoiceParams, ...pieceParams],
+      ),
+      this.dataSource.query<TopClientRow[]>(
+        `SELECT c.name, COALESCE(SUM(CASE WHEN i.status = 'paid' THEN i.total ELSE 0 END),0) as revenue
+         FROM clients c LEFT JOIN invoices i ON i.client_id = c.id
+         WHERE ${topConditions.join(' AND ')}
+         GROUP BY c.id ORDER BY revenue DESC LIMIT 5`,
+        topParams,
+      ),
+    ]);
+    const monthly = monthlyRows.map((r) => ({
+      month: r.month,
+      revenue: Number(r.revenue),
+      ud: Number(r.ud),
+    }));
 
     return {
       totalRevenue: Number(revRow?.total || 0),

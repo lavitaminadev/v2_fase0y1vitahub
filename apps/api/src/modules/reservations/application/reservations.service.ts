@@ -346,12 +346,21 @@ export class ReservationsService {
   }
 
   async createPublic(slug: string, dto: PublicReservationDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
-    if (dto.website) throw new BadRequestException('Solicitud inválida'); if (dto.renderedAt && Date.now() - new Date(dto.renderedAt).getTime() < 800) throw new BadRequestException('Completa el formulario antes de enviarlo');
+    if (dto.website) throw new BadRequestException('Solicitud inválida');
+    if (dto.renderedAt && Date.now() - new Date(dto.renderedAt).getTime() < 800) throw new BadRequestException('Completa el formulario antes de enviarlo');
     await this.validateEmailDomain(dto.guestEmail);
+
     const result = await this.dataSource.transaction(async (manager) => {
-      const form = await this.publishedForm(slug, manager, true); const existingIdempotent = await manager.getRepository(Reservation).findOne({ where: { formId: form.id, idempotencyKey: dto.idempotencyKey } }); if (existingIdempotent) return { booking: existingIdempotent, form, created: false };
-      const startsAt = new Date(dto.startsAt); if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Fecha inválida'); const partySize = dto.partySize || 1; const availability = await this.availability(manager, form, startsAt, partySize, dto.serviceId, dto.resourceId);
+      const form = await this.publishedForm(slug, manager, true);
+      const existingIdempotent = await manager.getRepository(Reservation).findOne({ where: { formId: form.id, idempotencyKey: dto.idempotencyKey } });
+      if (existingIdempotent) return { booking: existingIdempotent, form, created: false };
+
+      const startsAt = new Date(dto.startsAt);
+      if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Fecha inválida');
+      const partySize = dto.partySize || 1;
+      const availability = await this.availability(manager, form, startsAt, partySize, dto.serviceId, dto.resourceId);
       this.validateAnswers(form, dto.answers);
+
       for (const field of form.fieldSchema as FieldConfig[]) {
         const value = field.id === 'name' ? dto.guestName : field.id === 'email' ? dto.guestEmail : field.id === 'phone' ? dto.guestPhone : dto.answers[field.id];
         const empty = value == null || value === '' || value === false || (Array.isArray(value) && value.length === 0);
@@ -361,36 +370,147 @@ export class ReservationsService {
         if (field.type === 'multi_select' && field.options && (!Array.isArray(value) || value.some((entry) => !field.options!.includes(String(entry))))) throw new BadRequestException(`Respuesta inválida en ${field.label}`);
         if (field.type === 'email' && typeof value === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new BadRequestException(`Correo inválido en ${field.label}`);
       }
+
       const coupon = await this.validateCoupon(dto.couponCode, form, manager);
-      if (coupon) { coupon.usageCount += 1; await manager.save(ReservationCoupon, coupon); }
-      const status = form.confirmationMode === 'manual' ? 'pending' : 'confirmed'; const booking = await manager.save(Reservation, manager.create(Reservation, { organizationId: form.organizationId, clientId: form.clientId, formId: form.id, idempotencyKey: dto.idempotencyKey, referenceCode: randomBytes(6).toString('hex').toUpperCase(), status, startsAt, endsAt: availability.endsAt, partySize, guestName: dto.guestName.trim(), guestEmail: dto.guestEmail?.trim().toLowerCase(), guestPhone: dto.guestPhone?.replace(/[^\d+]/g, ''), serviceId: dto.serviceId, resourceId: dto.resourceId, answers: dto.answers, consentVersion: dto.consentVersion, utmSource: dto.utmSource, utmMedium: dto.utmMedium, utmCampaign: dto.utmCampaign, utmContent: dto.utmContent, clickId: dto.clickId, fbc: dto.fbc, fbp: dto.fbp, clientIpAddress: ipAddress, clientUserAgent: userAgent, couponCode: coupon?.code }));
-      await manager.save(ReservationEvent, manager.create(ReservationEvent, { organizationId: form.organizationId, clientId: form.clientId, reservationId: booking.id, type: 'created', toStatus: status, actorType: 'guest', metadata: { startsAt: startsAt.toISOString(), serviceId: dto.serviceId, resourceId: dto.resourceId } })); return { booking, form, created: true };
+      if (coupon) {
+        coupon.usageCount += 1;
+        await manager.save(ReservationCoupon, coupon);
+      }
+
+      const status = form.confirmationMode === 'manual' ? 'pending' : 'confirmed';
+      const booking = await manager.save(Reservation, manager.create(Reservation, {
+        organizationId: form.organizationId,
+        clientId: form.clientId,
+        formId: form.id,
+        idempotencyKey: dto.idempotencyKey,
+        referenceCode: randomBytes(6).toString('hex').toUpperCase(),
+        status,
+        startsAt,
+        endsAt: availability.endsAt,
+        partySize,
+        guestName: dto.guestName.trim(),
+        guestEmail: dto.guestEmail?.trim().toLowerCase(),
+        guestPhone: dto.guestPhone?.replace(/[^\d+]/g, ''),
+        serviceId: dto.serviceId,
+        resourceId: dto.resourceId,
+        answers: dto.answers,
+        consentVersion: dto.consentVersion,
+        utmSource: dto.utmSource,
+        utmMedium: dto.utmMedium,
+        utmCampaign: dto.utmCampaign,
+        utmContent: dto.utmContent,
+        clickId: dto.clickId,
+        fbc: dto.fbc,
+        fbp: dto.fbp,
+        clientIpAddress: ipAddress,
+        clientUserAgent: userAgent,
+        couponCode: coupon?.code,
+      }));
+
+      await manager.save(ReservationEvent, manager.create(ReservationEvent, {
+        organizationId: form.organizationId,
+        clientId: form.clientId,
+        reservationId: booking.id,
+        type: 'created',
+        toStatus: status,
+        actorType: 'guest',
+        metadata: { startsAt: startsAt.toISOString(), serviceId: dto.serviceId, resourceId: dto.resourceId },
+      }));
+
+      return { booking, form, created: true };
     });
+
     const capabilities = await this.clientCapabilities(result.form.organizationId, result.form.clientId);
-    if (result.created && result.form.crmEnabled && capabilities.crm) { try { await this.leadIntake.captureLead({ organizationId: result.form.organizationId, clientId: result.form.clientId, name: result.booking.guestName, email: result.booking.guestEmail, phone: result.booking.guestPhone, source: 'vitahub_reservations', sourceDetail: result.form.name, status: 'reserved', externalLeadId: `reservation:${result.booking.id}`, externalFormId: result.form.id, externalCampaignId: result.form.campaignId, campaignName: result.booking.utmCampaign, consentCapturedAt: new Date(), metadata: { reservationId: result.booking.id, referenceCode: result.booking.referenceCode, startsAt: result.booking.startsAt } }); } catch (err) { this.logger.warn(`CRM intake failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(result.booking, 'crm'); } }
-    if (result.created && result.form.calendarEnabled) { try { const event = await this.calendar.createEvent(result.form.organizationId, { summary: `${result.form.name}: ${result.booking.guestName}`, description: `Reserva ${result.booking.referenceCode}`, start: result.booking.startsAt, durationMinutes: Math.round((result.booking.endsAt.getTime() - result.booking.startsAt.getTime()) / 60000) }); result.booking.calendarEventId = event.externalId; result.booking.calendarUrl = event.calendarUrl; await this.reservations.save(result.booking); } catch (err) { this.logger.warn(`Google Calendar event failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(result.booking, 'google_calendar'); } }
+
+    if (result.created && result.form.crmEnabled && capabilities.crm) {
+      try {
+        await this.leadIntake.captureLead({
+          organizationId: result.form.organizationId,
+          clientId: result.form.clientId,
+          name: result.booking.guestName,
+          email: result.booking.guestEmail,
+          phone: result.booking.guestPhone,
+          source: 'vitahub_reservations',
+          sourceDetail: result.form.name,
+          status: 'reserved',
+          externalLeadId: `reservation:${result.booking.id}`,
+          externalFormId: result.form.id,
+          externalCampaignId: result.form.campaignId,
+          campaignName: result.booking.utmCampaign,
+          consentCapturedAt: new Date(),
+          metadata: {
+            reservationId: result.booking.id,
+            referenceCode: result.booking.referenceCode,
+            startsAt: result.booking.startsAt.toISOString(),
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`CRM intake failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`);
+        await this.recordIntegrationFailure(result.booking, 'crm');
+      }
+    }
+
+    if (result.created && result.form.calendarEnabled) {
+      try {
+        const event = await this.calendar.createEvent(result.form.organizationId, {
+          summary: `${result.form.name}: ${result.booking.guestName}`,
+          description: `Reserva ${result.booking.referenceCode}`,
+          start: result.booking.startsAt,
+          durationMinutes: Math.round((result.booking.endsAt.getTime() - result.booking.startsAt.getTime()) / 60000),
+        });
+        result.booking.calendarEventId = event.externalId;
+        result.booking.calendarUrl = event.calendarUrl;
+        await this.reservations.save(result.booking);
+      } catch (err) {
+        this.logger.warn(`Google Calendar event failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`);
+        await this.recordIntegrationFailure(result.booking, 'google_calendar');
+      }
+    }
+
     if (result.created && result.form.metaCapiEnabled && capabilities.metaConversions) {
       try {
         await this.enqueueMetaConversion(result.booking, result.form, 'Schedule', Math.floor(result.booking.createdAt.getTime() / 1000), eventSourceUrl);
-      } catch (err) { this.logger.warn(`Meta CAPI enqueue failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(result.booking, 'meta_capi'); }
+      } catch (err) {
+        this.logger.warn(`Meta CAPI enqueue failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`);
+        await this.recordIntegrationFailure(result.booking, 'meta_capi');
+      }
     }
+
     if (result.created) await this.notifyNewBooking(result.form, result.booking);
     return result.booking;
   }
 
-  private async recordIntegrationFailure(booking: Reservation, provider: string) { await this.events.save(this.events.create({ organizationId: booking.organizationId, clientId: booking.clientId, reservationId: booking.id, type: 'integration_failed', actorType: 'system', metadata: { provider } })); }
+  private async recordIntegrationFailure(booking: Reservation, provider: string) {
+    await this.events.save(this.events.create({
+      organizationId: booking.organizationId,
+      clientId: booking.clientId,
+      reservationId: booking.id,
+      type: 'integration_failed',
+      actorType: 'system',
+      metadata: { provider },
+    }));
+  }
 
   private async enqueueMetaConversion(booking: Reservation, form: ReservationForm, eventName: string, eventTime?: number, eventSourceUrl?: string) {
     const { pixelId, accessToken } = await this.getClientMetaConfig(form.clientId, form.organizationId);
     if (!pixelId || !accessToken) throw new Error('Meta pixel or CAPI token is not configured');
-    const actionSource = eventName === 'Schedule' ? 'website' : 'system_generated';
+    // 'Schedule' fires from the public web form (action_source: website, requires event_source_url).
+    // Attendance is confirmed in person by staff, so it must be reported as physical_store
+    // (Meta's 7-day upload window for 'website'/'system_generated' events is too tight for that flow;
+    // physical_store gets 62 days) and event_source_url does not apply.
+    const isWebEvent = eventName === 'Schedule';
+    const actionSource = isWebEvent ? 'website' : 'physical_store';
     const fallbackUrl = process.env.APP_PUBLIC_URL ? `${process.env.APP_PUBLIC_URL.replace(/\/$/, '')}/book/${encodeURIComponent(form.publicSlug)}` : undefined;
-    eventSourceUrl = eventSourceUrl || fallbackUrl || undefined;
+    eventSourceUrl = isWebEvent ? (eventSourceUrl || fallbackUrl || undefined) : undefined;
+    const [firstName, ...lastNameParts] = (booking.guestName ?? '').trim().split(/\s+/);
+    const lastName = lastNameParts.join(' ');
     await this.metaOutbox.enqueue(form.organizationId, pixelId, {
       eventName, eventTime: eventTime ?? Math.floor(Date.now() / 1000), actionSource, eventSourceUrl,
       userData: {
         em: booking.guestEmail ? [booking.guestEmail] : undefined,
         ph: booking.guestPhone ? [booking.guestPhone] : undefined,
+        fn: firstName ? [firstName] : undefined,
+        ln: lastName ? [lastName] : undefined,
         externalId: [booking.id],
         fbc: booking.fbc ?? undefined,
         fbp: booking.fbp ?? undefined,
@@ -444,7 +564,12 @@ export class ReservationsService {
       }
       if (dto.internalNotes !== undefined) item.internalNotes = dto.internalNotes; const result = await repo.save(item); const changedStart = previousStart.getTime() !== result.startsAt.getTime(); if (previousStatus !== result.status || changedStart) await manager.save(ReservationEvent, manager.create(ReservationEvent, { organizationId, clientId: result.clientId, reservationId: result.id, type: changedStart ? 'rescheduled' : 'status_changed', fromStatus: previousStatus, toStatus: result.status, actorId, actorType, metadata: changedStart ? { from: previousStart.toISOString(), to: result.startsAt.toISOString() } : undefined })); return result; });
     const capabilities = formForMeta ? await this.clientCapabilities(organizationId, formForMeta.clientId) : undefined;
-    if (statusChangedTo === 'attended' && formForMeta?.metaCapiEnabled && capabilities?.metaConversions) { try { await this.enqueueMetaConversion(saved, formForMeta, 'Reserva_Asistida'); } catch (err) { this.logger.warn(`Meta CAPI attended event failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(saved, 'meta_capi'); } }
+    // Intentionally no Meta CAPI event for 'no_show': the Conversions API has no concept of a
+    // negative/retracted conversion, so there is nothing correct to send Meta for a no-show —
+    // sending anything would tell the algorithm "this person converted," which is the opposite
+    // of what happened. 'attended' is the only outcome that produces a real conversion signal.
+    // Both outcomes still sync to the CRM below so the team can see/report no-shows internally.
+    if (statusChangedTo === 'attended' && formForMeta?.metaCapiEnabled && capabilities?.metaConversions) { try { await this.enqueueMetaConversion(saved, formForMeta, 'Reserva_Asistida', Math.floor(saved.startsAt.getTime() / 1000)); } catch (err) { this.logger.warn(`Meta CAPI attended event failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(saved, 'meta_capi'); } }
     if (statusChangedTo === 'attended' || statusChangedTo === 'no_show') { try { await this.leadIntake.updateStatusByContact(organizationId, statusChangedTo === 'attended' ? 'attended' : 'no_show', saved.guestEmail, saved.guestPhone, saved.clientId); } catch (err) { this.logger.warn(`CRM status sync failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); /* CRM sync is best-effort */ } }
     return saved;
   }

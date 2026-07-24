@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
 import { BrandLockup } from '../../shared/Brand';
 
@@ -29,6 +29,8 @@ function getSessionHostWarning(): string | null {
 export function LoginPage() {
   const rememberedLogin = useMemo(getRememberedLogin, []);
   const sessionHostWarning = useMemo(getSessionHostWarning, []);
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('reason') === 'session-expired';
   const [email, setEmail] = useState(rememberedLogin);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
@@ -75,6 +77,7 @@ export function LoginPage() {
         <div className="login-brand"><BrandLockup /><span className="login-product">VITAHUB</span></div>
         <h1 className="login-title">Bienvenido de vuelta</h1>
         <p className="login-subtitle">Ingresa a tu espacio operativo</p>
+        {sessionExpired && <div className="alert alert-info login-session-warning">Tu sesión expiró. Inicia sesión de nuevo para continuar.</div>}
         {sessionHostWarning && <div className="alert alert-warning login-session-warning">{sessionHostWarning}</div>}
         {error && <div className="alert alert-error">{error}</div>}
         <div className="form-group">
@@ -106,7 +109,7 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
             />
-            <button type="button" className="btn btn-icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} tabIndex={-1}>
+            <button type="button" className="btn btn-icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
               {showPassword ? '🙈' : '👁'}
             </button>
           </div>

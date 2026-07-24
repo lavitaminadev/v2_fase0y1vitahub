@@ -1,5 +1,8 @@
 # Guía de Despliegue - VITAHUB
 
+> **Ruta oficial de producción:** iHosting/cPanel vía `.cpanel.yml` — ver [`docs/deployment/ihosting.md`](deployment/ihosting.md).
+> Docker Compose (esta guía) queda como alternativa para desarrollo/pruebas locales; no es la ruta de producción soportada.
+
 ## Despliegue con Docker Compose
 
 ### Requisitos del servidor

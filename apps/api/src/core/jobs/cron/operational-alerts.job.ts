@@ -19,11 +19,17 @@ export class OperationalAlertsJob {
   async handle(): Promise<void> {
     const organizations = await this.dataSource.query<Array<{ id: string }>>('SELECT id FROM organizations');
     let created = 0;
+    // try/catch por organizacion: esta app es multi-tenant — un error en los datos
+    // de una organizacion no debe dejar sin alertas al resto de las organizaciones.
     for (const organization of organizations) {
-      created += await this.deadlineAlerts(organization.id);
-      created += await this.actionItemAlerts(organization.id);
-      created += await this.budgetAlerts(organization.id);
-      created += await this.cycleAlerts(organization.id);
+      try {
+        created += await this.deadlineAlerts(organization.id);
+        created += await this.actionItemAlerts(organization.id);
+        created += await this.budgetAlerts(organization.id);
+        created += await this.cycleAlerts(organization.id);
+      } catch (error) {
+        this.logger.error(`Failed to scan alerts for organization ${organization.id}: ${error instanceof Error ? error.message : error}`);
+      }
     }
     this.logger.log(`Operational alert scan completed: ${created} notifications created`);
   }

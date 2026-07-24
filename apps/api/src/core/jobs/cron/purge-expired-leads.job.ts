@@ -28,10 +28,16 @@ export class PurgeExpiredLeadsJob {
 
     let anonymized = 0;
 
+    // try/catch per lead: this job processes up to 200 leads per run — one failure
+    // (e.g. a constraint violation) must not stop the anonymization of the rest.
     for (const lead of expiredLeads) {
       if (lead.metadata?.retentionAnonymizedAt) continue;
-      await this.dataProtection.anonymizeLead(lead.id, lead.organizationId, 'Retención expirada');
-      anonymized += 1;
+      try {
+        await this.dataProtection.anonymizeLead(lead.id, lead.organizationId, 'Retención expirada');
+        anonymized += 1;
+      } catch (error) {
+        this.logger.error(`Failed to anonymize lead ${lead.id}: ${error instanceof Error ? error.message : error}`);
+      }
     }
 
     this.logger.log(`Expired leads reviewed: ${expiredLeads.length}, anonymized: ${anonymized}`);

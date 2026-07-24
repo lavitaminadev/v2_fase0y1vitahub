@@ -50,7 +50,7 @@ export class DocumentProcessorService {
     }
 
     for (let i = 0; i < chunks.length; i++) {
-      this.rag.storeChunk(job.tenantId, chunks[i].content, embeddings[i], {
+      await this.rag.storeChunk(job.tenantId, chunks[i].content, embeddings[i], {
         sourceName: job.filename,
         chunkIndex: chunks[i].chunkIndex,
         tokenCount: chunks[i].tokenCount,

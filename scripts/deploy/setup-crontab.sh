@@ -31,6 +31,12 @@ crontab -l 2>/dev/null | cat - <<EOF | crontab -
 # Nota: requiere implementar endpoint o job independiente
 # 0 4 * * * cd $APP_DIR && $NODE apps/api/dist/core/jobs/cron/purge-expired-leads.job.js >> $APP_DIR/logs/cron-purge-leads.log 2>&1
 
+# VitaHub — Backup diario de la base de datos (03:00, retiene 30 dias localmente)
+# Guarda en \$HOME/vitahub_backups (fuera de public_html, mismo criterio que vitahub_storage/vitahub_uploads).
+# Pendiente: decidir almacenamiento externo/offsite — ver docs/decisions/pending-business-decisions.md #15.
+# Requiere que \$APP_DIR/.env tenga DB_HOST/DB_PORT/DB_USERNAME/DB_PASSWORD/DB_DATABASE.
+0 3 * * * set -a && . $APP_DIR/.env && set +a && RETENTION_DAYS=30 bash $APP_DIR/infrastructure/scripts/backup.sh $HOME/vitahub_backups >> $APP_DIR/logs/cron-backup.log 2>&1
+
 EOF
 
 echo "Crontab actualizado."

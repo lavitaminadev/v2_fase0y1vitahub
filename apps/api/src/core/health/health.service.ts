@@ -69,8 +69,12 @@ export class HealthService {
   }
 
   async checkRedis() {
+    // Redis is optional and not currently wired into any caching/session logic —
+    // this only reports whether REDIS_URL is set, it does NOT ping the server.
+    // Never report "ok"/connected:true here without an actual connection check,
+    // or this becomes a health check that lies about a down dependency.
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) return { status: 'not_configured', connected: false };
-    return { status: 'ok', connected: true, url: redisUrl.split('@').pop() };
+    return { status: 'configured_unverified', connected: null, url: redisUrl.split('@').pop() };
   }
 }

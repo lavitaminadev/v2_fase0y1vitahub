@@ -23,7 +23,7 @@ export class QuotesService {
     private readonly events: EventEmitter2,
   ) {}
 
-  list(organizationId: string) { return this.quotes.find({ where: { organizationId }, relations: ['client', 'lead'], order: { createdAt: 'DESC' } }); }
+  list(organizationId: string) { return this.quotes.find({ where: { organizationId }, relations: ['client', 'lead'], order: { createdAt: 'DESC' }, take: 300 }); }
 
   async create(organizationId: string, userId: string, dto: CreateQuoteDto): Promise<Quote> {
     await this.validateTarget(organizationId, dto.clientId, dto.leadId);

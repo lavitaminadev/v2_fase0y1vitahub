@@ -156,14 +156,18 @@ export class MetaClientPixelService {
     return {
       pixelId: record?.pixelId || '',
       pixelName: record?.pixelName || null,
-      accessToken: process.env.META_CONVERSIONS_ACCESS_TOKEN || revealSecret(record?.accessToken),
+      // The per-client token is scoped to that client's Pixel; the env token is only a
+      // fallback for single-tenant setups where no per-client token was configured.
+      // Priority must favor the client token — a global token often lacks permission
+      // on a given client's Pixel in a multi-account agency setup.
+      accessToken: revealSecret(record?.accessToken) || process.env.META_CONVERSIONS_ACCESS_TOKEN,
     };
   }
 
   async resolveByPixel(organizationId: string, pixelId: string): Promise<string | undefined> {
     const integration = await this.organizationIntegration(organizationId);
     const record = integration ? Object.values(this.records(integration)).find((item) => item.pixelId === pixelId) : undefined;
-    const token = process.env.META_CONVERSIONS_ACCESS_TOKEN || (record?.accessToken ? revealSecret(record.accessToken) : undefined);
+    const token = (record?.accessToken ? revealSecret(record.accessToken) : undefined) || process.env.META_CONVERSIONS_ACCESS_TOKEN;
     return token || undefined;
   }
 }

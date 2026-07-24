@@ -1,0 +1,47 @@
+/* Loading/error/connection feedback shells (LoadingSpinner, QueryErrorState) and role-aware dashboard config chrome. */
+
+/* Resilient loading, errors and connection feedback. */
+.loading-shell { max-width: 980px; margin: 30px auto; padding: 20px; }
+.loading-shell-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 18px; }
+.loading-shell-top p { margin: 0; color: #667a71; font-size: 10px; }
+.loading-skeleton { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
+.loading-skeleton i { display: block; min-height: 125px; border-radius: 14px; background: linear-gradient(90deg,#edf1ed,#fafbf9,#edf1ed); background-size: 220% 100%; animation: skeleton-shift 1.3s linear infinite; }
+.loading-skeleton i:first-child { grid-row: span 2; }
+.loading-skeleton i:last-child { grid-column: span 2; }
+.query-error-state { display: grid; grid-template-columns: 42px 1fr; gap: 13px; max-width: 620px; margin: 55px auto; padding: 20px; border: 1px solid #e3b384; border-radius: 16px; background: #fff9f1; box-shadow: 0 12px 35px rgba(84,54,25,.06); }
+.query-error-state > span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #c96a21; color: #fff; font-weight: 900; }
+.query-error-state strong { color: #694528; }
+.query-error-state p { margin: 6px 0 12px; color: #846b57; font-size: 10px; line-height: 1.55; }
+.offline-banner { position: fixed; z-index: 2600; top: 8px; left: 50%; display: flex; gap: 8px; padding: 9px 13px; border: 1px solid #e7b577; border-radius: 10px; background: #fff8eb; color: #81572f; box-shadow: 0 9px 25px rgba(73,49,23,.16); transform: translateX(-50%); }
+.offline-banner strong { font-size: 9px; }
+.offline-banner span { font-size: 11px; }
+@media (max-width: 650px) {
+  .loading-skeleton { grid-template-columns: 1fr; }
+  .loading-skeleton i:first-child, .loading-skeleton i:last-child { grid-row: auto; grid-column: auto; }
+  .offline-banner { top: 5px; width: calc(100% - 16px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-palette-backdrop, .command-palette, .approval-review-drawer, .dashboard-config, .loading-skeleton i { animation: none !important; }
+}
+
+/* Role-aware dashboard configuration. */
+.dashboard-header-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.dashboard-config-backdrop { position: fixed; z-index: 2300; inset: 0; display: flex; justify-content: flex-end; background: rgba(13,31,25,.48); backdrop-filter: blur(3px); }
+.dashboard-config { display: flex; flex-direction: column; width: min(460px,94vw); height: 100%; background: #f7f9f6; box-shadow: -22px 0 60px rgba(12,37,29,.2); animation: drawerIn .2s ease-out; }
+.dashboard-config > header { display: flex; justify-content: space-between; gap: 14px; padding: 20px; border-bottom: 1px solid #dce4dc; background: #fff; }
+.dashboard-config h2 { margin: 4px 0; color: #173f35; }
+.dashboard-config header p { margin: 0; color: #71827a; font-size: 9px; line-height: 1.5; }
+.dashboard-config header > button { flex: 0 0 auto; width: 33px; height: 33px; border: 1px solid #dce4dc; border-radius: 9px; background: #fff; color: #5f7069; cursor: pointer; font-size: 20px; }
+.dashboard-config > div { flex: 1; display: grid; align-content: start; gap: 8px; overflow: auto; padding: 14px; }
+.dashboard-config label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px; border: 1px solid #dfe7df; border-radius: 11px; background: #fff; cursor: pointer; }
+.dashboard-config label > span { display: grid; gap: 4px; }
+.dashboard-config label strong { color: #31544a; font-size: 10px; }
+.dashboard-config label small { color: #82918b; font-size: 11px; }
+.dashboard-config input { width: 18px; height: 18px; accent-color: #1c6754; }
+.dashboard-config > footer { display: flex; justify-content: space-between; gap: 8px; padding: 14px; border-top: 1px solid #dce4dc; background: #fff; }
+@media (max-width: 600px) {
+  .dashboard-header-actions { align-items: flex-start; justify-content: flex-start; }
+  .dashboard-config > footer { flex-direction: column; }
+}
+

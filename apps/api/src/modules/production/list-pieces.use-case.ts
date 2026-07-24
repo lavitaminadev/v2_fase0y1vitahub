@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { FindOptionsWhere, In, Repository } from 'typeorm';
 import { Piece } from './piece.entity';
 import { PieceStatus } from './piece-status.enum';
 
@@ -10,8 +10,16 @@ export class ListPiecesUseCase {
     @InjectRepository(Piece) private repo: Repository<Piece>,
   ) {}
 
-  async execute(organizationId: string, status?: PieceStatus, clientId?: string, assignedTo?: string, clientIds?: string[]) {
-    const where: any = { organizationId };
+  async execute(
+    organizationId: string,
+    status?: PieceStatus,
+    clientId?: string,
+    assignedTo?: string,
+    clientIds?: string[],
+    page: number = 1,
+    limit: number = 300,
+  ) {
+    const where: FindOptionsWhere<Piece> = { organizationId } as FindOptionsWhere<Piece>;
     if (status) where.status = status;
     if (clientId) where.clientId = clientId;
     if (!clientId && clientIds !== undefined) where.clientId = In(clientIds);
@@ -21,6 +29,8 @@ export class ListPiecesUseCase {
       where,
       order: { createdAt: 'DESC' },
       relations: ['client'],
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
     return pieces.map((piece) => ({

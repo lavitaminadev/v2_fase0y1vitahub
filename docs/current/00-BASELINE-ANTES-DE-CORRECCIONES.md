@@ -49,11 +49,13 @@ FUENTE: repositorio local + ejecucion real de comandos
 
 ## Documentacion legacy detectada
 
-- `docs/auditoria-entrega/`
-- `docs/auditoria-entrega-v2/`
-- `docs/gap-analysis-vs-maestro.md`
-- `docs/maestro-alignment-2026-07-16.md`
-- `docs/crm-meta-roadmap.md`
+Actualizacion 2026-07-23: `docs/auditoria-entrega/` y `docs/auditoria-entrega-v2/` fueron eliminadas
+(solo quedaba un respaldo redundante en `docs/docs.zip`, tambien eliminado). Los tres documentos
+de analisis siguen existiendo, movidos a `docs/archive/` — ver `docs/archive/README.md`.
+
+- `docs/archive/gap-analysis-vs-maestro.md`
+- `docs/archive/maestro-alignment-2026-07-16.md`
+- `docs/archive/crm-meta-roadmap.md`
 
 ## Pruebas actuales
 

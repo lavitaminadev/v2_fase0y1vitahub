@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Post, Body, Param, Query, UseGuards, Req, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Body, Param, Query, UseGuards, Req, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -149,6 +149,9 @@ export class ProductionController {
   async startProgress(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const piece = await this.pieceRepo.findOne({ where: { id, organizationId: req.organizationId } });
     if (!piece) throw new NotFoundException('Piece not found');
+    if ([UserRole.DESIGNER, UserRole.AUDIOVISUAL].includes(req.user.role as UserRole) && piece.assignedTo !== req.user.id) {
+      throw new ForbiddenException('Solo el responsable asignado puede iniciar esta pieza');
+    }
     if (![PieceStatus.ASSIGNED, PieceStatus.CORRECTION].includes(piece.status)) {
       throw new BadRequestException('La pieza debe estar asignada o en corrección para iniciar el trabajo');
     }

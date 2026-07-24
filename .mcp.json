@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "description": "GitHub API - Control de versiones, PRs, reviews, issues"
+    },
+    "postgresql": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@basedpyright/postgres-mcp@latest"],
+      "description": "PostgreSQL Database - CRUD, queries, migrations"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "description": "Navegador automatizado - Web scraping, testing, automation"
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp",
+      "description": "Monitoreo de errores - Alertas, stack traces, analytics"
+    },
+    "firecrawl": {
+      "type": "http",
+      "url": "https://mcp.firecrawl.dev/mcp",
+      "description": "Web Scraping - Extrae contenido de URLs"
+    },
+    "notion": {
+      "type": "http",
+      "url": "https://mcp.notion.com/mcp",
+      "description": "Notion Database - Datos, documentos, bases de datos"
+    },
+    "slack": {
+      "type": "http",
+      "url": "https://mcp.slack.com/mcp",
+      "description": "Slack - Mensajes, canales, notificaciones"
+    }
+  }
+}

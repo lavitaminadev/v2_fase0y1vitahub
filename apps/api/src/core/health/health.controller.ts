@@ -1,4 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { HealthService } from './health.service';
 import { IntegrationsHealthService } from './integrations-health.service';
@@ -17,8 +18,13 @@ export class HealthController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'Health check general del sistema' })
-  async check() {
-    return this.health.check();
+  async check(@Res({ passthrough: true }) res: Response) {
+    const result = await this.health.check();
+    // An uptime monitor that checks the HTTP status code (the common case)
+    // never sees a failure if this always returns 200 — the body's "status"
+    // field was previously the only signal, easy to miss without custom parsing.
+    res.status(result.status === 'ok' ? 200 : 503);
+    return result;
   }
 
   @Get('db')

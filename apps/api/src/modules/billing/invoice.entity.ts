@@ -1,11 +1,12 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  ManyToOne, JoinColumn, Index,
 } from 'typeorm';
 import { Organization } from '../organizations/organization.entity';
 import { Client } from '../clients/client.entity';
 
 @Entity('invoices')
+@Index('UQ_invoices_org_number', ['organizationId', 'number'], { unique: true })
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -24,7 +25,7 @@ export class Invoice {
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  @Column({ type: 'varchar', length: 50, unique: true })
+  @Column({ type: 'varchar', length: 50 })
   number: string;
 
   @Column({ name: 'issued_at', type: 'date' })

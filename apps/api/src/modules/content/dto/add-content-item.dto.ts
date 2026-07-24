@@ -7,6 +7,6 @@ export class AddContentItemDto {
   @IsEnum(ContentItemType) type: ContentItemType;
   @IsOptional() @IsDateString() scheduledAt?: string;
   @IsOptional() @IsEnum(ContentItemStatus) status?: ContentItemStatus;
-  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() @MaxLength(5000) notes?: string;
   @IsOptional() @IsUUID() pieceId?: string;
 }

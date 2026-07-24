@@ -17,5 +17,5 @@ export class UpdateContentItemDto {
   /** Linked piece id. */
   @IsOptional() @IsUUID() pieceId?: string;
   /** Internal notes. */
-  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() @MaxLength(5000) notes?: string;
 }

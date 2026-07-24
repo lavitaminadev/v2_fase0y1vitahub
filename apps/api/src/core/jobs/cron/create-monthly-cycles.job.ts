@@ -27,24 +27,30 @@ export class CreateMonthlyCyclesJob {
     });
 
     let created = 0;
+    // try/catch per client: one client with bad/missing data must not abort the
+    // whole run and leave every client after it without a cycle for this month.
     for (const client of activeClients) {
-      await this.cycles.ensure(client.organizationId, client.id, year, month);
-      const existing = await this.budgetRepo.findOne({
-        where: { clientId: client.id, year, month },
-      });
-      if (existing) continue;
+      try {
+        await this.cycles.ensure(client.organizationId, client.id, year, month);
+        const existing = await this.budgetRepo.findOne({
+          where: { clientId: client.id, year, month },
+        });
+        if (existing) continue;
 
-      const budget = this.budgetRepo.create({
-        clientId: client.id,
-        year,
-        month,
-        contracted: client.defaultUdBudget ?? 20,
-        reserved: 0,
-        consumed: 0,
-        status: 'open',
-      });
-      await this.budgetRepo.save(budget);
-      created++;
+        const budget = this.budgetRepo.create({
+          clientId: client.id,
+          year,
+          month,
+          contracted: client.defaultUdBudget ?? 20,
+          reserved: 0,
+          consumed: 0,
+          status: 'open',
+        });
+        await this.budgetRepo.save(budget);
+        created++;
+      } catch (error) {
+        this.logger.error(`Failed to create monthly cycle for client ${client.id}: ${error instanceof Error ? error.message : error}`);
+      }
     }
 
     this.logger.log(`Created ${created} UD budgets for ${year}-${month}`);

@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { EmptyState } from '../../shared/EmptyState';
+import { Tooltip } from '../../shared/Tooltip';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
 import { QueryErrorState } from '../../shared/QueryErrorState';
@@ -177,11 +178,11 @@ export function ProductionPage() {
     {canAssign && piece.status !== 'delivered' && <button className="btn btn-sm btn-outline" onClick={() => { setFeedbackMessage(null); setAssignModal({ open: true, pieceId: piece.id }); }}>{piece.assignedTo ? 'Reasignar' : 'Asignar'}</button>}
     {canStart && piece.status === 'assigned' && <button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'start' })}>Iniciar</button>}
     {canStart && piece.status === 'correction' && <button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'start' })}>Retomar</button>}
-    {canSubmitVersion && piece.status === 'in_progress' && <button className="btn btn-sm btn-primary" title="Subir archivos y notificar al revisor" onClick={() => { setFeedbackMessage(null); setVersionForm({ fileName: '', driveFileId: '' }); setVersionModal({ open: true, pieceId: piece.id }); }}>Enviar versión</button>}
-    {canSendToClient && piece.status === 'internal_review' && <button className="btn btn-sm btn-outline" title="Enviar al cliente para validación" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'send-to-client' })}>Enviar cliente</button>}
+    {canSubmitVersion && piece.status === 'in_progress' && <Tooltip label="Subir archivos y notificar al revisor"><button className="btn btn-sm btn-primary" onClick={() => { setFeedbackMessage(null); setVersionForm({ fileName: '', driveFileId: '' }); setVersionModal({ open: true, pieceId: piece.id }); }}>Enviar versión</button></Tooltip>}
+    {canSendToClient && piece.status === 'internal_review' && <Tooltip label="Enviar al cliente para validación"><button className="btn btn-sm btn-outline" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'send-to-client' })}>Enviar cliente</button></Tooltip>}
     {piece.status === 'client_validation' && <Link className="btn btn-sm btn-outline" to="/approvals">Ver aprobación</Link>}
-    {canDeliver && piece.status === 'client_validation' && <button className="btn btn-sm btn-primary" title="Aprobar la entrega final" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'approve' })}>Aprobar</button>}
-    {canDeliver && piece.status === 'approved' && <button className="btn btn-sm btn-outline" title="Marcar como entregado y cerrar el ciclo" onClick={() => setDeliverPieceId(piece.id)}>Entregar</button>}
+    {canDeliver && piece.status === 'client_validation' && <Tooltip label="Aprobar la entrega final"><button className="btn btn-sm btn-primary" onClick={() => transitionMutation.mutate({ pieceId: piece.id, action: 'approve' })}>Aprobar</button></Tooltip>}
+    {canDeliver && piece.status === 'approved' && <Tooltip label="Marcar como entregado y cerrar el ciclo"><button className="btn btn-sm btn-outline" onClick={() => setDeliverPieceId(piece.id)}>Entregar</button></Tooltip>}
   </div>;
 
   const assignMutation = useMutation({

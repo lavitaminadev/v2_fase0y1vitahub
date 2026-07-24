@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Headers, ForbiddenException, Query, Body } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { timingSafeEqual } from 'crypto';
 import { Public } from '../auth/decorators/public.decorator';
 import { SkipTenancy } from '../tenancy/skip-tenancy.decorator';
 import { MetaConversionOutboxService } from '../../modules/integrations/meta/meta-conversion-outbox.service';
@@ -17,7 +18,11 @@ export class CronController {
   private verifySecret(secret?: string): void {
     const expected = process.env.CRON_SECRET;
     if (!expected) throw new ForbiddenException('CRON_SECRET not configured');
-    if (!secret || secret !== expected) throw new ForbiddenException('Invalid cron secret');
+    const expectedBuf = Buffer.from(expected);
+    const secretBuf = Buffer.from(secret ?? '');
+    if (secretBuf.length !== expectedBuf.length || !timingSafeEqual(secretBuf, expectedBuf)) {
+      throw new ForbiddenException('Invalid cron secret');
+    }
   }
 
   @Post('meta-capi')

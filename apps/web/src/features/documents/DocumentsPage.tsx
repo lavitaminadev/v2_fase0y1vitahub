@@ -5,6 +5,7 @@ import { DataTable } from '../../shared/DataTable';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { Modal } from '../../shared/Modal';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { matchesSearch } from '../../shared/search';
 import { useAuth } from '../../core/auth';
 import { useSearchParams } from 'react-router-dom';
@@ -66,6 +67,9 @@ export function DocumentsPage() {
   const [driveOpen, setDriveOpen] = useState(false);
   const [driveClientId, setDriveClientId] = useState('');
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  // Bulk actions confirm before running; ConfirmDialog owns the "are you sure" step instead of window.confirm().
+  const [pendingBulkStatus, setPendingBulkStatus] = useState<{ rows: DocumentRecord[]; status: 'draft' | 'approved' } | null>(null);
+  const [bulkStatusPending, setBulkStatusPending] = useState(false);
   const user = useAuth((state) => state.user);
   const canManage = ['admin', 'operations_director'].includes(user?.role ?? '');
   const canDelete = user?.role === 'admin';
@@ -211,14 +215,24 @@ export function DocumentsPage() {
     createMutation.mutate(payload);
   };
 
-  const bulkDocumentStatus = async (rows: DocumentRecord[], status: 'draft' | 'approved') => {
-    if (!canManage || !window.confirm(`Cambiar ${rows.length} documento(s) a estado ${status}?`)) return;
+  const bulkDocumentStatus = (rows: DocumentRecord[], status: 'draft' | 'approved') => {
+    if (!canManage) return;
+    setPendingBulkStatus({ rows, status });
+  };
+
+  const confirmBulkDocumentStatus = async () => {
+    if (!pendingBulkStatus) return;
+    const { rows, status } = pendingBulkStatus;
+    setBulkStatusPending(true);
     try {
       await Promise.all(rows.map((row) => api.put(`/documents/${row.id}`, { status })));
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
       setFeedback({ tone: 'success', text: `${rows.length} documento(s) actualizados.` });
     } catch (bulkError) {
       setFeedback({ tone: 'error', text: bulkError instanceof Error ? bulkError.message : 'No se pudo completar la acción masiva.' });
+    } finally {
+      setBulkStatusPending(false);
+      setPendingBulkStatus(null);
     }
   };
 
@@ -428,13 +442,25 @@ export function DocumentsPage() {
           <div className="modal-actions"><button className="btn btn-outline" type="button" onClick={() => setDriveOpen(false)}>Cerrar</button><button className="btn btn-primary" type="button" disabled={!driveClientId || driveMutation.isPending} onClick={() => driveMutation.mutate(driveClientId)}>{driveMutation.isPending ? 'Preparando...' : 'Crear o verificar carpetas'}</button></div>
         </div>
       </Modal>
-      <Modal open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} title="Eliminar documento">
-        <div className="modal-form">
-          <p>Se eliminará “{deleteTarget?.name}” del registro. El archivo externo de Drive no será borrado.</p>
-          {deleteMutation.error && <div className="alert alert-error">{deleteMutation.error.message}</div>}
-          <div className="modal-actions"><button className="btn btn-outline" type="button" onClick={() => setDeleteTarget(null)}>Cancelar</button><button className="btn btn-danger" type="button" disabled={deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}>{deleteMutation.isPending ? 'Eliminando...' : 'Confirmar eliminación'}</button></div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Eliminar documento"
+        description={`Se eliminará "${deleteTarget?.name ?? ''}" del registro. El archivo externo de Drive no será borrado.`}
+        confirmLabel="Confirmar eliminación"
+        pending={deleteMutation.isPending}
+        error={deleteMutation.error?.message}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+      />
+      <ConfirmDialog
+        open={pendingBulkStatus !== null}
+        title="Cambiar estado de documentos"
+        description={pendingBulkStatus ? `Se cambiará el estado de ${pendingBulkStatus.rows.length} documento(s) a "${pendingBulkStatus.status === 'approved' ? 'aprobado' : 'borrador'}".` : ''}
+        confirmLabel="Cambiar estado"
+        pending={bulkStatusPending}
+        onClose={() => setPendingBulkStatus(null)}
+        onConfirm={() => void confirmBulkDocumentStatus()}
+      />
     </div>
   );
 }

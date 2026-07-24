@@ -85,6 +85,22 @@ OperationalSchema1710000000019
 
 El cargador de entorno usa siempre el `.env` de la raiz, tanto al iniciar Passenger como al ejecutar migraciones.
 
+## Tareas Programadas (Cron)
+
+Instalar las tareas cron que procesan la cola de conversiones Meta CAPI:
+
+```bash
+bash scripts/deploy/setup-crontab.sh <CRON_SECRET>
+```
+
+Tareas instaladas:
+
+- `*/5 * * * *` — procesa el outbox de conversiones Meta CAPI pendientes.
+- `0 * * * *` — diagnostico de Meta CAPI.
+- `0 3 * * *` — backup diario de MySQL (`mysqldump` comprimido) a `$HOME/vitahub_backups`, retiene 30 dias localmente. **Pendiente:** decidir almacenamiento externo/offsite — un backup que vive en el mismo servidor no protege ante falla de disco completa. Ver `docs/decisions/pending-business-decisions.md` #15.
+
+Verificar con `crontab -l`. Los logs quedan en `$APP_DIR/logs/`.
+
 ## Dominio y API
 
 La configuracion recomendada evita conflictos entre Apache estatico y Passenger:
@@ -195,12 +211,49 @@ Si Passenger corre en mas de un proceso, dejar `ENABLE_INTERNAL_SCHEDULER=false`
 `-- .env
 ```
 
+## Verificacion Post-Despliegue
+
+```bash
+# API responde
+curl -s https://api.tudominio.cl/api/health
+
+# Frontend sirve
+curl -s -o /dev/null -w "%{http_code}" https://app.tudominio.cl
+
+# Cron funciona (requiere CRON_SECRET)
+curl -s -X POST https://api.tudominio.cl/api/cron/meta-capi \
+  -H "x-cron-secret: $CRON_SECRET" -H "Content-Type: application/json" -d '{"limit":10}'
+```
+
+## Rollback
+
+```bash
+# Revertir la ultima migracion
+npm run migration:revert
+
+# Volver al commit anterior y reconstruir
+git reset --hard HEAD~1
+npm run build:cpanel
+
+# Republicar el frontend
+npm run deploy:web:cpanel
+```
+
+## Troubleshooting
+
+| Problema | Causa probable | Solucion |
+|---|---|---|
+| 502 Bad Gateway | Passenger no arranco | Revisar `app.js` y la version de Node configurada en el panel |
+| 404 en rutas SPA | Falta `.htaccess` en `public_html` | Confirmar que `apps/web/dist/.htaccess` se copio correctamente |
+| Error de conexion a BD | Variables de entorno incorrectas | Verificar `.env` y credenciales de MySQL |
+| Timeout en curl de cron | URL o secret incorrecto | Probar el endpoint manualmente antes de instalar el crontab |
+| Migraciones fallan | Esquema desactualizado | Correr `migration:run` y revisar el orden esperado arriba |
+
 ## Notas
 
 - Passenger no compila; solo ejecuta `app.js`.
 - Si falla el arranque, primero validar que existan `apps/api/dist/main.js` y `apps/web/dist/index.html`.
 - Si cambia `.env`, reiniciar Passenger tocando `app.js` o desde cPanel.
-- Verificar `GET https://api.tudominio.cl/api/health` antes de probar el frontend.
 - Verificar que el registro público continúe deshabilitado y crear usuarios desde Administracion > Usuarios.
 - Probar OAuth, descubrimiento, asignación a cliente y una sincronización controlada en Meta y Google antes de activar tareas programadas.
-- Los scripts Docker de `infrastructure/` quedan como legacy y no son la ruta oficial de produccion en iHosting.
+- Los scripts Docker de `infrastructure/` quedan como legacy y no son la ruta oficial de produccion en iHosting — sirven solo para desarrollo/pruebas locales con Docker si se prefiere a `scripts/local/`.

@@ -107,4 +107,4 @@ Estado implementado:
 - sync manual real por `pageId` + `leadgenId`
 - base para revision de Meta App Review
 
-Documento complementario: `docs/crm-meta-roadmap.md`.
+Documento complementario (archivado): `docs/archive/crm-meta-roadmap.md`.

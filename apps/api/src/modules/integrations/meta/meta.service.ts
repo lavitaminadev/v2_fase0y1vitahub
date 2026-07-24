@@ -33,6 +33,19 @@ export interface InboundMessage {
   occurredAt: string;
 }
 
+interface MetaMessageResponse {
+  message_id?: string;
+  success?: boolean;
+  error?: { message: string; type: string; code: number };
+}
+
+interface MetaTokenResponse {
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  error?: { message: string; type: string; code: number };
+}
+
 export function verifyMetaSignature(rawBody: Buffer, signature: string, secret: string): boolean {
   if (!signature.startsWith("sha256=")) return false;
   const expected = Buffer.from(createHmac("sha256", secret).update(rawBody).digest("hex"), "utf8");
@@ -100,7 +113,7 @@ export class MetaService {
     if (!token) return { skipped: true, reason: "missing_page_token" };
     const version = process.env.META_GRAPH_API_VERSION ?? "v23.0";
     const { data } = await firstValueFrom(
-      this.http.post<any>(
+      this.http.post<MetaMessageResponse>(
         `https://graph.facebook.com/${version}/${accountId}/messages`,
         { recipient: { id: recipientId }, message: { text } },
         { headers: { authorization: `Bearer ${token}`, "content-type": "application/json" } },
@@ -117,7 +130,7 @@ export class MetaService {
     try {
       const version = process.env.META_GRAPH_API_VERSION ?? "v23.0";
       const { data } = await firstValueFrom(
-        this.http.get<any>(`https://graph.facebook.com/${version}/oauth/access_token`, {
+        this.http.get<MetaTokenResponse>(`https://graph.facebook.com/${version}/oauth/access_token`, {
           params: {
             grant_type: "fb_exchange_token",
             client_id: appId,

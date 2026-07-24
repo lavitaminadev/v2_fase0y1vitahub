@@ -63,8 +63,14 @@ export class MetaLeadRecoveryJob {
           const leadsData = await leadsRes.json();
           for (const lead of leadsData.data || []) {
             // Re-inject the lead via the same webhook path to ensure deduplication rules apply safely
-            // syncSingleLead simulates the webhook payload structure
-            await this.metaLeadAdsService.syncSingleLead(page.externalId, lead.id);
+            // syncSingleLead simulates the webhook payload structure.
+            // try/catch per lead: one malformed/duplicate lead must not stop the rest
+            // of this page's leads (or the next forms) from being recovered.
+            try {
+              await this.metaLeadAdsService.syncSingleLead(page.externalId, lead.id);
+            } catch (leadError) {
+              this.logger.error(`Failed to recover lead ${lead.id} for page ${page.externalId}: ${leadError instanceof Error ? leadError.message : leadError}`);
+            }
           }
         }
 

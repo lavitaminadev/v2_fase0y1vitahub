@@ -5,5 +5,5 @@ export class CreateGridDto {
   @IsString() @MaxLength(255) title: string;
   @IsDateString() weekStart: string;
   @IsDateString() weekEnd: string;
-  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() @MaxLength(5000) notes?: string;
 }

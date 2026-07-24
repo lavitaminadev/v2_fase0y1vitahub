@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  ManyToOne, JoinColumn, Index,
 } from 'typeorm';
 import { Organization } from '../organizations/organization.entity';
 import { Client } from '../clients/client.entity';
@@ -8,6 +8,7 @@ import { QuoteStatus } from './quote-status.enum';
 import { Lead } from '../crm/leads/lead.entity';
 
 @Entity('quotes')
+@Index('UQ_quotes_org_number', ['organizationId', 'number'], { unique: true })
 export class Quote {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -32,7 +33,7 @@ export class Quote {
   @Column({ name: 'parent_quote_id', type: 'uuid', nullable: true }) parentQuoteId?: string;
   @Column({ name: 'sent_at', type: 'timestamp', nullable: true }) sentAt?: Date;
 
-  @Column({ type: 'varchar', length: 50, unique: true })
+  @Column({ type: 'varchar', length: 50 })
   number: string;
 
   @Column({ type: 'varchar', length: 255 })

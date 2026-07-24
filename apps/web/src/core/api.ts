@@ -1,22 +1,23 @@
 /**
- * @fileoverview Typed Axios client used by the React frontend.
+ * @fileoverview Cliente Axios tipado usado por el frontend React.
  *
- * The client attaches the bearer token to every request and centralizes
- * global error handling and transparent session renewal. Access tokens remain
- * in memory; the backend owns the rotating HttpOnly refresh cookie.
+ * El cliente adjunta el token bearer a cada request y centraliza el manejo
+ * global de errores y la renovación transparente de la sesión. Los access
+ * tokens viven solo en memoria; el backend es dueño de la cookie HttpOnly
+ * rotatoria de refresh.
  */
 
 import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 
-/** Environment-driven base URL for the VITAHUB API. */
+/** URL base de la API de VITAHUB, definida por variable de entorno. */
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-/** Default request timeout in milliseconds. */
+/** Timeout por defecto de cada request, en milisegundos. */
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 /**
- * Shape of error payloads returned by the NestJS backend.
- * The backend uses `{ success: false, message?: string, errors?: [...] }`.
+ * Forma de los payloads de error que devuelve el backend NestJS.
+ * El backend usa `{ success: false, message?: string, errors?: [...] }`.
  */
 interface ApiErrorPayload {
   message?: string;
@@ -33,8 +34,8 @@ export interface ApiErrorEventDetail {
 }
 
 /**
- * Global axios instance configured with the API base URL, JSON headers,
- * and a defensive request timeout.
+ * Instancia global de axios configurada con la URL base de la API,
+ * headers JSON y un timeout defensivo de request.
  */
 const apiClient = axios.create({
   baseURL: API_BASE,
@@ -43,29 +44,99 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-/** In-memory access token; persistence is delegated to the HttpOnly cookie. */
+/** Access token en memoria; la persistencia queda delegada a la cookie HttpOnly. */
 let token: string | null = null;
 let refreshPromise: Promise<string> | null = null;
+let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _sessionRetry?: boolean;
 }
 
 /**
- * @param t - JWT access token or `null` to clear the session.
+ * Lee el claim `exp` de un JWT sin verificarlo — esto es puramente para
+ * programar la renovación proactiva en el cliente, nunca se usa para nada
+ * sensible en materia de seguridad; el servidor vuelve a verificar en cada llamada.
  */
-export function setApiToken(t: string | null): void {
-  token = t;
+function decodeJwtExpiryMs(jwt: string): number | null {
+  try {
+    const payload = jwt.split('.')[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Returns the current in-memory token.
+ * Programa una renovación silenciosa poco antes de que expire el access
+ * token, para que la sesión se renueve en segundo plano en vez de esperar a
+ * que un request falle con 401. Los access tokens son de vida corta (15m por
+ * defecto) justamente para que un token robado tenga una ventana pequeña —
+ * la renovación proactiva mantiene ese TTL corto invisible para el usuario
+ * en vez de sacrificar confiabilidad por seguridad.
+ */
+function scheduleProactiveRefresh(accessToken: string | null): void {
+  if (proactiveRefreshTimer) {
+    clearTimeout(proactiveRefreshTimer);
+    proactiveRefreshTimer = null;
+  }
+  if (!accessToken) return;
+  const expiresAt = decodeJwtExpiryMs(accessToken);
+  if (!expiresAt) return;
+  const refreshInMs = Math.max(expiresAt - Date.now() - 60_000, 5_000);
+  proactiveRefreshTimer = setTimeout(() => {
+    renewAccessToken().catch(() => {
+      // Que falle esta renovación en segundo plano no es grave: el próximo
+      // request real chocará con un 401 y seguirá el flujo reactivo normal
+      // de refresh/logout.
+    });
+  }, refreshInMs);
+}
+
+/**
+ * @param t - Access token JWT, o `null` para limpiar la sesión.
+ */
+export function setApiToken(t: string | null): void {
+  token = t;
+  scheduleProactiveRefresh(t);
+}
+
+/**
+ * Devuelve el token actual almacenado en memoria.
  */
 export function getApiToken(): string | null {
   return token;
 }
 
-// Attach bearer token to every outgoing request.
+/**
+ * Ejecuta `fn` serializado entre pestañas del navegador usando la Web Locks
+ * API cuando está disponible. Los refresh tokens rotan en cada uso (solo hay
+ * un token válido a la vez del lado del servidor) y la cookie HttpOnly la
+ * comparten todas las pestañas del mismo navegador — sin esto, dos pestañas
+ * refrescando con milisegundos de diferencia compiten entre sí: la que el
+ * servidor procese en segundo lugar manda un refresh token que ya fue
+ * rotado, y esa pestaña termina deslogueada aunque el usuario no hizo nada
+ * mal. Serializar las llamadas (el lock encola el segundo request en vez de
+ * descartarlo) hace que el request de la segunda pestaña salga recién
+ * después de que la respuesta de la primera ya actualizó la cookie
+ * compartida, así siempre ve el token vigente.
+ */
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+    // lib.dom.d.ts tipa el retorno de LockGrantedCallback como el valor
+    // resuelto T, no como Promise<T>, por lo que TS infiere aquí un
+    // Promise<Promise<T>> duplicado — eso no coincide con el comportamiento
+    // real de Web Locks (la spec espera la promesa devuelta antes de liberar
+    // el lock y resuelve request() con su valor ya resuelto). Es un hueco
+    // conocido de los tipos del DOM lib; el cast refleja el comportamiento
+    // real en tiempo de ejecución.
+    return navigator.locks.request('vitahub-token-refresh', fn) as unknown as Promise<T>;
+  }
+  return fn();
+}
+
+// Adjunta el token bearer a cada request saliente.
 apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -77,10 +148,10 @@ apiClient.interceptors.request.use((config) => {
 });
 
 /**
- * Extracts a human-readable message from an axios error.
+ * Extrae un mensaje legible para el usuario a partir de un error de axios.
  *
- * @param error - Axios error caught from a failed request.
- * @returns Localized error message.
+ * @param error - Error de axios capturado de un request fallido.
+ * @returns Mensaje de error localizado.
  */
 function extractErrorMessage(error: AxiosError<ApiErrorPayload>): string {
   if (!error.response) {
@@ -107,8 +178,9 @@ function describeApiError(error: AxiosError<ApiErrorPayload>, message: string): 
 
 async function renewAccessToken(): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = apiClient
-      .post<{ accessToken: string }>('/auth/refresh', {})
+    refreshPromise = withRefreshLock(() =>
+      apiClient.post<{ accessToken: string }>('/auth/refresh', {}),
+    )
       .then((response) => {
         setApiToken(response.data.accessToken);
         return response.data.accessToken;
@@ -120,7 +192,7 @@ async function renewAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
-// Renew an expired access token once, then centralize terminal 401 handling.
+// Renueva una vez el access token expirado y centraliza el manejo final de los 401.
 apiClient.interceptors.response.use(
   (res) => res,
   async (error: AxiosError<ApiErrorPayload>) => {
@@ -137,13 +209,17 @@ apiClient.interceptors.response.use(
         return apiClient.request(config);
       } catch {
         setApiToken(null);
-        window.location.href = '/login';
+        // Redirección dura (no navegación SPA) porque esto puede dispararse
+        // fuera del árbol de render de React; el query param sobrevive al
+        // reload para que LoginPage explique por qué el usuario llegó aquí
+        // en vez de sacarlo silenciosamente en medio de un formulario.
+        window.location.href = '/login?reason=session-expired';
       }
     }
 
     if (error.response?.status === 401 && !isRefreshRequest && !isLoginRequest) {
       setApiToken(null);
-      window.location.href = '/login';
+      window.location.href = '/login?reason=session-expired';
     }
     const message = extractErrorMessage(error);
     if (error.response?.status !== 401 && !isLoginRequest && typeof window !== 'undefined') {
@@ -156,33 +232,33 @@ apiClient.interceptors.response.use(
 );
 
 /**
- * Type-safe HTTP helpers built on top of `apiClient`.
+ * Helpers HTTP tipados construidos sobre `apiClient`.
  *
- * @template T - Expected response body type.
- * @template B - Request body type for POST/PUT.
+ * @template T - Tipo esperado del cuerpo de la respuesta.
+ * @template B - Tipo del cuerpo del request para POST/PUT.
  */
 export const api = {
   /**
-   * Performs a GET request.
+   * Realiza un request GET.
    *
-   * @param path - Relative API path.
-   * @param config - Optional axios request config.
+   * @param path - Ruta relativa de la API.
+   * @param config - Configuración opcional de axios.
    */
   get<T = unknown>(path: string, config?: AxiosRequestConfig): Promise<T> {
     return apiClient.get<T>(path, config).then((r) => r.data);
   },
 
   /**
-   * Performs a POST request.
+   * Realiza un request POST.
    *
-   * @param path - Relative API path.
-   * @param body - Request payload.
+   * @param path - Ruta relativa de la API.
+   * @param body - Payload del request.
    */
   post<T = unknown, B = unknown>(path: string, body?: B): Promise<T> {
     return apiClient.post<T>(path, body).then((r) => r.data);
   },
 
-  /** Uploads one file using the secure multipart endpoint. */
+  /** Sube un archivo usando el endpoint multipart seguro. */
   upload<T = unknown>(path: string, file: File): Promise<T> {
     const body = new FormData();
     body.append('file', file);
@@ -190,29 +266,29 @@ export const api = {
   },
 
   /**
-   * Performs a PUT request.
+   * Realiza un request PUT.
    *
-   * @param path - Relative API path.
-   * @param body - Request payload.
+   * @param path - Ruta relativa de la API.
+   * @param body - Payload del request.
    */
   put<T = unknown, B = unknown>(path: string, body?: B): Promise<T> {
     return apiClient.put<T>(path, body).then((r) => r.data);
   },
 
   /**
-   * Performs a PATCH request.
+   * Realiza un request PATCH.
    *
-   * @param path - Relative API path.
-   * @param body - Request payload.
+   * @param path - Ruta relativa de la API.
+   * @param body - Payload del request.
    */
   patch<T = unknown, B = unknown>(path: string, body?: B): Promise<T> {
     return apiClient.patch<T>(path, body).then((r) => r.data);
   },
 
   /**
-   * Performs a DELETE request.
+   * Realiza un request DELETE.
    *
-   * @param path - Relative API path.
+   * @param path - Ruta relativa de la API.
    */
   delete<T = unknown>(path: string): Promise<T> {
     return apiClient.delete<T>(path).then((r) => r.data);

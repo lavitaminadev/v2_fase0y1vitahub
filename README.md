@@ -25,10 +25,12 @@ Backend NestJS + Frontend React/PWA + MySQL. Multi-tenant agency management plat
 
 ## Tech Stack
 
-- **Backend:** NestJS 10, TypeORM, MySQL 8+, JWT Auth, Redis, Multi-tenancy
+- **Backend:** NestJS 10, TypeORM, MySQL 8+, JWT Auth, Multi-tenancy
 - **Frontend:** React 19, Vite 5, React Router 7, TanStack Query, Zustand, PWA
-- **Infrastructure:** Docker Compose, Prometheus, Grafana
+- **Production deploy:** iHosting/cPanel via `.cpanel.yml` + Phusion Passenger — see [`docs/deployment/ihosting.md`](docs/deployment/ihosting.md)
 - **CI/CD:** GitHub Actions (`.github/`)
+
+> Docker Compose, Redis, and the Prometheus/Grafana monitoring stack exist under `infrastructure/` as an optional local-dev alternative — they are **not** wired into the running application (health check reports `not_configured` when `REDIS_URL` is unset) and are not the production path.
 
 ## Quick Start
 
@@ -136,7 +138,6 @@ vitahub/
 ├── packages/
 │   └── shared/                # @vitahub/shared types & interfaces
 ├── docs/
-├── tests/
 └── .github/workflows/
 ```
 
@@ -151,13 +152,11 @@ vitahub/
 | DB_USERNAME | MySQL user | vitahub |
 | DB_PASSWORD | MySQL password | required |
 | DB_DATABASE | MySQL database | vitahub |
-| REDIS_HOST | Redis host | localhost |
-| REDIS_PORT | Redis port | 6379 |
+| REDIS_URL | Optional — only used by the health check; the app runs fully without it | not configured |
 | JWT_SECRET | JWT signing secret | — |
 | JWT_EXPIRES_IN | Access JWT expiry | 15m |
 | JWT_REFRESH_EXPIRES_IN | Rotating browser session expiry | 7d |
-| STORAGE_DRIVER | File storage driver | local |
-| AI_PROVIDER | AI provider | openai |
+| UPLOAD_DIR | Local file upload directory | ./uploads |
 
 ## Development Commands
 
@@ -180,31 +179,15 @@ npm run migration:revert
 
 ## Deployment
 
-### Linux/macOS
+**Production (iHosting/cPanel):** fully documented in [`docs/deployment/ihosting.md`](docs/deployment/ihosting.md). Short version — cPanel's `Git Version Control` pulls the repo and runs `.cpanel.yml`, which builds `apps/api` and `apps/web` and restarts Phusion Passenger (`app.js` is the entry point, reading `apps/api/dist/main.js`).
+
 ```bash
-./infrastructure/deploy.sh production
+npm run build:cpanel          # build shared + api + web
+npm run check:production-env  # validate required env vars are set
+npm run migration:run         # run pending DB migrations (manual, controlled)
 ```
 
-### cPanel / Phusion Passenger (iHosting)
-```bash
-# 1. Build the API
-cd apps/api && npm run build
-
-# 2. The root app.js is the Passenger entry point:
-#    Passenger reads repo root → app.js → runs apps/api/dist/main.js
-```
-
-### Windows (iHosting)
-```powershell
-.\infrastructure\ihosting\deploy.ps1 -Environment production
-```
-
-### Monitoring
-```bash
-docker-compose -f infrastructure/monitoring/docker-compose.monitoring.yml up -d
-# Grafana: http://localhost:3001 (admin/vitahub_grafana)
-# Prometheus: http://localhost:9090
-```
+Docker Compose / PM2 / Nginx / Prometheus-Grafana under `infrastructure/` are a legacy/local-dev alternative, not the production path — see [`docs/DEPLOY.md`](docs/DEPLOY.md) if you need them for local testing.
 
 ### Backup
 ```bash
@@ -230,12 +213,12 @@ docker-compose -f infrastructure/monitoring/docker-compose.monitoring.yml up -d
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| META_APP_ID | Meta app client id | â€” |
-| META_APP_SECRET | Meta app client secret | â€” |
+| META_APP_ID | Meta app client id | — |
+| META_APP_SECRET | Meta app client secret | — |
 | META_GRAPH_API_VERSION | Meta Graph API version | v23.0 |
-| META_WEBHOOK_VERIFY_TOKEN | Meta webhook verification token | â€” |
-| GOOGLE_CLIENT_ID | Google OAuth client id | â€” |
-| GOOGLE_CLIENT_SECRET | Google OAuth client secret | â€” |
+| META_WEBHOOK_VERIFY_TOKEN | Meta webhook verification token | — |
+| GOOGLE_CLIENT_ID | Google OAuth client id | — |
+| GOOGLE_CLIENT_SECRET | Google OAuth client secret | — |
 | META_TEST_EVENT_CODE | Meta Events Manager test code | - |
 | META_CONVERSIONS_ACCESS_TOKEN | Dedicated server-side Conversions API token | - |
 | API_PUBLIC_URL | Public API URL including `/api` | - |

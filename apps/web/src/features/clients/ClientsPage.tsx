@@ -5,6 +5,7 @@ import { DataTable } from '../../shared/DataTable';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { matchesSearch } from '../../shared/search';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
@@ -104,6 +105,9 @@ export function ClientsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ClientFormState>(EMPTY_FORM);
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  // Bulk actions confirm before running; ConfirmDialog owns the "are you sure" step instead of window.confirm().
+  const [pendingBulkStatus, setPendingBulkStatus] = useState<{ rows: ClientRecord[]; status: 'active' | 'paused' } | null>(null);
+  const [bulkStatusPending, setBulkStatusPending] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: clients, isLoading, error } = useQuery<ClientRecord[]>({
@@ -264,14 +268,24 @@ export function ClientsPage() {
     setModalOpen(true);
   };
 
-  const bulkStatus = async (rows: ClientRecord[], status: 'active' | 'paused') => {
-    if (!canManage || !window.confirm(`Cambiar ${rows.length} cliente(s) a ${status === 'active' ? 'activo' : 'pausado'}?`)) return;
+  const bulkStatus = (rows: ClientRecord[], status: 'active' | 'paused') => {
+    if (!canManage) return;
+    setPendingBulkStatus({ rows, status });
+  };
+
+  const confirmBulkStatus = async () => {
+    if (!pendingBulkStatus) return;
+    const { rows, status } = pendingBulkStatus;
+    setBulkStatusPending(true);
     try {
       await Promise.all(rows.map((row) => api.put(`/clients/${row.id}`, { status })));
       await queryClient.invalidateQueries({ queryKey: ['clients'] });
       setFeedback({ tone: 'success', text: `${rows.length} cliente(s) actualizados.` });
     } catch (bulkError) {
       setFeedback({ tone: 'error', text: bulkError instanceof Error ? bulkError.message : 'No se pudo completar la acción masiva.' });
+    } finally {
+      setBulkStatusPending(false);
+      setPendingBulkStatus(null);
     }
   };
 
@@ -455,6 +469,15 @@ export function ClientsPage() {
           </button>
         </form>
       </Modal>
+      <ConfirmDialog
+        open={pendingBulkStatus !== null}
+        title="Cambiar estado de clientes"
+        description={pendingBulkStatus ? `Se cambiará el estado de ${pendingBulkStatus.rows.length} cliente(s) a "${pendingBulkStatus.status === 'active' ? 'activo' : 'pausado'}".` : ''}
+        confirmLabel="Cambiar estado"
+        pending={bulkStatusPending}
+        onClose={() => setPendingBulkStatus(null)}
+        onConfirm={() => void confirmBulkStatus()}
+      />
     </div>
   );
 }

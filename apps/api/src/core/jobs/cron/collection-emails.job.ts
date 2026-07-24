@@ -28,37 +28,45 @@ export class CollectionEmailsJob {
 
     let sent = 0;
     for (const invoice of overdueInvoices) {
-      const client = invoice.client;
-      if (!client) {
-        this.logger.warn(`Invoice ${invoice.number} has no associated client, skipping`);
-        continue;
-      }
+      try {
+        const client = invoice.client;
+        if (!client) {
+          this.logger.warn(`Invoice ${invoice.number} has no associated client, skipping`);
+          continue;
+        }
 
-      const email = await this.resolveClientEmail(client.id);
-      if (!email) {
-        this.logger.warn(`Client ${client.id} has no email, skipping invoice ${invoice.number}`);
-        continue;
-      }
+        const email = await this.resolveClientEmail(client.id);
+        if (!email) {
+          this.logger.warn(`Client ${client.id} has no email, skipping invoice ${invoice.number}`);
+          continue;
+        }
 
-      const dueDateStr = invoice.dueAt instanceof Date
-        ? invoice.dueAt.toISOString().split('T')[0]
-        : String(invoice.dueAt);
+        const dueDateStr = invoice.dueAt instanceof Date
+          ? invoice.dueAt.toISOString().split('T')[0]
+          : String(invoice.dueAt);
 
-      const delivered = await this.emailService.sendCollectionEmail(
-        client.name,
-        email,
-        invoice.number,
-        Number(invoice.total),
-        dueDateStr,
-      );
+        const delivered = await this.emailService.sendCollectionEmail(
+          client.name,
+          email,
+          invoice.number,
+          Number(invoice.total),
+          dueDateStr,
+        );
 
-      invoice.status = 'overdue';
-      await this.invoiceRepo.save(invoice);
-      if (delivered) {
-        sent++;
-        this.logger.log(`Collection email accepted for invoice ${invoice.number}`);
-      } else {
-        this.logger.warn(`Collection email was not delivered for invoice ${invoice.number}`);
+        // Only flip to 'overdue' once the email actually goes out. This job only
+        // ever queries status:'pending' — marking it 'overdue' unconditionally on
+        // a failed delivery meant a transient email failure permanently stopped
+        // retries for that invoice.
+        if (delivered) {
+          invoice.status = 'overdue';
+          await this.invoiceRepo.save(invoice);
+          sent++;
+          this.logger.log(`Collection email accepted for invoice ${invoice.number}`);
+        } else {
+          this.logger.warn(`Collection email was not delivered for invoice ${invoice.number}; will retry next run`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to process overdue invoice ${invoice.number}: ${error instanceof Error ? error.message : error}`);
       }
     }
 

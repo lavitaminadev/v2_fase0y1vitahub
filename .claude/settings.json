@@ -1,0 +1,46 @@
+{
+  "model": "claude-opus-4-8",
+  "theme": "dark",
+  "fast": false,
+  "permissions": {
+    "bash": "allow",
+    "write": "allow",
+    "read": "allow",
+    "edit": "allow"
+  },
+  "mcp": {
+    "servers": {
+      "github": {
+        "type": "http",
+        "url": "https://api.githubcopilot.com/mcp/"
+      },
+      "postgresql": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@basedpyright/postgres-mcp@latest"]
+      },
+      "playwright": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest"]
+      },
+      "sentry": {
+        "type": "http",
+        "url": "https://mcp.sentry.dev/mcp"
+      },
+      "firecrawl": {
+        "type": "http",
+        "url": "https://mcp.firecrawl.dev/mcp"
+      },
+      "notion": {
+        "type": "http",
+        "url": "https://mcp.notion.com/mcp"
+      },
+      "slack": {
+        "type": "http",
+        "url": "https://mcp.slack.com/mcp"
+      }
+    }
+  },
+  "hooks": {}
+}

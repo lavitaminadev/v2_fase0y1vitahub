@@ -5,6 +5,7 @@ import { useAuth } from '../../core/auth';
 import { DataTable } from '../../shared/DataTable';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { useSearchParams } from 'react-router-dom';
 
 interface UserRow {
@@ -88,6 +89,9 @@ export function UsersPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  // Bulk actions confirm before running; ConfirmDialog owns the "are you sure" step instead of window.confirm().
+  const [pendingBulkAccess, setPendingBulkAccess] = useState<{ rows: UserRow[]; isActive: boolean } | null>(null);
+  const [bulkAccessPending, setBulkAccessPending] = useState(false);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -208,15 +212,25 @@ export function UsersPage() {
     setClientFilter('');
   };
 
-  const bulkAccess = async (rows: UserRow[], isActive: boolean) => {
+  const bulkAccess = (rows: UserRow[], isActive: boolean) => {
     const manageable = rows.filter((row) => canManage(row) && row.id !== currentUser?.id);
-    if (!manageable.length || !window.confirm(`${isActive ? 'Activar' : 'Desactivar'} ${manageable.length} cuenta(s)?`)) return;
+    if (!manageable.length) return;
+    setPendingBulkAccess({ rows: manageable, isActive });
+  };
+
+  const confirmBulkAccess = async () => {
+    if (!pendingBulkAccess) return;
+    const { rows: manageable, isActive } = pendingBulkAccess;
+    setBulkAccessPending(true);
     try {
       await Promise.all(manageable.map((row) => api.patch(`/users/${row.id}`, { isActive })));
       await queryClient.invalidateQueries({ queryKey: ['users'] });
       setFeedback({ tone: 'success', text: `${manageable.length} acceso(s) actualizados.` });
     } catch (bulkError) {
       setFeedback({ tone: 'error', text: bulkError instanceof Error ? bulkError.message : 'No se pudo completar la acción masiva.' });
+    } finally {
+      setBulkAccessPending(false);
+      setPendingBulkAccess(null);
     }
   };
 
@@ -298,9 +312,25 @@ export function UsersPage() {
           <div className="modal-actions"><button type="button" className="btn btn-outline" onClick={closeModal}>Cancelar</button><button className="btn btn-primary" type="submit" disabled={isSaving || (clientRequired && !form.clientId)}>{isSaving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear usuario'}</button></div>
         </form>
       </Modal>
-      <Modal open={Boolean(accessTarget)} onClose={() => setAccessTarget(null)} title="Desactivar acceso">
-        <div className="modal-form"><p>{accessTarget?.name} ya no podrá iniciar sesión, pero su historial y asignaciones se conservarán.</p>{updateMutation.error && <div className="alert alert-error">{updateMutation.error.message}</div>}<div className="modal-actions"><button className="btn btn-outline" type="button" onClick={() => setAccessTarget(null)}>Cancelar</button><button className="btn btn-danger" type="button" disabled={updateMutation.isPending} onClick={() => accessTarget && updateMutation.mutate({ id: accessTarget.id, body: { isActive: false } })}>{updateMutation.isPending ? 'Desactivando...' : 'Confirmar desactivación'}</button></div></div>
-      </Modal>
+      <ConfirmDialog
+        open={Boolean(accessTarget)}
+        title="Desactivar acceso"
+        description={`${accessTarget?.name ?? ''} ya no podrá iniciar sesión, pero su historial y asignaciones se conservarán.`}
+        confirmLabel="Confirmar desactivación"
+        pending={updateMutation.isPending}
+        error={updateMutation.error?.message}
+        onClose={() => setAccessTarget(null)}
+        onConfirm={() => accessTarget && updateMutation.mutate({ id: accessTarget.id, body: { isActive: false } })}
+      />
+      <ConfirmDialog
+        open={pendingBulkAccess !== null}
+        title={pendingBulkAccess?.isActive ? 'Activar accesos' : 'Desactivar accesos'}
+        description={pendingBulkAccess ? `${pendingBulkAccess.isActive ? 'Se activará el acceso de' : 'Se desactivará el acceso de'} ${pendingBulkAccess.rows.length} cuenta(s).` : ''}
+        confirmLabel={pendingBulkAccess?.isActive ? 'Activar' : 'Desactivar'}
+        pending={bulkAccessPending}
+        onClose={() => setPendingBulkAccess(null)}
+        onConfirm={() => void confirmBulkAccess()}
+      />
       <Modal open={Boolean(resetTarget)} onClose={() => { setResetTarget(null); setResetResult(null); }} title={`Resetear clave de ${resetTarget?.name ?? ''}`}>
         <div className="modal-form reset-access-modal">
           {!resetResult ? <><p>Se cerrarán las sesiones activas y se generará una contraseña temporal. La persona deberá cambiarla al ingresar.</p><label className="toggle-row"><input type="checkbox" checked={sendResetEmail} onChange={(event) => setSendResetEmail(event.target.checked)} /> Enviar también al correo {resetTarget?.email}</label>{resetMutation.error && <div className="alert alert-error">{resetMutation.error.message}</div>}<div className="modal-actions"><button className="btn btn-outline" type="button" onClick={() => setResetTarget(null)}>Cancelar</button><button className="btn btn-primary" type="button" onClick={() => resetMutation.mutate()} disabled={resetMutation.isPending}>{resetMutation.isPending ? 'Generando...' : 'Generar acceso temporal'}</button></div></> : <><div className="temporary-password-result"><span>CLAVE TEMPORAL · SE MUESTRA UNA VEZ</span><strong>{resetResult.temporaryPassword}</strong><button className="btn btn-outline btn-sm" type="button" onClick={() => navigator.clipboard.writeText(resetResult.temporaryPassword)}>Copiar clave</button></div><div className={`alert alert-${resetResult.emailSent ? 'success' : 'info'}`}>{resetResult.emailSent ? 'También fue enviada por correo.' : 'El correo no fue enviado. Comparte esta clave por un canal seguro.'}</div><button className="btn btn-primary btn-block" type="button" onClick={() => { setResetTarget(null); setResetResult(null); }}>Cerrar</button></>}

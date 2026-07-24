@@ -20,13 +20,24 @@ export class GoogleCalendarService {
     if (!integration) throw new BadRequestException('Google is not connected');
     integration = await this.refreshIfExpiring(integration, organizationId);
     let token = this.revealAccessToken(integration);
-    let response = await this.sendEvent(token, event);
+    let response: Response;
+    try {
+      response = await this.sendEvent(token, event);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown network error';
+      throw new BadRequestException(`Google Calendar request failed: ${message}`);
+    }
 
     // Access tokens can be revoked before their advertised expiry; retry once after refresh.
     if (response.status === 401) {
       integration = await this.oauth.refreshIntegration(integration.id, organizationId);
       token = this.revealAccessToken(integration);
-      response = await this.sendEvent(token, event);
+      try {
+        response = await this.sendEvent(token, event);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown network error';
+        throw new BadRequestException(`Google Calendar request failed: ${message}`);
+      }
     }
 
     const data = await response.json() as { id?: string; htmlLink?: string; hangoutLink?: string; error?: { message?: string } };

@@ -1,0 +1,75 @@
+/* Design tokens: brand colors/spacing/radius (see :root), font-face, and the global CSS reset. Loaded first — every other file depends on these variables. */
+
+@font-face {
+  font-family: 'Vitamina Sans';
+  src: url('/brand/open-sans.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+}
+
+/*
+ * Design tokens for the La Vitamina brand (matches lavitamina.cl: forest
+ * green + hot pink + mint accent, Open Sans). This is the single source of
+ * truth for color/spacing/radius across the app — do not redeclare :root
+ * elsewhere in this file, it silently shadows these values.
+ */
+:root {
+  --primary: #173f35;
+  --primary-light: #215548;
+  --primary-hover: #0f3028;
+  --accent: #ea0f63;
+  --accent-hover: #c81661;
+  --brand-mint: #70c4b6;
+  --brand-pink: #ea0f63;
+  --brand-pink-dark: #c81661;
+  --brand-ink: #101211;
+  --success: #1f7a46;
+  --warning: #9a5a00;
+  --danger: #b5332d;
+  --info: #1f6fb2;
+  --text: #53615d;
+  --text-light: #66736f;
+  --text-dark: #17332c;
+  --bg: #f3f5ef;
+  --bg-white: #fff;
+  --border: #dce3dd;
+  --border-light: #e9ede8;
+  --shadow: 0 8px 30px rgba(27, 62, 52, 0.06);
+  --shadow-md: 0 22px 60px rgba(17, 48, 40, 0.16);
+  --radius-sm: 9px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --sidebar-width: 240px;
+  --font: 'Vitamina Sans', 'Trebuchet MS', sans-serif;
+  --font-display: 'Vitamina Sans', 'Trebuchet MS', sans-serif;
+  --font-mono: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: clamp(14px, 1.8vw, 17px);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  color: var(--text-dark);
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+h1 { font-size: 24px; }
+h2 { font-size: 18px; }
+h3 { font-size: 16px; }
+
+a { color: var(--info); text-decoration: none; }
+a:hover { text-decoration: underline; }
+

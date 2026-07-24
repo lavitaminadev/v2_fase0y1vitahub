@@ -2,7 +2,7 @@ import { BadRequestException, Controller, ForbiddenException, Get, Post, Put, De
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateMeetingUseCase } from './create-meeting.use-case';
 import { ListMeetingsUseCase } from './list-meetings.use-case';
 import { Meeting } from './meeting.entity';
@@ -61,13 +61,18 @@ export class MeetingsController {
       ? (await this.clientRepo.find({ select: { id: true }, where: { organizationId: req.organizationId, communityManagerId: req.user.id } })).map((client) => client.id)
       : undefined;
     const meetings = await this.listMeetings.execute(req.organizationId!, type, clientId, assignedClientIds);
-    return Promise.all(meetings.map(async (meeting) => {
-      const actionItems = await this.actionItemRepo.find({
-        where: { meetingId: meeting.id },
-        order: { createdAt: 'ASC' },
-      });
-      return { ...meeting, actionItems };
-    }));
+    if (meetings.length === 0) return [];
+    const actionItems = await this.actionItemRepo.find({
+      where: { meetingId: In(meetings.map((meeting) => meeting.id)) },
+      order: { createdAt: 'ASC' },
+    });
+    const actionItemsByMeeting = new Map<string, ActionItem[]>();
+    for (const item of actionItems) {
+      const list = actionItemsByMeeting.get(item.meetingId) ?? [];
+      list.push(item);
+      actionItemsByMeeting.set(item.meetingId, list);
+    }
+    return meetings.map((meeting) => ({ ...meeting, actionItems: actionItemsByMeeting.get(meeting.id) ?? [] }));
   }
 
   @Get(':id')

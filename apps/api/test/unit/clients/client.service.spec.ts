@@ -6,6 +6,7 @@ const mockRepo = {
   save: vi.fn(),
   find: vi.fn(),
   findOne: vi.fn(),
+  findAndCount: vi.fn(),
 };
 
 import { CreateClientUseCase } from '../../../src/modules/clients/create-client.use-case';
@@ -38,15 +39,19 @@ describe('ClientService', () => {
   describe('listClients', () => {
     it('should list clients filtered by organization', async () => {
       const useCase = new ListClientsUseCase(mockRepo as any);
-      mockRepo.find.mockResolvedValue([
-        { id: 'c1', name: 'Client A', organizationId: 'org-1' },
-        { id: 'c2', name: 'Client B', organizationId: 'org-1' },
+      mockRepo.findAndCount.mockResolvedValue([
+        [
+          { id: 'c1', name: 'Client A', organizationId: 'org-1' },
+          { id: 'c2', name: 'Client B', organizationId: 'org-1' },
+        ],
+        2,
       ]);
 
       const result = await useCase.execute('org-1');
 
-      expect(result).toHaveLength(2);
-      expect(mockRepo.find).toHaveBeenCalledWith(
+      expect(result.data).toHaveLength(2);
+      expect(result.total).toBe(2);
+      expect(mockRepo.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({ where: { organizationId: 'org-1' } }),
       );
     });

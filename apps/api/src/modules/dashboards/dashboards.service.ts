@@ -9,14 +9,12 @@ export class DashboardsService {
   ) {}
 
   async getOverview(organizationId: string) {
-    const [clients] = await this.dataSource.query(
-      'SELECT COUNT(*) as total FROM clients WHERE organization_id = ?', [organizationId]);
-    const [contracts] = await this.dataSource.query(
-      'SELECT COUNT(*) as total FROM contracts WHERE organization_id = ?', [organizationId]);
-    const [pieces] = await this.dataSource.query(
-      'SELECT COUNT(*) as total FROM pieces WHERE organization_id = ?', [organizationId]);
-    const [users] = await this.dataSource.query(
-      'SELECT COUNT(*) as total FROM users WHERE organization_id = ?', [organizationId]);
+    const [[clients], [contracts], [pieces], [users]] = await Promise.all([
+      this.dataSource.query('SELECT COUNT(*) as total FROM clients WHERE organization_id = ?', [organizationId]),
+      this.dataSource.query('SELECT COUNT(*) as total FROM contracts WHERE organization_id = ?', [organizationId]),
+      this.dataSource.query('SELECT COUNT(*) as total FROM pieces WHERE organization_id = ?', [organizationId]),
+      this.dataSource.query('SELECT COUNT(*) as total FROM users WHERE organization_id = ?', [organizationId]),
+    ]);
     return {
       clients: clients?.total || 0,
       contracts: contracts?.total || 0,
@@ -26,18 +24,18 @@ export class DashboardsService {
   }
 
   async getProduction(organizationId: string) {
-    const pieces = await this.dataSource.query(
-      'SELECT status, COUNT(*) as count FROM pieces WHERE organization_id = ? GROUP BY status', [organizationId]);
-    const briefs = await this.dataSource.query(
-      'SELECT status, COUNT(*) as count FROM briefs WHERE organization_id = ? GROUP BY status', [organizationId]);
+    const [pieces, briefs] = await Promise.all([
+      this.dataSource.query('SELECT status, COUNT(*) as count FROM pieces WHERE organization_id = ? GROUP BY status', [organizationId]),
+      this.dataSource.query('SELECT status, COUNT(*) as count FROM briefs WHERE organization_id = ? GROUP BY status', [organizationId]),
+    ]);
     return { pieces, briefs };
   }
 
   async getFinancial(organizationId: string) {
-    const [udStats] = await this.dataSource.query(
-      'SELECT COALESCE(SUM(contracted),0) as contracted, COALESCE(SUM(reserved),0) as reserved, COALESCE(SUM(consumed),0) as consumed FROM ud_budgets WHERE client_id IN (SELECT id FROM clients WHERE organization_id = ?)', [organizationId]);
-    const [contracts] = await this.dataSource.query(
-      'SELECT COUNT(*) as total, COALESCE(SUM(monthly_ud),0) as total_monthly_ud FROM contracts WHERE organization_id = ?', [organizationId]);
+    const [[udStats], [contracts]] = await Promise.all([
+      this.dataSource.query('SELECT COALESCE(SUM(contracted),0) as contracted, COALESCE(SUM(reserved),0) as reserved, COALESCE(SUM(consumed),0) as consumed FROM ud_budgets WHERE client_id IN (SELECT id FROM clients WHERE organization_id = ?)', [organizationId]),
+      this.dataSource.query('SELECT COUNT(*) as total, COALESCE(SUM(monthly_ud),0) as total_monthly_ud FROM contracts WHERE organization_id = ?', [organizationId]),
+    ]);
     return { ud: udStats, contracts };
   }
 }

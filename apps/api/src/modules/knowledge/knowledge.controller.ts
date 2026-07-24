@@ -20,13 +20,13 @@ export class KnowledgeController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todos los chunks de conocimiento' })
-  list(@Req() req: AuthenticatedRequest) {
+  async list(@Req() req: AuthenticatedRequest) {
     return this.store.getByTenant(req.organizationId ?? req.user.tenantId);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas del knowledge base' })
-  stats(@Req() req: AuthenticatedRequest) {
+  async stats(@Req() req: AuthenticatedRequest) {
     return this.rag.stats(req.organizationId ?? req.user.tenantId);
   }
 

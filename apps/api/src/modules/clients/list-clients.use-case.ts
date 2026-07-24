@@ -9,11 +9,19 @@ export class ListClientsUseCase {
     @InjectRepository(Client) private repo: Repository<Client>,
   ) {}
 
-  async execute(organizationId: string, clientIds?: string[]) {
-    return this.repo.find({
+  async execute(
+    organizationId: string,
+    clientIds?: string[],
+    limit = 20,
+    offset = 0,
+  ): Promise<{ data: Client[]; total: number; limit: number; offset: number }> {
+    const [data, total] = await this.repo.findAndCount({
       where: { organizationId, ...(clientIds !== undefined ? { id: In(clientIds) } : {}) },
       order: { name: 'ASC' },
       relations: ['lead'],
+      skip: offset,
+      take: limit,
     });
+    return { data, total, limit, offset };
   }
 }

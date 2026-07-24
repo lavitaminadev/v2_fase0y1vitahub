@@ -2,6 +2,7 @@ import { Controller, Get, Post, Query, Headers, Req, Body, ForbiddenException, B
 import type { RawBodyRequest } from "@nestjs/common";
 import type { Request } from "express";
 import { Throttle } from "@nestjs/throttler";
+import { timingSafeEqual } from "crypto";
 import { MetaService } from "./meta.service";
 import { MetaLeadAdsService } from "./meta-lead-ads.service";
 import { MetaOAuthService } from "./meta-oauth.service";
@@ -60,8 +61,11 @@ export class MetaController {
     @Query("hub.verify_token") token?: string,
     @Query("hub.challenge") challenge?: string,
   ) {
-    if (mode !== "subscribe" || !token || token !== process.env.META_WEBHOOK_VERIFY_TOKEN)
-      throw new ForbiddenException();
+    const expected = process.env.META_WEBHOOK_VERIFY_TOKEN ?? "";
+    const expectedBuf = Buffer.from(expected);
+    const tokenBuf = Buffer.from(token ?? "");
+    const matches = expected.length > 0 && tokenBuf.length === expectedBuf.length && timingSafeEqual(tokenBuf, expectedBuf);
+    if (mode !== "subscribe" || !matches) throw new ForbiddenException();
     return challenge;
   }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { Lead } from './lead.entity';
 import { LeadFitStatus } from './lead-fit-status.enum';
 import { CrmLeadAutomationService } from './crm-lead-automation.service';
@@ -49,6 +49,11 @@ const LOW_QUALITY_KEYWORDS = [
   'soporte',
 ];
 
+interface LeadMetadata {
+  scoringSignals?: string[];
+  [key: string]: string | number | boolean | string[] | Record<string, unknown>[] | undefined;
+}
+
 export interface LeadCaptureInput {
   organizationId: string;
   clientId?: string;
@@ -67,7 +72,7 @@ export interface LeadCaptureInput {
   status?: string;
   tags?: string[];
   consentCapturedAt?: Date;
-  metadata?: Record<string, any>;
+  metadata?: LeadMetadata;
 }
 
 interface LeadQualificationResult {
@@ -162,12 +167,12 @@ export class LeadIntakeService {
 
   async updateStatusByContact(organizationId: string, status: string, email?: string | null, phone?: string | null, clientId?: string): Promise<Lead | null> {
     if (!email && !phone) return null;
-    const where: any[] = [];
-    const base: any = { organizationId };
+    const conditions: FindOptionsWhere<Lead>[] = [];
+    const base: FindOptionsWhere<Lead> = { organizationId };
     if (clientId) base.clientId = clientId;
-    if (email) where.push({ ...base, email });
-    if (phone) where.push({ ...base, phone });
-    const lead = await this.repo.findOne({ where });
+    if (email) conditions.push({ ...base, email });
+    if (phone) conditions.push({ ...base, phone });
+    const lead = await this.repo.findOne({ where: conditions });
     if (!lead) return null;
     lead.status = status;
     return this.repo.save(lead);
@@ -181,7 +186,7 @@ export class LeadIntakeService {
       if (byExternalId) return byExternalId;
     }
 
-    const baseWhere: any = { organizationId: input.organizationId };
+    const baseWhere: FindOptionsWhere<Lead> = { organizationId: input.organizationId };
     if (input.clientId) baseWhere.clientId = input.clientId;
 
     if (input.email) {

@@ -1,4 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { KnowledgeChunk } from "./knowledge-chunk.entity";
 
 export interface StoredChunk {
   id: string;
@@ -11,29 +14,58 @@ export interface StoredChunk {
   createdAt: number;
 }
 
+function toStoredChunk(row: KnowledgeChunk): StoredChunk {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    content: row.content,
+    embedding: row.embedding,
+    sourceName: row.sourceName,
+    chunkIndex: row.chunkIndex,
+    tokenCount: row.tokenCount,
+    createdAt: row.createdAt.getTime(),
+  };
+}
+
+/**
+ * Persiste chunks de la base de conocimiento en MySQL (antes vivian en un
+ * `Map` en memoria y se perdian en cada deploy/reinicio — ver
+ * docs/decisions/pending-business-decisions.md #16). La busqueda semantica
+ * sigue calculando similitud coseno en la aplicacion, no en la base de
+ * datos: el volumen de chunks por tenant es chico, asi que traer todos los
+ * chunks del tenant y compararlos en memoria (igual que antes) sigue siendo
+ * razonable sin necesitar un tipo vectorial nativo en MySQL.
+ */
 @Injectable()
 export class KnowledgeStore {
-  private chunks: Map<string, StoredChunk> = new Map();
-  private tenantChunks: Map<string, string[]> = new Map();
+  constructor(
+    @InjectRepository(KnowledgeChunk) private readonly repo: Repository<KnowledgeChunk>,
+  ) {}
 
-  add(chunk: StoredChunk): void {
-    this.chunks.set(chunk.id, chunk);
-    const existing = this.tenantChunks.get(chunk.tenantId) || [];
-    existing.push(chunk.id);
-    this.tenantChunks.set(chunk.tenantId, existing);
+  async add(chunk: Omit<StoredChunk, "createdAt"> & { createdAt?: number }): Promise<void> {
+    await this.repo.save(this.repo.create({
+      id: chunk.id,
+      tenantId: chunk.tenantId,
+      content: chunk.content,
+      embedding: chunk.embedding,
+      sourceName: chunk.sourceName,
+      chunkIndex: chunk.chunkIndex,
+      tokenCount: chunk.tokenCount,
+    }));
   }
 
-  get(id: string): StoredChunk | undefined {
-    return this.chunks.get(id);
+  async get(id: string): Promise<StoredChunk | undefined> {
+    const row = await this.repo.findOne({ where: { id } });
+    return row ? toStoredChunk(row) : undefined;
   }
 
-  getByTenant(tenantId: string): StoredChunk[] {
-    const ids = this.tenantChunks.get(tenantId) || [];
-    return ids.map((id) => this.chunks.get(id)).filter(Boolean) as StoredChunk[];
+  async getByTenant(tenantId: string): Promise<StoredChunk[]> {
+    const rows = await this.repo.find({ where: { tenantId }, order: { createdAt: "ASC" } });
+    return rows.map(toStoredChunk);
   }
 
-  search(tenantId: string, queryEmbedding: number[], limit: number): Array<StoredChunk & { score: number }> {
-    const tenantChunks = this.getByTenant(tenantId);
+  async search(tenantId: string, queryEmbedding: number[], limit: number): Promise<Array<StoredChunk & { score: number }>> {
+    const tenantChunks = await this.getByTenant(tenantId);
     const scored = tenantChunks.map((chunk) => ({
       ...chunk,
       score: this.cosineSimilarity(queryEmbedding, chunk.embedding),
@@ -42,23 +74,12 @@ export class KnowledgeStore {
     return scored.slice(0, limit);
   }
 
-  deleteBySource(tenantId: string, sourceName: string): void {
-    const ids = this.tenantChunks.get(tenantId) || [];
-    const remaining = ids.filter((id) => {
-      const chunk = this.chunks.get(id);
-      if (chunk?.sourceName === sourceName) {
-        this.chunks.delete(id);
-        return false;
-      }
-      return true;
-    });
-    this.tenantChunks.set(tenantId, remaining);
+  async deleteBySource(tenantId: string, sourceName: string): Promise<void> {
+    await this.repo.delete({ tenantId, sourceName });
   }
 
-  deleteAll(tenantId: string): void {
-    const ids = this.tenantChunks.get(tenantId) || [];
-    ids.forEach((id) => this.chunks.delete(id));
-    this.tenantChunks.delete(tenantId);
+  async deleteAll(tenantId: string): Promise<void> {
+    await this.repo.delete({ tenantId });
   }
 
   private cosineSimilarity(a: number[], b: number[]): number {
@@ -72,8 +93,8 @@ export class KnowledgeStore {
     return denom === 0 ? 0 : dot / denom;
   }
 
-  stats(tenantId: string): { totalChunks: number; totalSources: number } {
-    const chunks = this.getByTenant(tenantId);
+  async stats(tenantId: string): Promise<{ totalChunks: number; totalSources: number }> {
+    const chunks = await this.getByTenant(tenantId);
     return { totalChunks: chunks.length, totalSources: new Set(chunks.map((chunk) => chunk.sourceName)).size };
   }
 }

@@ -3,7 +3,7 @@ import type { ParsedDocument } from "../document-types";
 const MAX_CSV_ROWS = 10000;
 
 export async function parseCsv(buffer: Buffer, filename?: string): Promise<ParsedDocument> {
-  let papa: any;
+  let papa: typeof import("papaparse");
   try {
     papa = await import("papaparse");
   } catch {

@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditInterceptor } from './core/audit/audit.interceptor';
+import { ErrorLoggingInterceptor } from './core/observability/error-logging.interceptor';
 
 import { ErrorsModule } from './core/errors/errors.module';
 import { HealthModule } from './core/health/health.module';
@@ -127,6 +128,7 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: ErrorLoggingInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })

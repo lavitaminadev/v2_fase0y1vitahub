@@ -5,6 +5,7 @@ import { StatusBadge } from '../../shared/StatusBadge';
 import { statusLabel } from '../../shared/status-labels';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { EmptyState } from '../../shared/EmptyState';
+import { QueryErrorState } from '../../shared/QueryErrorState';
 import { LeadDetailDrawer } from './components/LeadDetailDrawer';
 import { matchesSearch } from '../../shared/search';
 import { Modal } from '../../shared/Modal';
@@ -68,7 +69,7 @@ export function LeadsPage() {
   const [pipelineView, setPipelineView] = useState<PipelineView>('board');
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(() => new Set());
   const [bulkStatus, setBulkStatus] = useState('contacted');
-  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [pageId, setPageId] = useState('');
   const [leadgenId, setLeadgenId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(searchParams.get('focus'));
@@ -77,7 +78,7 @@ export function LeadsPage() {
   const [createOpen, setCreateOpen] = useState(searchParams.get('create') === '1');
   const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', company: '', source: 'manual', notes: '' });
 
-  const { data: leads, isLoading, error } = useQuery<Lead[]>({
+  const { data: leads, isLoading, error, refetch, isFetching } = useQuery<Lead[]>({
     queryKey: ['leads'],
     queryFn: () => api.get('/crm/leads'),
   });
@@ -208,7 +209,7 @@ export function LeadsPage() {
   });
 
   if (isLoading) return <LoadingSpinner text="Cargando leads..." />;
-  if (error) return <div className="alert alert-error">Error al cargar leads</div>;
+  if (error) return <QueryErrorState title="No pudimos cargar los leads" message={error.message} onRetry={() => void refetch()} retrying={isFetching} />;
 
   return (
     <div className="page">
@@ -374,7 +375,7 @@ export function LeadsPage() {
                   if (!dragLeadId) return;
                   if (status === 'won') {
                     setSelectedLeadId(dragLeadId);
-                    setFeedback({ tone: 'error', text: 'Para cerrar como ganado, abre la ficha y usa Convertir en cliente.' });
+                    setFeedback({ tone: 'info', text: 'Para cerrar como ganado, abre la ficha y usa Convertir en cliente.' });
                     return;
                   }
                   setDropStatus(null);

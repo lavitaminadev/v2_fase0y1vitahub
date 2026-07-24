@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { IntegrationAccount } from '../integration-account.entity';
 import { IntegrationAccountType } from '../integration-account-type.enum';
 import { LeadIntakeService } from '../../crm/leads/lead-intake.service';
@@ -60,29 +60,41 @@ export class MetaLeadAdsService {
     const changes = this.extractLeadgenChanges(payload);
     let createdOrUpdated = 0;
 
-    for (const change of changes) {
-      const existingEvent = await this.eventsRepo.findOne({
-        where: { pageId: change.pageId, leadgenId: change.leadgenId },
+    // Batch load: get all unique pageIds
+    const pageIds = [...new Set(changes.map(c => c.pageId))];
+    const pageAccountsMap = new Map<string, IntegrationAccount[]>();
+    if (pageIds.length > 0) {
+      const accounts = await this.accountsRepo.find({
+        where: { externalId: In(pageIds), accountType: IntegrationAccountType.PAGE },
+        relations: { integration: true },
       });
+      pageIds.forEach(pageId => {
+        pageAccountsMap.set(pageId, accounts.filter(a => a.externalId === pageId));
+      });
+    }
+
+    // Batch load: get existing events
+    const existingEvents = await this.eventsRepo.find({
+      where: changes.map(c => ({ pageId: c.pageId, leadgenId: c.leadgenId })),
+    });
+    const eventMap = new Map(existingEvents.map(e => [`${e.pageId}-${e.leadgenId}`, e]));
+
+    for (const change of changes) {
+      const existingEvent = eventMap.get(`${change.pageId}-${change.leadgenId}`);
       if (existingEvent?.processingStatus === 'processed') {
         continue;
       }
 
-      const event = await this.eventsRepo.save(
-        existingEvent ?? this.eventsRepo.create({
-          pageId: change.pageId,
-          leadgenId: change.leadgenId,
-          formId: change.formId,
-          rawPayload: change.rawPayload,
-          processingStatus: 'received',
-        }),
-      );
+      const event = existingEvent ?? this.eventsRepo.create({
+        pageId: change.pageId,
+        leadgenId: change.leadgenId,
+        formId: change.formId,
+        rawPayload: change.rawPayload,
+        processingStatus: 'received',
+      });
 
       try {
-        const pageAccounts = await this.accountsRepo.find({
-          where: { externalId: change.pageId, accountType: IntegrationAccountType.PAGE },
-          relations: { integration: true },
-        });
+        const pageAccounts = pageAccountsMap.get(change.pageId) ?? [];
         const selectedAccounts = pageAccounts.filter((account) =>
           Boolean(account.metadata?.selected) &&
           (!options?.organizationId || account.integration?.organizationId === options.organizationId),
@@ -152,8 +164,8 @@ export class MetaLeadAdsService {
             adsetName: leadDetail.adset_name,
             formId: leadDetail.form_id ?? change.formId,
             platform: leadDetail.platform,
-            fieldData: leadDetail.field_data ?? [],
-            customDisclaimerResponses: leadDetail.custom_disclaimer_responses ?? [],
+            fieldData: (leadDetail.field_data ?? []) as unknown as Record<string, unknown>[],
+            customDisclaimerResponses: (leadDetail.custom_disclaimer_responses ?? []) as unknown as Record<string, unknown>[],
           },
         });
 

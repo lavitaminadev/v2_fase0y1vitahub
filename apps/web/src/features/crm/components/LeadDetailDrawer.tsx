@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../../core/api';
 import { StatusBadge } from '../../../shared/StatusBadge';
 import { Modal } from '../../../shared/Modal';
 import { statusLabel } from '../../../shared/status-labels';
+import { useFocusTrap } from '../../../shared/useFocusTrap';
+import { triggerToast } from '../../../shared/Toast';
 
 interface LeadDetail {
   id: string;
@@ -77,6 +79,9 @@ export function LeadDetailDrawer({ leadId, onClose }: LeadDetailDrawerProps) {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [leadId, onClose]);
 
+  const panelRef = useRef<HTMLElement>(null);
+  useFocusTrap(panelRef, Boolean(leadId));
+
   const exportLeadMutation = useMutation({
     mutationFn: (id: string) => api.get<Record<string, unknown>>(`/data-protection/leads/${id}/export`),
     onSuccess: (data) => {
@@ -87,6 +92,7 @@ export function LeadDetailDrawer({ leadId, onClose }: LeadDetailDrawerProps) {
       link.click();
       URL.revokeObjectURL(url);
     },
+    onError: (mutationError: Error) => triggerToast(mutationError.message, 'error'),
   });
 
   const anonymizeLeadMutation = useMutation({
@@ -94,8 +100,10 @@ export function LeadDetailDrawer({ leadId, onClose }: LeadDetailDrawerProps) {
     onSuccess: () => {
       setAnonymizeOpen(false);
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      triggerToast('Lead anonimizado correctamente.', 'success');
       onClose();
     },
+    onError: (mutationError: Error) => triggerToast(mutationError.message, 'error'),
   });
 
   const convertLeadMutation = useMutation({
@@ -140,7 +148,7 @@ export function LeadDetailDrawer({ leadId, onClose }: LeadDetailDrawerProps) {
   return (
     <>
       <button type="button" className={`drawer-backdrop ${leadId ? 'is-open' : ''}`} onClick={onClose} aria-label="Cerrar ficha del lead" />
-      <aside className={`drawer-panel lead-detail-panel ${leadId ? 'is-open' : ''}`} role="dialog" aria-modal="true" aria-labelledby="lead-drawer-title">
+      <aside ref={panelRef} className={`drawer-panel lead-detail-panel ${leadId ? 'is-open' : ''}`} role="dialog" aria-modal="true" aria-labelledby="lead-drawer-title" tabIndex={-1}>
         <div className="drawer-header">
           <div className="drawer-title-group">
             <span className="drawer-eyebrow">FICHA COMERCIAL</span>

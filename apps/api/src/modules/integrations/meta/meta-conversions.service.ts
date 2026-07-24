@@ -12,6 +12,8 @@ export interface ConversionEvent {
   userData: {
     em?: string[];
     ph?: string[];
+    fn?: string[];
+    ln?: string[];
     client_ip_address?: string;
     client_user_agent?: string;
     fbc?: string;
@@ -43,6 +45,8 @@ export class MetaConversionsService {
         user_data: {
           em: event.userData.em,
           ph: event.userData.ph,
+          fn: event.userData.fn,
+          ln: event.userData.ln,
           external_id: event.userData.externalId,
           client_ip_address: event.userData.client_ip_address,
           client_user_agent: event.userData.client_user_agent,
@@ -81,9 +85,27 @@ export class MetaConversionsService {
     const hashed = {
       ...event.userData,
       em: event.userData.em?.map(e => createHash('sha256').update(e.trim().toLowerCase()).digest('hex')),
-      ph: event.userData.ph?.map(p => createHash('sha256').update(p.replace(/\D/g, '')).digest('hex')),
+      ph: event.userData.ph?.map(p => createHash('sha256').update(normalizePhoneForMeta(p)).digest('hex')),
+      fn: event.userData.fn?.map(f => createHash('sha256').update(f.trim().toLowerCase()).digest('hex')),
+      ln: event.userData.ln?.map(l => createHash('sha256').update(l.trim().toLowerCase()).digest('hex')),
       externalId: event.userData.externalId?.map(id => createHash('sha256').update(id).digest('hex')),
     };
     return this.sendEvent(pixelId, accessToken, { ...event, userData: hashed });
   }
+}
+
+/**
+ * Meta requires `ph` to include the country code with no leading zeros, no
+ * symbols, digits only (see Customer Information Parameters docs). Local
+ * Chilean numbers are stored as 9 digits (e.g. 912345678) without a country
+ * code, which silently breaks phone matching if hashed as-is. Prepend the
+ * default country code when the number doesn't already look internationally
+ * formatted.
+ */
+function normalizePhoneForMeta(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  const defaultCountryCode = process.env.META_PHONE_DEFAULT_COUNTRY_CODE ?? '56';
+  if (digits.startsWith(defaultCountryCode) && digits.length > 9) return digits;
+  if (digits.length > 9) return digits; // already looks internationally formatted
+  return `${defaultCountryCode}${digits.replace(/^0+/, '')}`;
 }

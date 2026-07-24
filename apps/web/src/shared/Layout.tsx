@@ -8,7 +8,6 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../core/auth';
 import { getNavigation } from '../core/navigation.registry';
 import { NavGlyph } from './NavGlyph';
-import { ApiErrorToast } from './ApiErrorToast';
 import { ToastContainer } from './Toast';
 import { BrandMark } from './Brand';
 import { CommandPalette } from './CommandPalette';
@@ -53,7 +52,6 @@ export function Layout(): JSX.Element {
 
   return (
     <div className="app-layout">
-      <ApiErrorToast />
       <ToastContainer />
       <CommandPalette />
       {!online && <div className="offline-banner" role="alert"><strong>Sin conexión</strong><span>Puedes revisar la pantalla actual, pero los cambios no se enviarán hasta recuperar internet.</span></div>}

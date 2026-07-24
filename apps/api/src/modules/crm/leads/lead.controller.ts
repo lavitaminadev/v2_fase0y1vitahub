@@ -10,6 +10,7 @@ import { UpdateLeadUseCase } from './use-cases/update-lead.use-case';
 import { GetLeadUseCase } from './use-cases/get-lead.use-case';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
+import { ListLeadsQueryDto } from './dto/list-leads.dto';
 import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
@@ -39,8 +40,16 @@ export class LeadController {
 
   @Get()
   @ApiOperation({ summary: 'Listar leads' })
-  list(@Query('status') status: string, @Query('fitStatus') fitStatus: string, @Query('source') source: string, @Query('clientId') clientId: string, @Req() req: AuthenticatedRequest) {
-    return this.listLeads.execute(req.organizationId, status, fitStatus, source, clientId);
+  list(@Query() query: ListLeadsQueryDto, @Req() req: AuthenticatedRequest) {
+    return this.listLeads.execute(
+      req.organizationId,
+      query.limit,
+      query.offset,
+      query.status,
+      query.fitStatus,
+      query.source,
+      query.clientId,
+    );
   }
 
   @Get(':id')
