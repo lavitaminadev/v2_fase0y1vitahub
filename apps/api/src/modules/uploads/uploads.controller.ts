@@ -47,16 +47,17 @@ export class UploadsController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Subir una imagen a Cloudinary' })
   @ApiBody({ description: 'Imagen a subir (multipart/form-data). Máximo 5 MB. Formatos: jpg, png, gif, webp, avif.' })
-  async uploadImage(@UploadedFile() file: Express.Multer.File | undefined, @Req() req: AuthenticatedRequest) {
+  async uploadImage(@UploadedFile() file: Express.Multer.File | undefined, @Req() req: AuthenticatedRequest, @Body('clientId') clientId?: string) {
     if (!file?.buffer?.length) throw new BadRequestException('Debes seleccionar una imagen');
     if (!IMAGE_MIME_TYPES.has(file.mimetype)) throw new BadRequestException('Solo se permiten imágenes JPG, PNG, GIF, WebP o AVIF');
     const maxBytes = Math.min(Number(process.env.CLOUDINARY_MAX_IMAGE_BYTES || 5 * 1024 * 1024), 10 * 1024 * 1024);
     if (file.buffer.length > maxBytes) throw new BadRequestException(`La imagen no puede superar los ${Math.round(maxBytes / 1024 / 1024)} MB`);
 
+    const folder = clientId ? `vitahub/${req.organizationId}/${clientId}` : `vitahub/${req.organizationId}`;
     const result = await this.cloudinary.uploadImage(file.buffer, req.organizationId, {
-      folder: `vitahub/${req.organizationId}`,
+      folder,
       fileName: `${randomUUID()}-${file.originalname}`,
-      tags: [`org:${req.organizationId}`, `user:${req.user.id}`],
+      tags: [`org:${req.organizationId}`, ...(clientId ? [`client:${clientId}`] : []), `user:${req.user.id}`],
       mimeType: file.mimetype,
     });
     return { url: result.secureUrl, publicId: result.publicId, width: result.width, height: result.height };
