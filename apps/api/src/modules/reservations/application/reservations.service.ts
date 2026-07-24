@@ -168,7 +168,7 @@ export class ReservationsService {
 
   private async uniqueSlug(baseValue: string) {
     const base = this.slug(baseValue) || 'reservas'; let candidate = base;
-    while (await this.forms.exist({ where: { publicSlug: candidate } })) candidate = `${base}-${randomBytes(4).toString('hex')}`;
+    while (await this.forms.exist({ where: { publicSlug: candidate } })) candidate = `${base}-${randomBytes(3).toString('hex')}`;
     return candidate;
   }
 
