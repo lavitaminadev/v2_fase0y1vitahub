@@ -143,6 +143,11 @@
 .settings-save-bar .btn-outline { border-color: rgba(255,255,255,.3); color: #fff; }
 @keyframes save-bar-arrive { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Settings security and access grids */
+.settings-security-grid, .settings-access-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 17px; }
+.form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.form-actions .btn { min-width: 120px; }
+
 /* Recoverable application errors */
 .fatal-error-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 720px) 280px; place-content: center; gap: 18px; padding: 30px; background: radial-gradient(circle at 20% 20%, #e7efdb, transparent 30%), #f3f5ef; }
 .fatal-error-page section, .fatal-error-page aside { padding: clamp(30px,6vw,65px); border: 1px solid #dae3da; border-radius: 25px; background: #fff; box-shadow: 0 24px 70px rgba(24,57,48,.1); }
