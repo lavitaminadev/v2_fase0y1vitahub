@@ -30,6 +30,7 @@ export default defineConfig({
             if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'vendor-react';
             if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
             if (id.includes('node_modules/react-router')) return 'vendor-router';
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3')) return 'vendor-charts';
             if (id.includes('node_modules')) return 'vendor';
             if (id.includes('/src/core/api') || id.includes('/src/core/auth') || id.includes('/packages/shared')) return 'vendor';
           },
