@@ -31,7 +31,7 @@ describe('ClientService', () => {
       expect(mockRepo.create).toHaveBeenCalledWith({
         organizationId: 'org-1',
         name: 'Acme Corp',
-        capabilities: { reservations: true, crm: true, metaConversions: false },
+        capabilities: { reservations: true, crm: true, metaConversions: false, googleConversions: false },
       });
     });
   });

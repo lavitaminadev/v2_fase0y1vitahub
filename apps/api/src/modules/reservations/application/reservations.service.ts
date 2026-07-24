@@ -516,6 +516,11 @@ export class ReservationsService {
    */
   private async enqueueGoogleConversion(booking: Reservation, form: ReservationForm, eventKey: string, conversionDate: Date) {
     if (!this.googleOutbox) return;
+    // Enviar datos personales a Google requiere habilitación explícita por
+    // empresa, igual que metaConversions.
+    const capabilities = await this.clientCapabilities(form.organizationId, form.clientId);
+    if (!capabilities.googleConversions) return;
+
     const config = await this.googleOutbox.resolveConfig(form.organizationId, form.clientId, eventKey);
     if (!config) return;
 

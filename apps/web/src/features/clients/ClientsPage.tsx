@@ -37,6 +37,7 @@ interface ClientCapabilities {
   reservations: boolean;
   crm: boolean;
   metaConversions: boolean;
+  googleConversions: boolean;
 }
 
 interface MetaPixelCatalog {
@@ -88,7 +89,7 @@ const EMPTY_FORM: ClientFormState = {
   driveFolderId: '',
   logoUrl: '',
   logoPublicId: '',
-  capabilities: { reservations: true, crm: true, metaConversions: false },
+  capabilities: { reservations: true, crm: true, metaConversions: false, googleConversions: false },
   pixelMode: 'none',
   pixelId: '',
   pixelName: '',
@@ -100,6 +101,7 @@ const CAPABILITY_OPTIONS: Array<{ key: keyof ClientCapabilities; label: string; 
   { key: 'reservations', label: 'Reservas', description: 'Agenda pública, disponibilidad, bloqueos y asistencia.' },
   { key: 'crm', label: 'CRM de reservas', description: 'Crea o actualiza el contacto cuando ingresa una reserva.' },
   { key: 'metaConversions', label: 'Meta Pixel + CAPI', description: 'Envía Schedule y Reserva_Asistida al Pixel de esta empresa.' },
+  { key: 'googleConversions', label: 'Google Ads (conversiones)', description: 'Sube la reserva y la asistencia como conversiones offline a Google Ads.' },
 ];
 
 export function ClientsPage() {
@@ -271,6 +273,7 @@ export function ClientsPage() {
         reservations: client.capabilities?.reservations ?? true,
         crm: client.capabilities?.crm ?? true,
         metaConversions: client.capabilities?.metaConversions ?? Boolean(binding?.pixelId),
+        googleConversions: client.capabilities?.googleConversions ?? false,
       },
       pixelMode: binding?.pixelId ? 'existing' : 'none',
       pixelId: binding?.pixelId || '',
