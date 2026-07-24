@@ -58,6 +58,31 @@ npm.cmd run local:seed
 npm.cmd run local:stop
 ```
 
+### Testing Fase 1: Reservas + CRM + Meta CAPI
+
+[Ver checklist completo →](./FASE_1_CHECKLIST.md)
+
+**Flujo de prueba local:**
+
+1. **Crea un cliente y una forma de reserva:**
+   - Login como `admin@vitahub.local`
+   - Clientes → Nueva → Nombre + Pixel de prueba
+   - Reservas → Nueva forma → Configura horarios, activa CRM y Meta CAPI
+
+2. **Prueba página pública:**
+   - URL: `http://localhost:5173/book/{slug-publico}`
+   - Haz una reserva
+   - Verifica que en `Events Manager` (Meta) aparece evento `Schedule` con datos de match
+
+3. **Bandeja de reservas:**
+   - Login como `operaciones@vitahub.local`
+   - Reservas → Bandeja → Marca "Asistió"
+   - Verifica que en Meta aparece evento `Reserva_Asistida`
+
+4. **CRM:**
+   - CRM → Contactos → Filtra por cliente
+   - Verifica que el comensal aparece con estado `reserved` → `attended`
+
 ### With Docker (recommended)
 
 ```bash
