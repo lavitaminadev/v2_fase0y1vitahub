@@ -8,7 +8,7 @@ import { CloudinaryConfigModal } from './CloudinaryConfigModal';
 import { ImageUpload } from '../../shared/ImageUpload';
 import { MediaLibraryModal } from '../../shared/MediaLibraryModal';
 
-type SettingsTab = 'general' | 'access';
+type SettingsTab = 'general' | 'security' | 'access';
 type SettingValue = string | number | boolean | null;
 type Feedback = { tone: 'success' | 'error'; text: string } | null;
 
@@ -50,7 +50,8 @@ interface SystemHealth {
 
 const TABS: Array<{ id: SettingsTab; number: string; label: string; description: string }> = [
   { id: 'general', number: '01', label: 'Identidad', description: 'Perfil y organización' },
-  { id: 'access', number: '02', label: 'Sistema Fase 1', description: 'Empresas, usuarios, Meta y Cloudinary' },
+  { id: 'security', number: '02', label: 'Seguridad', description: 'Contraseña y autenticación' },
+  { id: 'access', number: '03', label: 'Sistema Fase 1', description: 'Empresas, usuarios, Meta y Cloudinary' },
 ];
 
 const TAB_CATEGORIES: Partial<Record<string, OrganizationSetting['category'][]>> = {
@@ -186,6 +187,7 @@ export function SettingsPage() {
   const [orgName, setOrgName] = useState('');
   const [orgLogo, setOrgLogo] = useState('');
   const [orgWelcome, setOrgWelcome] = useState('');
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [draft, setDraft] = useState<Record<string, SettingValue>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [cloudinaryOpen, setCloudinaryOpen] = useState(false);
@@ -243,6 +245,18 @@ export function SettingsPage() {
       queryClient.setQueryData(['organization-settings'], settings);
       setDraft({});
       setFeedback({ tone: 'success', text: 'Reglas guardadas y registradas en la auditoría.' });
+    },
+    onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }),
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: () => api.put('/auth/password', {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+    }),
+    onSuccess: async () => {
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setFeedback({ tone: 'success', text: 'Tu contraseña fue actualizada correctamente.' });
     },
     onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }),
   });
@@ -321,6 +335,34 @@ export function SettingsPage() {
               <button className="btn btn-primary" type="submit" disabled={organizationMutation.isPending || !orgName.trim()}>
                 {organizationMutation.isPending ? 'Actualizando...' : 'Actualizar organizacion'}
               </button>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'security' && (
+        <div className="settings-security-grid">
+          <section className="settings-form-card">
+            <header><span>Cuenta</span><h2>Cambiar contraseña</h2><p>Actualiza tu contraseña de acceso a VITAHUB.</p></header>
+            <form onSubmit={(event) => { event.preventDefault(); if (passwordData.newPassword !== passwordData.confirmPassword) { setFeedback({ tone: 'error', text: 'Las contraseñas nuevas no coinciden.' }); return; } passwordMutation.mutate(); }}>
+              <label>Contraseña actual
+                <input className="input" type="password" required value={passwordData.currentPassword} onChange={(event) => setPasswordData({ ...passwordData, currentPassword: event.target.value })} />
+              </label>
+              <label>Nueva contraseña
+                <input className="input" type="password" required value={passwordData.newPassword} onChange={(event) => setPasswordData({ ...passwordData, newPassword: event.target.value })} />
+                <small>Mínimo 8 caracteres, con mayúscula, minúscula y número.</small>
+              </label>
+              <label>Confirmar nueva contraseña
+                <input className="input" type="password" required value={passwordData.confirmPassword} onChange={(event) => setPasswordData({ ...passwordData, confirmPassword: event.target.value })} />
+              </label>
+              <div className="form-actions">
+                <button className="btn btn-primary" type="submit" disabled={passwordMutation.isPending || !passwordData.currentPassword.trim() || !passwordData.newPassword.trim() || !passwordData.confirmPassword.trim()}>
+                  {passwordMutation.isPending ? 'Actualizando...' : 'Cambiar contraseña'}
+                </button>
+                <button type="button" className="btn btn-outline" onClick={() => setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })}>
+                  Cancelar
+                </button>
+              </div>
             </form>
           </section>
         </div>

@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../core/api';
 import { Modal } from '../../shared/Modal';
 import { StatusBadge } from '../../shared/StatusBadge';
+import { StatusTrafficLight } from '../../shared/StatusTrafficLight';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { QueryErrorState } from '../../shared/QueryErrorState';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
@@ -196,12 +197,11 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
           <button className="booking-guest booking-guest-button" onClick={() => { setSelectedBooking(item); setBookingNotes(item.internalNotes || ''); }}><strong>{item.guestName}</strong><span>{item.guestPhone || item.guestEmail || 'Sin contacto'}</span><small>#{item.referenceCode} · {item.utmCampaign || item.utmSource || 'Origen directo'}</small></button>
           <StatusBadge status={item.status} />
           <div className="booking-status-cell">
-            {/* Botones de un clic para el gesto diario del equipo: marcar asistencia sin abrir el modal de detalle. */}
-            {canMarkAttendance && <div className="booking-attendance-quick" role="group" aria-label={`Marcar asistencia de ${item.guestName}`}>
-              <button type="button" className="btn btn-primary btn-sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate({ id: item.id, body: { status: 'attended' } })}>{pendingStatus === 'attended' ? '...' : 'Asistió'}</button>
-              <button type="button" className="btn btn-outline btn-danger btn-sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate({ id: item.id, body: { status: 'no_show' } })}>{pendingStatus === 'no_show' ? '...' : 'No asistió'}</button>
-            </div>}
-            <select className="input booking-status" aria-label={`Cambiar estado de ${item.guestName}`} value={item.status} disabled={otherNext.length === 0 || updateMutation.isPending} onChange={(event) => updateMutation.mutate({ id: item.id, body: { status: event.target.value } })} style={updateMutation.isPending ? { opacity: 0.6 } : undefined}><option value={item.status}>{STATUS_LABELS[item.status] || item.status}</option>{otherNext.map((status) => <option value={status} key={status}>{STATUS_LABELS[status]}</option>)}</select>
+            <StatusTrafficLight
+              status={item.status as any}
+              onChange={(newStatus) => updateMutation.mutate({ id: item.id, body: { status: newStatus } })}
+              disabled={updateMutation.isPending}
+            />
           </div>
         </article>; })}
       </div>}
