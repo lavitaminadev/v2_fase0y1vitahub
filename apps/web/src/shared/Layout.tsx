@@ -16,7 +16,7 @@ import { NotificationBell } from '../features/notifications/NotificationBell';
 
 const NAV_GROUPS: { label: string; paths: string[] }[] = [
   { label: 'Medir', paths: ['/dashboard'] },
-  { label: 'Operar', paths: ['/reservations', '/crm/contacts', '/crm/leads', '/production', '/audiovisual', '/content', '/documents', '/briefs', '/approvals', '/catalog'] },
+  { label: 'Operar', paths: ['/reservations', '/crm/contacts', '/crm/leads', '/crm/opportunities', '/crm/interactions', '/production', '/audiovisual', '/content', '/documents', '/briefs', '/approvals', '/catalog'] },
   { label: 'Colaborar', paths: ['/meetings', '/reports', '/billing', '/contracts', '/gamification'] },
   { label: 'Configurar', paths: ['/clients', '/users', '/integrations', '/knowledge', '/onboarding', '/direction', '/operations', '/governance', '/settings'] },
 ];
