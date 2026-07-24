@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Organization } from './organization.entity';
 
 /**
- * Lists the current organization.
+ * Lista la organización actual.
  */
 @Injectable()
 export class ListOrganizationsUseCase {
@@ -13,9 +13,9 @@ export class ListOrganizationsUseCase {
   ) {}
 
   /**
-   * Returns the organization selected by the authenticated tenant context.
+   * Devuelve la organización seleccionada por el contexto de tenant autenticado.
    *
-   * @returns List of organization entities.
+   * @returns Lista de entidades de organización.
    */
   async execute(organizationId: string): Promise<Organization[]> {
     return this.repo.find({

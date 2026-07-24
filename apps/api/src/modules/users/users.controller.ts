@@ -13,7 +13,7 @@ import { ResetUserPasswordUseCase } from './reset-user-password.use-case';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 
 /**
- * User management endpoints.
+ * Endpoints de administración de usuarios.
  */
 @ApiTags('Usuarios')
 @Controller('users')
@@ -28,7 +28,7 @@ export class UsersController {
   ) {}
 
   /**
-   * Creates a new user inside the caller's organization.
+   * Crea un nuevo usuario dentro de la organización del solicitante.
    */
   @Post()
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
@@ -42,7 +42,7 @@ export class UsersController {
   }
 
   /**
-   * Lists users scoped to the caller's organization.
+   * Lista los usuarios acotados a la organización del solicitante.
    */
   @Get()
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)

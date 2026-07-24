@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Organization } from './organization.entity';
 
 /**
- * Input required to create an organization.
+ * Datos requeridos para crear una organización.
  */
 interface CreateOrganizationInput {
   name: string;
@@ -13,7 +13,7 @@ interface CreateOrganizationInput {
 }
 
 /**
- * Creates and updates organization records.
+ * Crea y actualiza registros de organización.
  */
 @Injectable()
 export class CreateOrganizationUseCase {
@@ -22,10 +22,10 @@ export class CreateOrganizationUseCase {
   ) {}
 
   /**
-   * Persists a new organization.
+   * Persiste una nueva organización.
    *
-   * @param data - Organization creation input.
-   * @returns Saved organization entity.
+   * @param data - Datos de creación de la organización.
+   * @returns Entidad de la organización guardada.
    */
   async execute(data: CreateOrganizationInput): Promise<Organization> {
     const org = this.repo.create(data);
@@ -33,11 +33,11 @@ export class CreateOrganizationUseCase {
   }
 
   /**
-   * Updates an existing organization by id.
+   * Actualiza una organización existente por id.
    *
-   * @param id - Organization identifier.
-   * @param data - Fields to update.
-   * @returns Updated organization or null.
+   * @param id - Identificador de la organización.
+   * @param data - Campos a actualizar.
+   * @returns Organización actualizada o null.
    */
   async executeUpdate(id: string, data: { name?: string; currency?: string }): Promise<Organization | null> {
     await this.repo.update(id, data);

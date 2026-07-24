@@ -2,7 +2,7 @@ import type { Request } from 'express';
 import type { UserRole } from '@vitahub/shared';
 
 /**
- * Authenticated user attached to the request by the JWT strategy.
+ * Usuario autenticado adjuntado al request por la estrategia JWT.
  */
 export interface AuthUser {
   id: string;
@@ -15,12 +15,12 @@ export interface AuthUser {
 }
 
 /**
- * Express request extended with the authenticated user and resolved tenant.
+ * Request de Express extendido con el usuario autenticado y el tenant resuelto.
  *
- * Use this instead of `Request` in controllers/guards that require auth.
+ * Usar esto en vez de `Request` en controllers/guards que requieren autenticación.
  */
 export interface AuthenticatedRequest extends Request {
   user: AuthUser;
-  /** Resolved tenant id. Always present for authenticated requests. */
+  /** Id del tenant resuelto. Siempre presente en requests autenticados. */
   organizationId: string;
 }

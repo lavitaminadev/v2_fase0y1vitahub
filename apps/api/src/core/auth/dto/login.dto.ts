@@ -1,14 +1,14 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
 
 /**
- * Login request body.
+ * Cuerpo del request de login.
  */
 export class LoginDto {
-  /** Registered email address. */
+  /** Dirección de email registrada. */
   @IsEmail()
   email: string;
 
-  /** Plain-text password. */
+  /** Contraseña en texto plano. */
   @IsString()
   @MinLength(6)
   password: string;

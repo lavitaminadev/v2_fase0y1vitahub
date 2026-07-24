@@ -130,7 +130,7 @@ export function AppRouter() {
   );
 }
 
-// Register feature manifests
+// Registra los manifiestos de features
 import '../features/dashboard/feature.manifest';
 import '../features/clients/feature.manifest';
 import '../features/reservations/feature.manifest';

@@ -1,14 +1,15 @@
 /**
- * @fileoverview Single toast/notification system for the whole app.
+ * @fileoverview Sistema único de toast/notificaciones para toda la app.
  *
- * There used to be two separate popup systems here: this file (generic
- * success/error/info messages fired by feature code via `triggerToast`) and
- * a second `ApiErrorToast` component that rendered API failures on its own,
- * independently positioned CustomEvent listener. They could stack on top of
- * each other with different styling. This file now owns both: it still
- * listens for `TOAST_EVENT` (manual `triggerToast` calls) and also listens
- * for `core/api.ts`'s `API_ERROR_EVENT` directly, rendering both through the
- * same list/positioning/dismiss logic.
+ * Antes había dos sistemas de popup separados acá: este archivo (mensajes
+ * genéricos de éxito/error/info disparados por código de features vía
+ * `triggerToast`) y un segundo componente `ApiErrorToast` que renderizaba
+ * fallos de API por su cuenta, con un listener de CustomEvent posicionado de
+ * forma independiente. Podían apilarse uno sobre otro con estilos distintos.
+ * Este archivo ahora es dueño de ambos: sigue escuchando `TOAST_EVENT`
+ * (llamadas manuales a `triggerToast`) y también escucha directamente el
+ * `API_ERROR_EVENT` de `core/api.ts`, renderizando ambos a través de la
+ * misma lógica de lista/posicionamiento/descarte.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -24,9 +25,9 @@ export interface ToastAction {
 export interface ToastDetail {
   message: string;
   kind?: 'success' | 'error' | 'info' | 'connection' | 'permission';
-  /** Optional heading shown above the message (used by API error toasts). */
+  /** Encabezado opcional mostrado sobre el mensaje (usado por los toasts de error de API). */
   title?: string;
-  /** Optional action button, e.g. "Comprobar de nuevo" on connection errors. */
+  /** Botón de acción opcional, ej. "Comprobar de nuevo" en errores de conexión. */
   action?: ToastAction;
 }
 
@@ -34,13 +35,13 @@ interface ToastItem extends ToastDetail {
   id: number;
 }
 
-/** Fires a simple success/error/info toast from anywhere in the app. */
+/** Dispara un toast simple de éxito/error/info desde cualquier parte de la app. */
 export function triggerToast(message: string, kind: ToastDetail['kind'] = 'success') {
   window.dispatchEvent(new CustomEvent<ToastDetail>(TOAST_EVENT, { detail: { message, kind } }));
 }
 
-// Connection issues stay visible longer since they usually require the user
-// to notice, read, and act (e.g. check their network) rather than just glance.
+// Los problemas de conexión quedan visibles más tiempo porque normalmente
+// requieren que el usuario note, lea y actúe (ej. revisar su red), no solo un vistazo.
 function durationFor(kind: ToastDetail['kind']): number {
   if (kind === 'connection') return 10_000;
   if (kind === 'error' || kind === 'permission') return 7_000;

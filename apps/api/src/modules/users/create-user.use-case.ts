@@ -9,7 +9,7 @@ import { Client } from '../clients/client.entity';
 const BCRYPT_ROUNDS = 10;
 
 /**
- * Input required to create a user.
+ * Datos requeridos para crear un usuario.
  */
 interface CreateUserInput {
   email: string;
@@ -25,7 +25,7 @@ interface CreateUserInput {
 }
 
 /**
- * Creates a new user with a hashed password.
+ * Crea un nuevo usuario con una contraseña hasheada.
  */
 @Injectable()
 export class CreateUserUseCase {
@@ -35,10 +35,10 @@ export class CreateUserUseCase {
   ) {}
 
   /**
-   * Hashes the password and persists the user.
+   * Hashea la contraseña y persiste el usuario.
    *
-   * @param data - User creation input.
-   * @returns Saved user entity.
+   * @param data - Datos de creación del usuario.
+   * @returns Entidad del usuario guardada.
    */
   async execute(data: CreateUserInput): Promise<User> {
     const normalizedRole = data.role || UserRole.DESIGNER;

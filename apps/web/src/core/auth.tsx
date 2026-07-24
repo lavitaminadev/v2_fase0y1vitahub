@@ -1,9 +1,9 @@
 /**
- * @fileoverview Authentication state management (Zustand).
+ * @fileoverview Gestión del estado de autenticación (Zustand).
  *
- * The store keeps the authenticated user and access token in sync with the
- * typed API client. On bootstrap it restores the session through the secure
- * refresh cookie and then loads `/auth/me`.
+ * El store mantiene el usuario autenticado y el access token sincronizados
+ * con el cliente de API tipado. Al arrancar, restaura la sesión a través de
+ * la cookie segura de refresh y luego carga `/auth/me`.
  */
 
 import { create } from 'zustand';
@@ -13,7 +13,7 @@ import { api, setApiToken } from './api';
 type BrowserAuthResponse = Pick<AuthResponse, 'accessToken' | 'user'>;
 
 /**
- * Authenticated user profile exposed to the UI.
+ * Perfil del usuario autenticado expuesto a la UI.
  */
 export interface User {
   id: string;
@@ -27,7 +27,7 @@ export interface User {
 }
 
 /**
- * Payload required to register a new account.
+ * Payload requerido para registrar una nueva cuenta.
  */
 export interface RegisterData {
   name: string;
@@ -37,34 +37,34 @@ export interface RegisterData {
 }
 
 /**
- * Authentication store state and actions.
+ * Estado y acciones del store de autenticación.
  */
 export interface AuthState {
-  /** Currently authenticated user or null. */
+  /** Usuario autenticado actualmente, o null. */
   user: User | null;
-  /** Raw JWT access token or null. */
+  /** Access token JWT crudo, o null. */
   token: string | null;
-  /** True while the initial token validation is in progress. */
+  /** True mientras la validación inicial del token está en progreso. */
   loading: boolean;
-  /** Last authentication error message. */
+  /** Último mensaje de error de autenticación. */
   error: string | null;
 
-  /** Log in with email/password. */
+  /** Inicia sesión con email/contraseña. */
   login: (email: string, password: string) => Promise<void>;
-  /** Register a new account. */
+  /** Registra una nueva cuenta. */
   register: (data: RegisterData) => Promise<void>;
-  /** Revoke the server session and clear local state. */
+  /** Revoca la sesión en el servidor y limpia el estado local. */
   logout: () => Promise<void>;
-  /** Restore session from the HttpOnly refresh cookie. */
+  /** Restaura la sesión desde la cookie HttpOnly de refresh. */
   checkAuth: () => Promise<void>;
-  /** Reload the current profile without rotating the browser session. */
+  /** Recarga el perfil actual sin rotar la sesión del navegador. */
   refreshProfile: () => Promise<void>;
-  /** Clear transient error state. */
+  /** Limpia el estado de error transitorio. */
   clearError: () => void;
 }
 
 /**
- * Zustand store that manages authentication lifecycle.
+ * Store de Zustand que gestiona el ciclo de vida de la autenticación.
  */
 export const useAuth = create<AuthState>((set) => ({
   user: null,
@@ -90,7 +90,7 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       await api.post('/auth/logout');
     } catch {
-      // Local cleanup still proceeds if the session was already expired.
+      // La limpieza local igual procede si la sesión ya estaba expirada.
     }
     setApiToken(null);
     set({ user: null, token: null });

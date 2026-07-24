@@ -37,8 +37,8 @@ export class CreateKnowledgeChunks1721767000000 implements MigrationInterface {
       name: 'IDX_knowledge_chunks_tenant_source', columnNames: ['tenant_id', 'source_name'],
     }));
 
-    // tenant_id references organizations.id — "tenant" and "organization" are the
-    // same id in this app, this module just predates the organizationId naming.
+    // tenant_id referencia organizations.id — "tenant" y "organization" son el
+    // mismo id en esta app, este modulo simplemente es anterior a la convencion organizationId.
     await queryRunner.createForeignKey('knowledge_chunks', new TableForeignKey({
       columnNames: ['tenant_id'],
       referencedTableName: 'organizations',

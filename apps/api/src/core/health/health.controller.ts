@@ -20,9 +20,9 @@ export class HealthController {
   @ApiOperation({ summary: 'Health check general del sistema' })
   async check(@Res({ passthrough: true }) res: Response) {
     const result = await this.health.check();
-    // An uptime monitor that checks the HTTP status code (the common case)
-    // never sees a failure if this always returns 200 — the body's "status"
-    // field was previously the only signal, easy to miss without custom parsing.
+    // Un monitor de uptime que revisa el código de estado HTTP (el caso común)
+    // nunca ve una falla si esto siempre devuelve 200 — antes el campo "status"
+    // del body era la única señal, fácil de pasar por alto sin parseo custom.
     res.status(result.status === 'ok' ? 200 : 503);
     return result;
   }

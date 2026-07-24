@@ -51,7 +51,7 @@ export class MetaInsightsService {
           };
         });
         if (metricsToUpsert.length > 0) {
-          // TypeORM's DeepPartial can't reconcile a `Record<string, any>` json column through upsert(); the shape above is correct at runtime.
+          // El DeepPartial de TypeORM no logra conciliar una columna json `Record<string, any>` via upsert(); la forma de arriba es correcta en tiempo de ejecución.
           await this.metrics.upsert(metricsToUpsert as QueryDeepPartialEntity<IntegrationMetric>[], ['provider', 'externalAccountId', 'clientId', 'metricDate']);
           synced += metricsToUpsert.length;
         }

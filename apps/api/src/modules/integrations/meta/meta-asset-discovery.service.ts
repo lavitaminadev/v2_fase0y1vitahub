@@ -9,8 +9,8 @@ import type { MetaAssetSelectionDto } from './dto/meta-integration.dto';
 import { MetaIntegrationAccessor } from './meta-integration-accessor.service';
 
 /**
- * Discovers, persists, and manages selection of Meta pages, Instagram profiles,
- * and ad accounts for an integration (webhook subscriptions included).
+ * Descubre, persiste y gestiona la selección de páginas de Meta, perfiles de
+ * Instagram y cuentas publicitarias de una integración (incluye suscripciones de webhook).
  */
 @Injectable()
 export class MetaAssetDiscoveryService {

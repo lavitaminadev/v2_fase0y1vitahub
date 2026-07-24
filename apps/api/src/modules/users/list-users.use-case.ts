@@ -13,7 +13,7 @@ interface ListUsersFilters {
 }
 
 /**
- * Lists users filtered by organization.
+ * Lista usuarios filtrados por organización.
  */
 @Injectable()
 export class ListUsersUseCase {
@@ -22,10 +22,10 @@ export class ListUsersUseCase {
   ) {}
 
   /**
-   * Returns users for the given organization, sorted by name.
+   * Devuelve los usuarios de la organización dada, ordenados por nombre.
    *
-   * @param filters - Scoped list filters.
-   * @returns List of user entities.
+   * @param filters - Filtros de listado acotados.
+   * @returns Lista de entidades de usuario.
    */
   async execute(filters: ListUsersFilters): Promise<User[]> {
     const where: FindOptionsWhere<User> = {

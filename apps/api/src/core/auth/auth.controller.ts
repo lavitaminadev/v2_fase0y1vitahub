@@ -61,7 +61,7 @@ function clearRefreshCookie(response: Response): void {
 }
 
 /**
- * Authentication endpoints: login, register, refresh, and profile.
+ * Endpoints de autenticación: login, registro, refresh y perfil.
  */
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -69,7 +69,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   /**
-   * Registers a new user and optionally links them to an organization.
+   * Registra un nuevo usuario y opcionalmente lo vincula a una organización.
    */
   @Public()
   @Post('register')
@@ -83,7 +83,7 @@ export class AuthController {
   }
 
   /**
-   * Validates credentials and returns access/refresh tokens.
+   * Valida las credenciales y devuelve los tokens de acceso/refresh.
    */
   @Public()
   @Post('login')
@@ -111,7 +111,7 @@ export class AuthController {
   }
 
   /**
-   * Issues a new access token from a valid refresh token.
+   * Emite un nuevo access token a partir de un refresh token válido.
    */
   @Public()
   @Post('refresh')
@@ -130,7 +130,7 @@ export class AuthController {
     return { accessToken: refreshed.accessToken };
   }
 
-  /** Revokes the persisted session and removes the browser cookie. */
+  /** Revoca la sesión persistida y elimina la cookie del navegador. */
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
@@ -143,7 +143,7 @@ export class AuthController {
   }
 
   /**
-   * Returns the authenticated user profile.
+   * Devuelve el perfil del usuario autenticado.
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -155,7 +155,7 @@ export class AuthController {
   }
 
   /**
-   * Updates the authenticated user profile.
+   * Actualiza el perfil del usuario autenticado.
    */
   @Put('profile')
   @UseGuards(JwtAuthGuard)

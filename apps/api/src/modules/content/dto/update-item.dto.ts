@@ -3,19 +3,19 @@ import { ContentItemType } from '../content-item-type.enum';
 import { ContentItemStatus } from '../content-item-status.enum';
 
 /**
- * DTO for updating a content item.
+ * DTO para actualizar un item de contenido.
  */
 export class UpdateContentItemDto {
-  /** Item type. */
+  /** Tipo de item. */
   @IsOptional() @IsEnum(ContentItemType) type?: ContentItemType;
-  /** Caption or title. */
+  /** Copy o título. */
   @IsOptional() @IsString() @MaxLength(255) caption?: string;
-  /** Item status. */
+  /** Estado del item. */
   @IsOptional() @IsEnum(ContentItemStatus) status?: ContentItemStatus;
-  /** Scheduled publication date. */
+  /** Fecha de publicación programada. */
   @IsOptional() @IsDateString() scheduledAt?: string;
-  /** Linked piece id. */
+  /** Id de pieza vinculada. */
   @IsOptional() @IsUUID() pieceId?: string;
-  /** Internal notes. */
+  /** Notas internas. */
   @IsOptional() @IsString() @MaxLength(5000) notes?: string;
 }

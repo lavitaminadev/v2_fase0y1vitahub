@@ -1,15 +1,15 @@
 /**
- * @fileoverview Navigation registry that collects feature manifests and
- * produces role-aware navigation lists.
+ * @fileoverview Registro de navegación que recolecta manifiestos de features
+ * y produce listas de navegación conscientes del rol.
  */
 
 import type { UserRole } from '@vitahub/shared';
 import type { FeatureManifest } from './feature.manifest';
 
-/** Registered features sorted by insertion order. */
+/** Features registradas, ordenadas por orden de inserción. */
 let features: FeatureManifest[] = [];
 
-/** Preferred sidebar order for enabled features. Unlisted features append alphabetically. */
+/** Orden preferido del sidebar para features habilitadas. Las no listadas se agregan alfabéticamente. */
 const NAVIGATION_ORDER: string[] = [
   '/dashboard',
   '/clients',
@@ -39,19 +39,19 @@ const NAVIGATION_ORDER: string[] = [
 ];
 
 /**
- * Registers a feature manifest.
+ * Registra un manifiesto de feature.
  *
- * @param feature - Feature descriptor to register.
+ * @param feature - Descriptor de la feature a registrar.
  */
 export function registerFeature(feature: FeatureManifest): void {
   features.push(feature);
 }
 
 /**
- * Returns all enabled features, optionally filtered by role.
+ * Devuelve todas las features habilitadas, opcionalmente filtradas por rol.
  *
- * @param _userRole - Current user role used for filtering.
- * @returns Filtered feature list.
+ * @param _userRole - Rol del usuario actual usado para filtrar.
+ * @returns Lista de features filtrada.
  */
 export function getFeatures(_userRole?: UserRole): FeatureManifest[] {
   return features.filter((f) => {
@@ -62,10 +62,10 @@ export function getFeatures(_userRole?: UserRole): FeatureManifest[] {
 }
 
 /**
- * Returns the navigation entries visible for the given role.
+ * Devuelve las entradas de navegación visibles para el rol dado.
  *
- * @param userRole - Current user role.
- * @returns Filtered navigation items sorted by configured order.
+ * @param userRole - Rol del usuario actual.
+ * @returns Items de navegación filtrados y ordenados según el orden configurado.
  */
 export function getNavigation(userRole?: UserRole): FeatureManifest['navigation'] {
   const roleAwareItems = getFeatures(userRole)
@@ -79,8 +79,8 @@ export function getNavigation(userRole?: UserRole): FeatureManifest['navigation'
 }
 
 /**
- * Returns the explicit role allow-list for a given path when declared in a
- * feature manifest navigation item.
+ * Devuelve la lista blanca de roles explícita para una ruta dada, cuando está
+ * declarada en un item de navegación de un manifiesto de feature.
  */
 export function getAllowedRolesForPath(path: string): UserRole[] | undefined {
   return getFeatures()
@@ -89,7 +89,7 @@ export function getAllowedRolesForPath(path: string): UserRole[] | undefined {
 }
 
 /**
- * Returns all routes registered by enabled features.
+ * Devuelve todas las rutas registradas por las features habilitadas.
  */
 export function getAllRoutes(): FeatureManifest['routes'] {
   return getFeatures().flatMap((f) => f.routes);

@@ -1,12 +1,12 @@
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
- * DTO for updating an organization profile.
+ * DTO para actualizar el perfil de una organización.
  */
 export class UpdateOrganizationDto {
-  /** Updated display name. */
+  /** Nombre para mostrar actualizado. */
   @IsOptional() @IsString() @MaxLength(255) name?: string;
 
-  /** Updated ISO 4217 currency code. */
+  /** Código de moneda ISO 4217 actualizado. */
   @IsOptional() @IsString() @MaxLength(3) currency?: string;
 }

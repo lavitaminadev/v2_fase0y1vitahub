@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 
 export class AddProductionIndexes1721756400000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // CRM Indexes
+    // Índices de CRM
     await queryRunner.query('ALTER TABLE leads ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE leads ADD INDEX idx_org_status (organization_id, status)');
     await queryRunner.query('ALTER TABLE leads ADD INDEX idx_org_created (organization_id, created_at DESC)');
@@ -11,27 +11,27 @@ export class AddProductionIndexes1721756400000 implements MigrationInterface {
     await queryRunner.query('ALTER TABLE contacts ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE interactions ADD INDEX idx_org_lead (organization_id, lead_id)');
 
-    // Clients Indexes
+    // Índices de Clientes
     await queryRunner.query('ALTER TABLE clients ADD INDEX idx_org_created (organization_id, created_at DESC)');
     await queryRunner.query('ALTER TABLE clients ADD INDEX idx_org_status (organization_id, status)');
 
-    // Production Indexes
+    // Índices de Producción
     await queryRunner.query('ALTER TABLE pieces ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE pieces ADD INDEX idx_org_status (organization_id, status)');
     await queryRunner.query('ALTER TABLE pieces ADD INDEX idx_org_created (organization_id, created_at DESC)');
 
-    // Content & Meetings
+    // Contenido y Reuniones
     await queryRunner.query('ALTER TABLE content_grids ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE meetings ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE meetings ADD INDEX idx_org_scheduled (organization_id, scheduled_at)');
 
-    // Contracts & Briefs
+    // Contratos y Briefs
     await queryRunner.query('ALTER TABLE contracts ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE contracts ADD INDEX idx_org_status (organization_id, status)');
     await queryRunner.query('ALTER TABLE briefs ADD INDEX idx_org_client (organization_id, client_id)');
     await queryRunner.query('ALTER TABLE briefs ADD INDEX idx_org_status (organization_id, status)');
 
-    // Integration Indexes
+    // Índices de Integraciones
     await queryRunner.query('ALTER TABLE integration_accounts ADD INDEX idx_org_type (organization_id, account_type)');
     await queryRunner.query('ALTER TABLE integration_metrics ADD INDEX idx_org_account_date (organization_id, external_account_id, metric_date)');
     await queryRunner.query('ALTER TABLE meta_lead_webhook_events ADD INDEX idx_page_leadgen (page_id, leadgen_id)');

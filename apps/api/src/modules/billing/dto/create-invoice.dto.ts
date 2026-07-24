@@ -1,25 +1,25 @@
 import { IsString, IsOptional, IsUUID, IsDateString, IsNumber, Matches, MaxLength, Min } from 'class-validator';
 
 /**
- * DTO for creating an invoice.
+ * DTO para crear una factura.
  */
 export class CreateInvoiceDto {
-  /** Client id the invoice belongs to. */
+  /** Id del cliente al que pertenece la factura. */
   @IsUUID() clientId: string;
-  /** Unique invoice number. */
+  /** Número único de factura. */
   @IsString() @MaxLength(50) number: string;
-  /** Issue date (ISO 8601). */
+  /** Fecha de emisión (ISO 8601). */
   @IsDateString() issuedAt: string;
-  /** Due date (ISO 8601). */
+  /** Fecha de vencimiento (ISO 8601). */
   @IsDateString() dueAt: string;
-  /** Subtotal amount. */
+  /** Monto del subtotal. */
   @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) subtotal: number;
-  /** Tax amount. */
+  /** Monto de impuestos. */
   @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) tax?: number;
-  /** Total amount. */
+  /** Monto total. */
   @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) total: number;
-  /** ISO 4217 currency code. */
+  /** Código de moneda ISO 4217. */
   @IsOptional() @IsString() @Matches(/^[A-Z]{3}$/) currency?: string;
-  /** Optional notes. */
+  /** Notas opcionales. */
   @IsOptional() @IsString() @MaxLength(5000) notes?: string;
 }

@@ -1,12 +1,12 @@
 import { IsOptional, IsString, IsEmail, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Profile update request body.
+ * Cuerpo del request de actualización de perfil.
  */
 export class UpdateProfileDto {
-  /** New display name. */
+  /** Nuevo nombre para mostrar. */
   @IsOptional() @IsString() @MinLength(2) @MaxLength(255) name?: string;
 
-  /** New email address. */
+  /** Nueva dirección de email. */
   @IsOptional() @IsEmail() @MaxLength(255) email?: string;
 }

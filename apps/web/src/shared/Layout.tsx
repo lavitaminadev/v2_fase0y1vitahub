@@ -1,6 +1,6 @@
 /**
- * @fileoverview Application layout with responsive sidebar and role-based
- * navigation.
+ * @fileoverview Layout de la aplicación con sidebar responsivo y navegación
+ * basada en roles.
  */
 
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
@@ -22,12 +22,12 @@ const NAV_GROUPS: { label: string; paths: string[] }[] = [
 ];
 
 /**
- * Main layout shell rendered for authenticated users.
+ * Shell de layout principal renderizado para usuarios autenticados.
  *
- * Responsibilities:
- * - Render responsive sidebar.
- * - Filter navigation by user role.
- * - Provide an outlet for nested routes.
+ * Responsabilidades:
+ * - Renderizar el sidebar responsivo.
+ * - Filtrar la navegación según el rol del usuario.
+ * - Proveer un outlet para las rutas anidadas.
  */
 export function Layout(): JSX.Element {
   const { user, logout } = useAuth();
@@ -36,7 +36,7 @@ export function Layout(): JSX.Element {
   const [online, setOnline] = useState(() => navigator.onLine);
   useEffect(() => { const updateConnection = () => setOnline(navigator.onLine); window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection); return () => { window.removeEventListener('online', updateConnection); window.removeEventListener('offline', updateConnection); }; }, []);
 
-  // Compute navigation once per role change to avoid filtering on every render.
+  // Calcula la navegación una vez por cambio de rol para evitar filtrar en cada render.
   const navItems = useMemo(() => getNavigation(user?.role), [user?.role]);
   const groupedNavItems = useMemo(
     () => NAV_GROUPS.map((group) => ({

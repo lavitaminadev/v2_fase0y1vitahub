@@ -89,7 +89,7 @@ export function UsersPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [feedback, setFeedback] = useState<Feedback>(null);
-  // Bulk actions confirm before running; ConfirmDialog owns the "are you sure" step instead of window.confirm().
+  // Las acciones masivas confirman antes de ejecutarse; ConfirmDialog es dueño del paso "estás seguro" en vez de window.confirm().
   const [pendingBulkAccess, setPendingBulkAccess] = useState<{ rows: UserRow[]; isActive: boolean } | null>(null);
   const [bulkAccessPending, setBulkAccessPending] = useState(false);
 

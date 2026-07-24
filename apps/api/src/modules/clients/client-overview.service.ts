@@ -39,7 +39,7 @@ export class ClientOverviewService {
     const client = await this.clients.findOne({ where: { id: clientId, organizationId } });
     if (!client) throw new Error('Client not found');
 
-    // Query 1: All aggregations in one go
+    // Query 1: todas las agregaciones de una vez
     const statsResult = await this.dataSource.query(`
       SELECT
         (SELECT JSON_OBJECT('pieces', (
@@ -69,7 +69,7 @@ export class ClientOverviewService {
       clientId,  // ud_data
     ]);
 
-    // Query 2: Recent items
+    // Query 2: items recientes
     const [recentPieces, recentMeetings] = await Promise.all([
       this.dataSource.query(
         'SELECT id, title, status, deadline_at AS deadlineAt, ud_amount AS udAmount FROM pieces WHERE organization_id = ? AND client_id = ? ORDER BY updated_at DESC LIMIT 5',

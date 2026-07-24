@@ -60,7 +60,7 @@ export class MetaLeadAdsService {
     const changes = this.extractLeadgenChanges(payload);
     let createdOrUpdated = 0;
 
-    // Batch load: get all unique pageIds
+    // Carga en batch: obtiene todos los pageIds únicos
     const pageIds = [...new Set(changes.map(c => c.pageId))];
     const pageAccountsMap = new Map<string, IntegrationAccount[]>();
     if (pageIds.length > 0) {
@@ -73,7 +73,7 @@ export class MetaLeadAdsService {
       });
     }
 
-    // Batch load: get existing events
+    // Carga en batch: obtiene los eventos existentes
     const existingEvents = await this.eventsRepo.find({
       where: changes.map(c => ({ pageId: c.pageId, leadgenId: c.leadgenId })),
     });

@@ -1,25 +1,25 @@
 /**
- * @fileoverview Empty state component used across list and detail views.
+ * @fileoverview Componente de estado vacío usado en vistas de listado y detalle.
  */
 
 import { memo, type JSX, type ReactNode } from 'react';
 
 /**
- * Props for the empty state component.
+ * Props del componente de estado vacío.
  */
 export interface EmptyStateProps {
-  /** Plain-text icon or symbol shown above the message. */
+  /** Icono o símbolo en texto plano mostrado sobre el mensaje. */
   icon?: string;
-  /** Short title. */
+  /** Título breve. */
   title?: string;
-  /** Descriptive message. */
+  /** Mensaje descriptivo. */
   description?: string;
-  /** Optional action element (button, link, etc.). */
+  /** Elemento de acción opcional (botón, link, etc.). */
   action?: ReactNode;
 }
 
 /**
- * Renders a friendly empty state message.
+ * Renderiza un mensaje de estado vacío amigable.
  */
 export const EmptyState = memo(function EmptyState({
   icon = '[]',

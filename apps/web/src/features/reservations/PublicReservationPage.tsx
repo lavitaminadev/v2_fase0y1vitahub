@@ -186,7 +186,7 @@ export function PublicReservationPage() {
     }
   }, [submit.isError, submit.error]);
 
-  // ── ALL hooks called BEFORE any return ──
+  // ── TODOS los hooks se llaman ANTES de cualquier return ──
   const slotsByDate = useMemo(() => {
     const map = new Map<string, Slot[]>();
     for (const slot of slots) {
@@ -216,7 +216,7 @@ export function PublicReservationPage() {
     return days;
   }, [fromDate, slotsByDate, form]);
 
-  // ── Render paths ──
+  // ── Caminos de render ──
   if (isLoading) return <LoadingSpinner text="Cargando disponibilidad..." />;
   if (error || !form) return <div className="public-booking-error"><BrandMark /><h1>Este formulario no está disponible</h1><p>Puede estar pausado o el enlace ya no es válido.</p></div>;
 
@@ -264,7 +264,7 @@ export function PublicReservationPage() {
   const timezoneLabel = design.timezoneLabel || 'zona horaria';
   const selectedDaySlots = slotsByDate.get(selectedDate) || [];
 
-  // Success page
+  // Página de éxito
   if (submit.data) {
     const svcDuration = serviceId ? (form.servicesConfig || []).find((s) => s.id === serviceId)?.durationMinutes : null;
     const icsDuration = (svcDuration || form.durationMinutes || 60) * 60000;

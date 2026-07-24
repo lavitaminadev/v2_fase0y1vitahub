@@ -11,7 +11,7 @@ import { Client } from '../clients/client.entity';
 import { User } from '../users/user.entity';
 
 /**
- * Business logic for audiovisual moodboards and sessions.
+ * Lógica de negocio para moodboards y sesiones audiovisuales.
  */
 @Injectable()
 export class AudiovisualService {
@@ -22,7 +22,7 @@ export class AudiovisualService {
     @InjectRepository(User) private readonly users: Repository<User>,
   ) {}
 
-  // Moodboard CRUD
+  // CRUD de moodboard
   async createMoodboard(dto: CreateMoodboardDto, organizationId: string, createdBy: string): Promise<Moodboard> {
     await this.validateClient(dto.clientId, organizationId);
     const entity = this.moodboardRepo.create({
@@ -66,7 +66,7 @@ export class AudiovisualService {
     return this.moodboardRepo.remove(entity);
   }
 
-  // Session CRUD
+  // CRUD de sesión
   async createSession(dto: CreateSessionDto, organizationId: string): Promise<Session> {
     await this.validateSessionReferences(dto.clientId, dto.moodboardId, dto.assignedTeam, organizationId);
     const entity = this.sessionRepo.create({

@@ -64,4 +64,13 @@ async function bootstrap() {
   await app.listen(process.env.PORT || 3000);
   logger.log(`VITAHUB API running on port ${process.env.PORT || 3000}`);
 }
-bootstrap();
+
+// Sin este catch, un fallo de arranque (ej. no puede conectar a la base de
+// datos, puerto ocupado) queda como una promesa rechazada sin manejar: el
+// proceso no muestra un error claro y en Passenger/cPanel puede quedar
+// colgado en vez de salir con un codigo de error identificable.
+bootstrap().catch((error) => {
+  const logger = new Logger('Bootstrap');
+  logger.error(`Fallo al iniciar la aplicacion: ${error instanceof Error ? error.message : error}`);
+  process.exit(1);
+});

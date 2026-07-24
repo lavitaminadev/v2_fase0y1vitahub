@@ -7,7 +7,7 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { Lead } from '../leads/lead.entity';
 
 /**
- * Business logic for CRM contacts.
+ * Lógica de negocio para los contactos de CRM.
  */
 @Injectable()
 export class ContactsService {

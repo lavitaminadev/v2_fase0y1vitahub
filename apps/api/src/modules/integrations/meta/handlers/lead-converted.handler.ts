@@ -25,7 +25,7 @@ export class LeadConvertedHandler {
       const lead = await this.leadRepo.findOne({ where: { id: payload.leadId, organizationId: payload.organizationId } });
       if (!lead || !lead.email && !lead.phone) return;
 
-      // Ensure the lead came from Meta originally
+      // Verifica que el lead haya venido originalmente de Meta
       if (lead.source !== 'meta_lead_ads' && !lead.metadata?.adId) return;
 
       const pageId = lead.metadata?.pageId;

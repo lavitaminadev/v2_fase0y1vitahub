@@ -1,19 +1,19 @@
 /**
- * @fileoverview Loading spinner with optional helper text.
+ * @fileoverview Spinner de carga con texto de ayuda opcional.
  */
 
 import { memo, type JSX } from 'react';
 
 /**
- * Props for the loading spinner.
+ * Props del spinner de carga.
  */
 export interface LoadingSpinnerProps {
-  /** Text shown below the spinner. */
+  /** Texto mostrado debajo del spinner. */
   text?: string;
 }
 
 /**
- * Renders a centered loading indicator.
+ * Renderiza un indicador de carga centrado.
  */
 export const LoadingSpinner = memo(function LoadingSpinner({ text = 'Cargando...' }: LoadingSpinnerProps): JSX.Element {
   return (

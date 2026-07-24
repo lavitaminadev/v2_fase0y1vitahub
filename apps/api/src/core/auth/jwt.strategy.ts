@@ -8,10 +8,10 @@ import { UserRole } from '../../modules/organizations/user-role.enum';
 import { config } from '../../config';
 
 /**
- * Passport JWT strategy for NestJS.
+ * Estrategia JWT de Passport para NestJS.
  *
- * Validates the bearer token, loads the user from the database, and attaches a
- * sanitized user object to the request.
+ * Valida el token bearer, carga el usuario desde la base de datos y adjunta un
+ * objeto de usuario saneado al request.
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -26,19 +26,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   /**
-   * Validates a decoded JWT payload and returns the authenticated user shape.
+   * Valida un payload de JWT decodificado y devuelve la forma del usuario autenticado.
    *
-   * @param payload - Decoded JWT payload.
-   * @returns Sanitized user object attached to `req.user`.
-   * @throws UnauthorizedException when the user is not found or inactive.
+   * @param payload - Payload de JWT decodificado.
+   * @returns Objeto de usuario saneado adjuntado a `req.user`.
+   * @throws UnauthorizedException cuando el usuario no existe o está inactivo.
    */
   async validate(payload: { sub: string; email: string; organizationId: string; role: UserRole; clientId?: string; iat?: number }) {
     const user = await this.userRepo.findOne({ where: { id: payload.sub, isActive: true } });
     if (!user) throw new UnauthorizedException();
-    // A password change/reset revokes the refresh token but access tokens already
-    // issued keep working until they expire. Reject any access token minted before
-    // the last password change so a stolen token dies the moment the password
-    // is rotated, instead of surviving up to JWT_EXPIRES_IN longer.
+    // Un cambio/reset de contraseña revoca el refresh token, pero los access tokens
+    // ya emitidos siguen funcionando hasta que expiran. Se rechaza cualquier access
+    // token emitido antes del último cambio de contraseña para que un token robado
+    // muera en el momento en que se rota la contraseña, en vez de sobrevivir hasta
+    // JWT_EXPIRES_IN más tarde.
     if (user.passwordChangedAt && payload.iat && payload.iat * 1000 < user.passwordChangedAt.getTime()) {
       throw new UnauthorizedException('Session invalidated by a password change');
     }

@@ -10,7 +10,7 @@ import { UserRole } from './user-role.enum';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 
 /**
- * Organization management endpoints.
+ * Endpoints de administración de organizaciones.
  */
 @ApiTags('Organizaciones')
 @Controller('organizations')
@@ -22,7 +22,7 @@ export class OrganizationsController {
   ) {}
 
   /**
-   * Creates a new organization. Restricted to admins.
+   * Crea una nueva organización. Restringido a admins.
    */
   @Post()
   @Roles(UserRole.ADMIN)
@@ -32,7 +32,7 @@ export class OrganizationsController {
   }
 
   /**
-   * Lists the authenticated organization.
+   * Lista la organización autenticada.
    */
   @Get()
   @UseGuards(AuthGuard('jwt'))
@@ -43,7 +43,7 @@ export class OrganizationsController {
   }
 
   /**
-   * Updates the current user's organization profile.
+   * Actualiza el perfil de la organización del usuario actual.
    */
   @Put('profile')
   @UseGuards(AuthGuard('jwt'))

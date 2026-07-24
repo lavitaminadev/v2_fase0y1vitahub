@@ -28,7 +28,7 @@ export class GoogleCalendarService {
       throw new BadRequestException(`Google Calendar request failed: ${message}`);
     }
 
-    // Access tokens can be revoked before their advertised expiry; retry once after refresh.
+    // Los access tokens pueden revocarse antes de su expiración declarada; reintentar una vez tras el refresh.
     if (response.status === 401) {
       integration = await this.oauth.refreshIntegration(integration.id, organizationId);
       token = this.revealAccessToken(integration);

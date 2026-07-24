@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { randomUUID } from 'crypto';
 import type { AuthenticatedRequest } from '../../shared/types/request';
@@ -10,6 +10,8 @@ const SENSITIVE = /password|token|secret|authorization|cookie|credential|tempora
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
+
   constructor(private readonly audit: AuditService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -23,11 +25,16 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(tap((response) => {
       const responseId = response && typeof response === 'object' && 'id' in response ? String((response as { id?: unknown }).id ?? '') : '';
       const entityId = UUID.test(requestedId ?? '') ? requestedId : UUID.test(responseId) ? responseId : null;
+      // No se espera el log de auditoria (no debe demorar la respuesta al cliente),
+      // pero si falla no puede desaparecer en silencio: es el registro de
+      // cumplimiento de cada operacion mutante, y antes se descartaba sin dejar rastro.
       void this.audit.log({
         organizationId: request.organizationId!, actorId: request.user.id, entityType, entityId,
         action, after: this.sanitize(request.body), reason: `request:${request.method.toLowerCase()}:${path}`,
         ipAddress: request.ip ?? request.socket?.remoteAddress,
-      }).catch(() => undefined);
+      }).catch((error) => {
+        this.logger.error(`Fallo al registrar auditoria para ${request.method} ${path}: ${error instanceof Error ? error.message : error}`);
+      });
     }));
   }
 

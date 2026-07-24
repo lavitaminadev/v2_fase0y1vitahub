@@ -52,7 +52,7 @@ export class GoogleOAuthService {
           signal: AbortSignal.timeout(10000),
         });
       } catch {
-        // Local credentials are cleared even when Google's revoke endpoint is unavailable.
+        // Las credenciales locales se limpian aunque el endpoint de revocación de Google no esté disponible.
       }
     }
 

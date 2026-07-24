@@ -1,5 +1,5 @@
 /**
- * @fileoverview Route guard that restricts access to client portal routes.
+ * @fileoverview Route guard que restringe el acceso a las rutas del portal de clientes.
  */
 
 import { Navigate } from 'react-router-dom';
@@ -8,15 +8,15 @@ import { useAuth } from './auth';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 /**
- * Props for the client route guard.
+ * Props del route guard de cliente.
  */
 export interface ClientRouteProps {
-  /** Child route element(s) to render when the user is a client. */
+  /** Elemento(s) de ruta hijo a renderizar cuando el usuario es un cliente. */
   children: React.ReactNode;
 }
 
 /**
- * Wraps routes that are only available to users with the `client` role.
+ * Envuelve rutas disponibles solo para usuarios con el rol `client`.
  */
 export function ClientRoute({ children }: ClientRouteProps): JSX.Element {
   const { user, loading } = useAuth();

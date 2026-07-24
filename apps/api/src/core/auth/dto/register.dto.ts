@@ -1,21 +1,21 @@
 import { IsEmail, IsString, Matches, MinLength, MaxLength } from 'class-validator';
 
 /**
- * Registration request body.
+ * Cuerpo del request de registro.
  */
 export class RegisterDto {
-  /** New user's email. */
+  /** Email del nuevo usuario. */
   @IsEmail()
   email: string;
 
-  /** Plain-text password (min 8 chars, must include uppercase, lowercase and number). */
+  /** Contraseña en texto plano (mín. 8 caracteres, debe incluir mayúscula, minúscula y número). */
   @IsString()
   @MinLength(8)
   @MaxLength(128)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/, { message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número' })
   password: string;
 
-  /** Display name. */
+  /** Nombre para mostrar. */
   @IsString()
   @MinLength(2)
   name: string;

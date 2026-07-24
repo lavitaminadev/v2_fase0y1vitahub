@@ -156,10 +156,11 @@ export class MetaClientPixelService {
     return {
       pixelId: record?.pixelId || '',
       pixelName: record?.pixelName || null,
-      // The per-client token is scoped to that client's Pixel; the env token is only a
-      // fallback for single-tenant setups where no per-client token was configured.
-      // Priority must favor the client token — a global token often lacks permission
-      // on a given client's Pixel in a multi-account agency setup.
+      // El token por cliente está acotado al Pixel de ese cliente; el token de entorno
+      // es solo un fallback para configuraciones single-tenant donde no se configuró
+      // un token por cliente. La prioridad debe favorecer el token del cliente — un
+      // token global suele no tener permiso sobre el Pixel de un cliente dado en una
+      // configuración de agencia multi-cuenta.
       accessToken: revealSecret(record?.accessToken) || process.env.META_CONVERSIONS_ACCESS_TOKEN,
     };
   }

@@ -15,17 +15,17 @@ import { EmailService } from '../notifications/email.service';
 const REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn as JwtSignOptions['expiresIn'];
 
 /**
- * Casts the internal TypeORM enum to the shared string-literal union.
+ * Convierte el enum interno de TypeORM a la unión de string-literal compartida.
  *
- * Runtime values are identical; this helper satisfies the compiler without
- * weakening type safety.
+ * Los valores en tiempo de ejecución son idénticos; este helper satisface al
+ * compilador sin debilitar el tipado.
  */
 function toSharedRole(role: UserRole): SharedUserRole {
   return role as unknown as SharedUserRole;
 }
 
 /**
- * Token payload embedded in JWT access/refresh tokens.
+ * Payload embebido en los JWT de access/refresh token.
  */
 interface TokenPayload {
   sub: string;
@@ -40,8 +40,8 @@ function hashRefreshToken(token: string): string {
 }
 
 /**
- * Authentication business logic: password validation, token issuance,
- * registration, and profile lookup.
+ * Lógica de negocio de autenticación: validación de contraseña, emisión de
+ * tokens, registro y búsqueda de perfil.
  */
 @Injectable()
 export class AuthService {
@@ -54,12 +54,12 @@ export class AuthService {
   ) {}
 
   /**
-   * Validates an email/password pair and returns the user if valid.
+   * Valida un par email/contraseña y devuelve el usuario si es válido.
    *
-   * @param email - User email.
-   * @param password - Plain-text password.
-   * @returns The authenticated user entity.
-   * @throws UnauthorizedException when credentials are invalid.
+   * @param email - Email del usuario.
+   * @param password - Contraseña en texto plano.
+   * @returns La entidad del usuario autenticado.
+   * @throws UnauthorizedException cuando las credenciales son inválidas.
    */
   async validateUser(email: string, password: string): Promise<User> {
     const normalizedEmail = email.trim().toLowerCase();
@@ -74,10 +74,10 @@ export class AuthService {
   }
 
   /**
-   * Issues access and refresh tokens for an authenticated user.
+   * Emite tokens de access y refresh para un usuario autenticado.
    *
-   * @param user - Authenticated user entity.
-   * @returns Tokens plus the user summary.
+   * @param user - Entidad del usuario autenticado.
+   * @returns Tokens más el resumen del usuario.
    */
   async login(user: User): Promise<AuthResponse> {
     const payload: TokenPayload = {
@@ -106,11 +106,11 @@ export class AuthService {
   }
 
   /**
-   * Refreshes an access token from a valid refresh token.
+   * Renueva un access token a partir de un refresh token válido.
    *
    * @param token - Refresh token.
-   * @returns New access token.
-   * @throws UnauthorizedException when the refresh token is invalid or revoked.
+   * @returns Nuevo access token.
+   * @throws UnauthorizedException cuando el refresh token es inválido o fue revocado.
    */
   async refreshToken(token: string): Promise<{ accessToken: string; refreshToken: string }> {
     try {
@@ -120,7 +120,7 @@ export class AuthService {
         select: ['id', 'refreshToken', 'email', 'role', 'organizationId', 'clientId'],
       });
       const tokenHash = hashRefreshToken(token);
-      // Accept a previously stored raw token once, then rotate it into hashed storage.
+      // Acepta una vez un token en texto plano guardado previamente, y luego lo rota a almacenamiento hasheado.
       if (!user || (user.refreshToken !== tokenHash && user.refreshToken !== token)) {
         throw new UnauthorizedException();
       }
@@ -141,10 +141,10 @@ export class AuthService {
   }
 
   /**
-   * Registers a new user and creates an organization if none is provided.
+   * Registra un nuevo usuario y crea una organización si no se provee ninguna.
    *
-   * @param data - Registration data.
-   * @returns Newly created tokens and user summary.
+   * @param data - Datos de registro.
+   * @returns Tokens recién creados y resumen del usuario.
    */
   async register(data: { email: string; password: string; name: string }): Promise<AuthResponse> {
     if (process.env.ALLOW_PUBLIC_REGISTRATION !== 'true') {
@@ -193,27 +193,27 @@ export class AuthService {
     };
   }
 
-  /** Revokes every browser session backed by the current refresh token. */
+  /** Revoca toda sesión de navegador respaldada por el refresh token actual. */
   async logout(userId: string): Promise<void> {
     await this.userRepo.update(userId, { refreshToken: null });
   }
 
   /**
-   * Returns the user profile by id.
+   * Devuelve el perfil del usuario por id.
    *
-   * @param userId - User identifier.
-   * @returns User entity or null.
+   * @param userId - Identificador del usuario.
+   * @returns Entidad del usuario o null.
    */
   async me(userId: string): Promise<User | null> {
     return this.userRepo.findOne({ where: { id: userId } });
   }
 
   /**
-   * Updates the profile of the authenticated user.
+   * Actualiza el perfil del usuario autenticado.
    *
-   * @param userId - User identifier.
-   * @param data - Profile fields to update.
-   * @returns Updated user entity.
+   * @param userId - Identificador del usuario.
+   * @param data - Campos del perfil a actualizar.
+   * @returns Entidad del usuario actualizada.
    */
   async updateProfile(userId: string, data: { name?: string; email?: string }): Promise<User | null> {
     const patch = {

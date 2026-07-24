@@ -11,7 +11,7 @@ export class ErrorLoggingInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
     const startTime = Date.now();
-    // RequestIdMiddleware runs earlier in the pipeline and owns request id generation.
+    // RequestIdMiddleware corre antes en el pipeline y es dueño de la generación del request id.
     const requestId = req.requestId ?? 'unknown';
 
     return next.handle().pipe(

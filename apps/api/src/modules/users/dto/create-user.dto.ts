@@ -2,28 +2,28 @@ import { IsString, IsEmail, Matches, MinLength, MaxLength, IsOptional, IsUUID, I
 import { UserRole } from '../../organizations/user-role.enum';
 
 /**
- * DTO for creating a new user inside the caller organization.
+ * DTO para crear un nuevo usuario dentro de la organización del solicitante.
  */
 export class CreateUserDto {
-  /** Display name. */
+  /** Nombre para mostrar. */
   @IsString() @MinLength(2) @MaxLength(255) name: string;
 
-  /** Unique email address. */
+  /** Dirección de email única. */
   @IsEmail() email: string;
 
-  /** Plain-text initial password (min 8 chars, must include uppercase, lowercase and number). */
+  /** Contraseña inicial en texto plano (mín. 8 caracteres, debe incluir mayúscula, minúscula y número). */
   @IsString() @MinLength(8) @MaxLength(128) @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/, { message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número' }) password: string;
 
-  /** Optional phone number. */
+  /** Número de teléfono opcional. */
   @IsOptional() @IsString() @MaxLength(20) phone?: string;
 
-  /** Role assigned to the user. Defaults to designer. */
+  /** Rol asignado al usuario. Por defecto, diseñador. */
   @IsOptional() @IsEnum(UserRole) role?: UserRole;
 
-  /** Linked client account when this is a portal/client user. */
+  /** Cuenta de cliente vinculada cuando este es un usuario de portal/cliente. */
   @IsOptional() @IsUUID() clientId?: string;
 
-  /** Work modality used by operations and capacity planning. */
+  /** Modalidad de trabajo usada por operaciones y planificación de capacidad. */
   @IsOptional() @IsIn(['presential', 'hybrid', 'remote']) workMode?: 'presential' | 'hybrid' | 'remote';
 
   @IsOptional() @IsNumber() @Min(1) @Max(1000) weeklyCapacityUd?: number;

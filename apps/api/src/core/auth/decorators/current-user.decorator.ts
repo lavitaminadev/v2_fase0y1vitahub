@@ -2,7 +2,7 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../../../shared/types/request';
 
 /**
- * Injects the authenticated user (or a single property) into a route handler.
+ * Inyecta el usuario autenticado (o una única propiedad) en un route handler.
  *
  * @example
  * async me(@CurrentUser() user: AuthUser) { ... }

@@ -13,9 +13,10 @@ import { MetaIntegrationAccessor } from './meta-integration-accessor.service';
 import { MetaAssetDiscoveryService } from './meta-asset-discovery.service';
 
 /**
- * OAuth connection lifecycle for Meta: authorize, exchange tokens, refresh, disconnect,
- * plus the pixel config and health-check surface built on top of it.
- * Asset discovery/selection lives in MetaAssetDiscoveryService.
+ * Ciclo de vida de la conexión OAuth para Meta: autorizar, intercambiar tokens,
+ * renovar, desconectar, más la configuración de pixel y la superficie de
+ * health-check construida sobre eso.
+ * El descubrimiento/selección de assets vive en MetaAssetDiscoveryService.
  */
 @Injectable()
 export class MetaOAuthService {
@@ -65,10 +66,10 @@ export class MetaOAuthService {
         });
       }
     } catch {
-      // Credentials are removed locally even if Meta is temporarily unavailable.
+      // Las credenciales se eliminan localmente aunque Meta esté temporalmente no disponible.
     }
     for (const account of accounts) {
-      // TypeORM skips undefined fields on save; null guarantees credentials are removed.
+      // TypeORM omite los campos undefined al guardar; null garantiza que las credenciales se eliminen.
       account.accessToken = null as unknown as string;
       account.refreshToken = null as unknown as string;
       account.tokenExpiresAt = null as unknown as Date;
@@ -246,11 +247,11 @@ export class MetaOAuthService {
       code,
     });
 
-    // A more generous timeout than the 15s used elsewhere in this file: this call sits inside
-    // the interactive OAuth callback, with an admin actively waiting after authorizing on
-    // Meta's side. Timing out here doesn't just fail one request — it forces the admin to
-    // restart the entire consent flow from scratch, which is far more disruptive than a few
-    // extra seconds of waiting.
+    // Un timeout más generoso que los 15s usados en el resto de este archivo: esta llamada
+    // vive dentro del callback interactivo de OAuth, con un admin esperando activamente
+    // después de autorizar del lado de Meta. Que esto expire no solo hace fallar un
+    // request — obliga al admin a reiniciar todo el flujo de consentimiento desde cero,
+    // lo cual es mucho más disruptivo que unos segundos extra de espera.
     const response = await fetch(`https://graph.facebook.com/${version}/oauth/access_token?${params.toString()}`, { signal: AbortSignal.timeout(25000) });
     const data = await response.json() as MetaTokenResponse | MetaErrorResponse;
     if (!response.ok) {
@@ -272,8 +273,8 @@ export class MetaOAuthService {
       fb_exchange_token: accessToken,
     });
 
-    // Same rationale as exchangeCode(): this backs both the initial OAuth connect and the
-    // admin-triggered "refresh" action, both interactive — see comment there.
+    // Misma razón que exchangeCode(): esto respalda tanto la conexión OAuth inicial como
+    // la acción de "renovar" disparada por el admin, ambas interactivas — ver el comentario ahí.
     const response = await fetch(`https://graph.facebook.com/${version}/oauth/access_token?${params.toString()}`, { signal: AbortSignal.timeout(25000) });
     const data = await response.json() as MetaTokenResponse | MetaErrorResponse;
     if (!response.ok) {

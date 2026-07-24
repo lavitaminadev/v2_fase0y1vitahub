@@ -1,8 +1,8 @@
 /**
- * @fileoverview Re-export of the shared layout for use inside the router.
+ * @fileoverview Re-export del layout compartido para usar dentro del router.
  *
- * Kept as a thin alias so route configuration stays decoupled from the shared
- * component folder.
+ * Se mantiene como un alias delgado para que la configuración de rutas quede
+ * desacoplada de la carpeta de componentes compartidos.
  */
 
 export { Layout as AppLayout } from '../shared/Layout';

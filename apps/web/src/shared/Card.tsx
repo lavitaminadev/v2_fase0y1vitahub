@@ -1,27 +1,27 @@
 /**
- * @fileoverview Metric card used in dashboards.
+ * @fileoverview Card de métrica usada en los dashboards.
  */
 
 import { memo, type JSX } from 'react';
 
 /**
- * Props for the metric card component.
+ * Props del componente de card de métrica.
  */
 export interface CardProps {
-  /** Card title. */
+  /** Título de la card. */
   title: string;
-  /** Main numeric or textual value. */
+  /** Valor principal, numérico o de texto. */
   value: string | number;
-  /** Optional supporting text below the value. */
+  /** Texto de apoyo opcional debajo del valor. */
   subtitle?: string;
-  /** Optional color override for the value. */
+  /** Color alternativo opcional para el valor. */
   color?: string;
-  /** Optional emoji icon. */
+  /** Icono emoji opcional. */
   icon?: string;
 }
 
 /**
- * Renders a single metric card.
+ * Renderiza una única card de métrica.
  */
 export const Card = memo(function Card({ title, value, subtitle, color = '#1a1a2e', icon }: CardProps): JSX.Element {
   const marker = title.replace(/[^A-Za-zÀ-ÿ]/g, '').slice(0, 2).toUpperCase();

@@ -3,12 +3,12 @@ import type { Request, Response, NextFunction } from 'express';
 import { tenantContext } from './tenant-context';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 
-/** Routes that do not require tenant resolution. */
+/** Rutas que no requieren resolución de tenant. */
 const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/auth/refresh', '/health'];
 
 /**
- * Middleware that resolves the tenant from the request and runs the rest of
- * the pipeline inside an AsyncLocalStorage context.
+ * Middleware que resuelve el tenant a partir del request y ejecuta el resto
+ * del pipeline dentro de un contexto de AsyncLocalStorage.
  */
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
@@ -25,8 +25,8 @@ export class TenantMiddleware implements NestMiddleware {
       authReq.organizationId = orgId;
     }
 
-    // Passport populates req.user after middleware. Keep the async context alive
-    // so TenantGuard can safely fill it once the JWT has been validated.
+    // Passport llena req.user después del middleware. Se mantiene vivo el contexto
+    // async para que TenantGuard pueda completarlo con seguridad una vez validado el JWT.
     return tenantContext.run({ organizationId: orgId }, () => next());
   }
 }

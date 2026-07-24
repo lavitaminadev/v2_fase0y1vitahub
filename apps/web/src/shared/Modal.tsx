@@ -1,53 +1,77 @@
 /**
- * @fileoverview Accessible modal dialog with Escape-to-close and backdrop click.
+ * @fileoverview Diálogo modal accesible con cierre por Escape y clic en el fondo.
  */
 
 import { useEffect, useId, useRef, type JSX, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useFocusTrap } from './useFocusTrap';
 
 /**
- * Props for the modal component.
+ * Props del componente modal.
  */
 export interface ModalProps {
-  /** Whether the modal is visible. */
+  /** Indica si el modal está visible. */
   open: boolean;
-  /** Callback invoked when the modal should close. */
+  /** Callback invocado cuando el modal debe cerrarse. */
   onClose: () => void;
-  /** Modal title shown in the header. */
+  /** Título del modal mostrado en el encabezado. */
   title: string;
-  /** Modal body content. */
+  /** Contenido del cuerpo del modal. */
   children: ReactNode;
 }
 
 /**
- * Renders a modal overlay.
+ * Renderiza una superposición modal.
  */
 export function Modal({ open, onClose, title, children }: ModalProps): JSX.Element | null {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const titleId = useId();
   onCloseRef.current = onClose;
 
-  useFocusTrap(dialogRef, open);
-
   useEffect(() => {
     if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    const focusableSelector = 'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const frame = window.requestAnimationFrame(() => {
+      const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(focusableSelector);
+      (firstFocusable ?? dialogRef.current)?.focus();
+    });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      window.cancelAnimationFrame(frame);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
+      previousFocusRef.current?.focus();
     };
   }, [open]);
 

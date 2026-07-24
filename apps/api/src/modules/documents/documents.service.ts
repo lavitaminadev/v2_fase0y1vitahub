@@ -7,7 +7,7 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 import { Client } from '../clients/client.entity';
 
 /**
- * Business logic for documents and file metadata.
+ * Lógica de negocio para documentos y metadatos de archivos.
  */
 @Injectable()
 export class DocumentsService {

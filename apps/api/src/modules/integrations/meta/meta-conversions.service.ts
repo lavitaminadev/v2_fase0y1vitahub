@@ -95,12 +95,12 @@ export class MetaConversionsService {
 }
 
 /**
- * Meta requires `ph` to include the country code with no leading zeros, no
- * symbols, digits only (see Customer Information Parameters docs). Local
- * Chilean numbers are stored as 9 digits (e.g. 912345678) without a country
- * code, which silently breaks phone matching if hashed as-is. Prepend the
- * default country code when the number doesn't already look internationally
- * formatted.
+ * Meta exige que `ph` incluya el código de país, sin ceros a la izquierda, sin
+ * símbolos, solo dígitos (ver la documentación de Customer Information
+ * Parameters). Los números chilenos locales se guardan como 9 dígitos (ej.
+ * 912345678) sin código de país, lo que rompe silenciosamente el matching de
+ * teléfono si se hashea tal cual. Se antepone el código de país por defecto
+ * cuando el número todavía no parece tener formato internacional.
  */
 function normalizePhoneForMeta(phone: string): string {
   const digits = phone.replace(/\D/g, '');

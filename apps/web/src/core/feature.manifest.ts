@@ -1,51 +1,51 @@
 /**
- * @fileoverview Feature manifest contract used to register feature routes
- * and navigation entries dynamically.
+ * @fileoverview Contrato de manifiesto de feature usado para registrar rutas
+ * y entradas de navegación de forma dinámica.
  */
 
 import type { ComponentType, ReactNode } from 'react';
 import type { UserRole } from '@vitahub/shared';
 
 /**
- * Route registered by a feature module.
+ * Ruta registrada por un módulo de feature.
  */
 export interface FeatureRoute {
-  /** React Router path. */
+  /** Ruta de React Router. */
   path: string;
-  /** Lazy-loaded route component. */
+  /** Componente de ruta cargado de forma lazy. */
   element: ComponentType;
 }
 
 /**
- * Navigation entry exposed by a feature module.
+ * Entrada de navegación expuesta por un módulo de feature.
  */
 export interface FeatureNavigation {
-  /** Visible label in the sidebar. */
+  /** Etiqueta visible en el sidebar. */
   label: string;
-  /** Target route path. */
+  /** Ruta de destino. */
   path: string;
-  /** Icon rendered in the sidebar (emoji or SVG). */
+  /** Icono renderizado en el sidebar (emoji o SVG). */
   icon: ReactNode;
-  /** Optional role allow-list. When omitted, the item is visible to everyone. */
+  /** Lista blanca de roles opcional. Si se omite, el item es visible para todos. */
   roles?: UserRole[];
 }
 
 /**
- * Feature descriptor consumed by the navigation registry.
+ * Descriptor de feature consumido por el registro de navegación.
  */
 export interface FeatureManifest {
-  /** Unique feature identifier. */
+  /** Identificador único de la feature. */
   id: string;
-  /** Human-readable feature name. */
+  /** Nombre legible de la feature. */
   name: string;
-  /** Routes exposed by the feature. */
+  /** Rutas expuestas por la feature. */
   routes: FeatureRoute[];
-  /** Navigation entries exposed by the feature. */
+  /** Entradas de navegación expuestas por la feature. */
   navigation: FeatureNavigation[];
-  /** Optional permission keys required to enable the feature. */
+  /** Claves de permiso opcionales requeridas para habilitar la feature. */
   permissions?: string[];
-  /** Optional feature ids that must be present for this feature to work. */
+  /** Ids de features opcionales que deben estar presentes para que esta feature funcione. */
   dependencies?: string[];
-  /** Whether the feature is enabled. Defaults to true. */
+  /** Si la feature está habilitada. Por defecto, true. */
   enabled?: boolean;
 }

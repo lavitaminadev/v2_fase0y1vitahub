@@ -1,8 +1,8 @@
 /**
- * @fileoverview Focus trap for modal-like overlays (dialogs, drawers).
- * Extracted from Modal.tsx so every overlay gets the same accessible
- * behavior: focus moves into the panel on open, Tab/Shift+Tab stay inside
- * it, and focus returns to the trigger element on close.
+ * @fileoverview Focus trap para overlays tipo modal (diálogos, drawers).
+ * Extraído de Modal.tsx para que todo overlay tenga el mismo comportamiento
+ * accesible: el foco entra al panel al abrir, Tab/Shift+Tab se quedan
+ * dentro, y el foco vuelve al elemento disparador al cerrar.
  */
 
 import { useEffect, useRef } from 'react';
@@ -10,8 +10,8 @@ import { useEffect, useRef } from 'react';
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * Traps Tab focus inside `containerRef` while `active` is true, and restores
- * focus to whatever was focused before activation once it becomes false.
+ * Atrapa el foco de Tab dentro de `containerRef` mientras `active` es true, y
+ * restaura el foco a lo que estuviera enfocado antes de la activación cuando pasa a false.
  */
 export function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>, active: boolean): void {
   const previousFocusRef = useRef<HTMLElement | null>(null);

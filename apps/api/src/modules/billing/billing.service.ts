@@ -4,8 +4,8 @@ import { EntityManager, Repository } from 'typeorm';
 import { ChargeNote } from './charge-note.entity';
 
 /**
- * Cross-module entry point for creating correction charge notes.
- * Consumed by production-workflow.service.ts and piece-rejected.handler.ts.
+ * Punto de entrada cross-module para crear notas de cobro por corrección.
+ * Consumido por production-workflow.service.ts y piece-rejected.handler.ts.
  */
 @Injectable()
 export class BillingService {

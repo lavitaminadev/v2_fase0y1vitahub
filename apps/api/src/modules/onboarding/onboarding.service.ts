@@ -9,7 +9,7 @@ import { User } from '../users/user.entity';
 import { WorkflowsService } from '../workflows/workflows.service';
 
 /**
- * Business logic for client onboarding steps.
+ * Lógica de negocio para los pasos de onboarding de clientes.
  */
 @Injectable()
 export class OnboardingService {

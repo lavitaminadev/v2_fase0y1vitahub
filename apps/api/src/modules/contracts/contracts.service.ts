@@ -7,7 +7,7 @@ import { UpdateContractDto } from './dto/update-contract.dto';
 import { Client } from '../clients/client.entity';
 
 /**
- * Business logic for client contracts.
+ * Lógica de negocio para los contratos de clientes.
  */
 @Injectable()
 export class ContractsService {

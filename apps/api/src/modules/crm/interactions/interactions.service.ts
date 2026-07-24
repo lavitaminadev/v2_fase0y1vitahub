@@ -8,7 +8,7 @@ import { Lead } from '../leads/lead.entity';
 import { Contact } from '../contacts/contact.entity';
 
 /**
- * Business logic for CRM interactions.
+ * Lógica de negocio para las interacciones de CRM.
  */
 @Injectable()
 export class InteractionsService {

@@ -1,12 +1,12 @@
 /**
- * @fileoverview Colored status badge for entity states.
+ * @fileoverview Insignia de estado con color para estados de entidades.
  */
 
 import { memo, type JSX } from 'react';
 import { statusLabel } from './status-labels';
 
 /**
- * Maps known status strings to display colors.
+ * Mapea cadenas de estado conocidas a colores de visualización.
  */
 const STATUS_COLORS: Record<string, string> = {
   active: '#1f7a46',
@@ -38,15 +38,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 /**
- * Props for the status badge.
+ * Props de la insignia de estado.
  */
 export interface StatusBadgeProps {
-  /** Machine status value (e.g. `in_progress`). */
+  /** Valor de estado interno (p. ej. `in_progress`). */
   status: string;
 }
 
 /**
- * Renders a human-readable status pill with a color derived from the status.
+ * Renderiza una píldora de estado legible con un color derivado del estado.
  */
 export const StatusBadge = memo(function StatusBadge({ status }: StatusBadgeProps): JSX.Element {
   const color = STATUS_COLORS[status] || '#666';

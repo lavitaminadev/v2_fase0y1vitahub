@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
 
-// Both ts-node and compiled Passenger code live four levels below the repo root.
+// Tanto ts-node como el código compilado de Passenger viven cuatro niveles debajo de la raíz del repo.
 config({ path: process.env.DOTENV_CONFIG_PATH || resolve(__dirname, '../../../../.env') });

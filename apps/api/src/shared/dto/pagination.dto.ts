@@ -2,28 +2,28 @@ import { IsOptional, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
- * Query parameters accepted by paginated list endpoints.
+ * Parámetros de query aceptados por los endpoints de listado paginado.
  */
 export class PaginationDto {
-  /** Maximum number of items to return (1-100). */
+  /** Cantidad máxima de items a devolver (1-100). */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
-  /** Number of items to skip. */
+  /** Cantidad de items a saltar. */
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) offset?: number;
 }
 
 /**
- * Generic paginated result returned by list endpoints.
+ * Resultado paginado genérico devuelto por los endpoints de listado.
  *
- * @template T - Type of the items returned.
+ * @template T - Tipo de los items devueltos.
  */
 export class PaginatedResult<T> {
-  /** Items for the current page. */
+  /** Items de la página actual. */
   data: T[];
-  /** Total items across all pages. */
+  /** Total de items en todas las páginas. */
   total: number;
-  /** Page size used for the query. */
+  /** Tamaño de página usado en la consulta. */
   limit: number;
-  /** Offset used for the query. */
+  /** Offset usado en la consulta. */
   offset: number;
 
   constructor(data: T[], total: number, limit: number, offset: number) {

@@ -6,8 +6,9 @@ import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator';
 import { tenantContext } from './tenant-context';
 
 /**
- * Guard that ensures a user can only access resources belonging to their
- * tenant (organization). Cross-tenant endpoints must opt out explicitly.
+ * Guard que asegura que un usuario solo pueda acceder a recursos que
+ * pertenecen a su tenant (organización). Los endpoints cross-tenant deben
+ * excluirse explícitamente.
  */
 @Injectable()
 export class TenantGuard implements CanActivate {

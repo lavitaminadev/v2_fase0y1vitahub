@@ -27,7 +27,7 @@ function extractPublicId(url?: string): string | undefined {
   try {
     const parsed = new URL(url);
     const path = parsed.pathname;
-    // Cloudinary URLs: /image/upload/v1234567890/folder/public_id.ext
+    // URLs de Cloudinary: /image/upload/v1234567890/folder/public_id.ext
     const match = path.match(/\/image\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
     if (!match) return undefined;
     return match[1];
@@ -83,7 +83,7 @@ export function ImageUpload({
       onChange('');
     },
     onError: () => {
-      // Even if Cloudinary deletion fails, clear the local selection so the user can continue.
+      // Aunque falle la eliminación en Cloudinary, se limpia la selección local para que el usuario pueda continuar.
       setLastPublicId(undefined);
       onChange('');
     },

@@ -7,7 +7,7 @@ import { UpdateBriefDto } from './dto/update-brief.dto';
 import { Client } from '../clients/client.entity';
 
 /**
- * Business logic for briefs (client requirements documents).
+ * Lógica de negocio para briefs (documentos de requerimientos del cliente).
  */
 @Injectable()
 export class BriefsService {
@@ -17,11 +17,11 @@ export class BriefsService {
   ) {}
 
   /**
-   * Creates a brief scoped to an organization.
+   * Crea un brief acotado a una organización.
    *
-   * @param dto - Brief creation data.
-   * @param organizationId - Tenant id.
-   * @returns Saved brief entity.
+   * @param dto - Datos de creación del brief.
+   * @param organizationId - Id del tenant.
+   * @returns Entidad del brief guardada.
    */
   async create(dto: CreateBriefDto, organizationId: string): Promise<Brief> {
     const client = await this.clients.findOne({ where: { id: dto.clientId, organizationId } });
@@ -37,12 +37,12 @@ export class BriefsService {
   }
 
   /**
-   * Returns paginated briefs for the organization.
+   * Devuelve los briefs paginados de la organización.
    *
-   * @param organizationId - Tenant id.
-   * @param limit - Page size.
-   * @param offset - Items to skip.
-   * @returns Paginated brief list.
+   * @param organizationId - Id del tenant.
+   * @param limit - Tamaño de página.
+   * @param offset - Items a saltar.
+   * @returns Lista paginada de briefs.
    */
   async findAll(organizationId: string, limit = 50, offset = 0): Promise<{ data: Brief[]; total: number; limit: number; offset: number }> {
     const [data, total] = await this.repo.findAndCount({
@@ -56,12 +56,12 @@ export class BriefsService {
   }
 
   /**
-   * Finds a brief by id and tenant.
+   * Busca un brief por id y tenant.
    *
-   * @param id - Brief identifier.
-   * @param organizationId - Tenant id.
-   * @returns Brief entity.
-   * @throws NotFoundException if not found.
+   * @param id - Identificador del brief.
+   * @param organizationId - Id del tenant.
+   * @returns Entidad del brief.
+   * @throws NotFoundException si no se encuentra.
    */
   async findOne(id: string, organizationId: string): Promise<Brief> {
     const brief = await this.repo.findOne({ where: { id, organizationId }, relations: ['client'] });
@@ -70,12 +70,12 @@ export class BriefsService {
   }
 
   /**
-   * Updates a brief.
+   * Actualiza un brief.
    *
-   * @param id - Brief identifier.
-   * @param dto - Fields to update.
-   * @param organizationId - Tenant id.
-   * @returns Updated brief entity.
+   * @param id - Identificador del brief.
+   * @param dto - Campos a actualizar.
+   * @param organizationId - Id del tenant.
+   * @returns Entidad del brief actualizada.
    */
   async update(id: string, dto: UpdateBriefDto, organizationId: string): Promise<Brief> {
     const brief = await this.findOne(id, organizationId);
@@ -87,11 +87,11 @@ export class BriefsService {
   }
 
   /**
-   * Removes a brief.
+   * Elimina un brief.
    *
-   * @param id - Brief identifier.
-   * @param organizationId - Tenant id.
-   * @returns Removed brief entity.
+   * @param id - Identificador del brief.
+   * @param organizationId - Id del tenant.
+   * @returns Entidad del brief eliminada.
    */
   async remove(id: string, organizationId: string): Promise<Brief> {
     const brief = await this.findOne(id, organizationId);

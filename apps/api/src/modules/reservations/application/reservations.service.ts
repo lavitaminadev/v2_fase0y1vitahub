@@ -47,7 +47,7 @@ type DesignConfig = {
 };
 
 const FIELD_TYPES = new Set(['text', 'textarea', 'email', 'phone', 'select', 'multi_select', 'number', 'date', 'consent', 'coupon']);
-// Only reservations that still own a future slot consume capacity.
+// Solo las reservas que aún tienen un turno futuro consumen capacidad.
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'rescheduled'];
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled_client', 'cancelled_business', 'waitlist'],
@@ -338,7 +338,7 @@ export class ReservationsService {
       if (!mx || mx.length === 0) this.reportBadEmail(domain);
     } catch (err) {
       this.logger.warn(`MX lookup failed for domain ${domain}: ${err instanceof Error ? err.message : err}`);
-      // MX lookup is best-effort; don't block the reservation
+      // La verificación MX es best-effort; no debe bloquear la reserva
     }
   }
   private reportBadEmail(_domain: string) {
@@ -494,10 +494,10 @@ export class ReservationsService {
   private async enqueueMetaConversion(booking: Reservation, form: ReservationForm, eventName: string, eventTime?: number, eventSourceUrl?: string) {
     const { pixelId, accessToken } = await this.getClientMetaConfig(form.clientId, form.organizationId);
     if (!pixelId || !accessToken) throw new Error('Meta pixel or CAPI token is not configured');
-    // 'Schedule' fires from the public web form (action_source: website, requires event_source_url).
-    // Attendance is confirmed in person by staff, so it must be reported as physical_store
-    // (Meta's 7-day upload window for 'website'/'system_generated' events is too tight for that flow;
-    // physical_store gets 62 days) and event_source_url does not apply.
+    // 'Schedule' se dispara desde el formulario web público (action_source: website, requiere event_source_url).
+    // La asistencia la confirma el staff en persona, así que debe reportarse como physical_store
+    // (la ventana de 7 días para subir eventos 'website'/'system_generated' de Meta es muy ajustada
+    // para ese flujo; physical_store tiene 62 días) y event_source_url no aplica.
     const isWebEvent = eventName === 'Schedule';
     const actionSource = isWebEvent ? 'website' : 'physical_store';
     const fallbackUrl = process.env.APP_PUBLIC_URL ? `${process.env.APP_PUBLIC_URL.replace(/\/$/, '')}/book/${encodeURIComponent(form.publicSlug)}` : undefined;
@@ -534,7 +534,7 @@ export class ReservationsService {
       }
     } catch (err) {
       this.logger.warn(`Notification failed for booking ${booking.id}: ${err instanceof Error ? err.message : err}`);
-      // Notifications are helpful but must never roll back a confirmed booking.
+      // Las notificaciones son útiles pero nunca deben revertir una reserva confirmada.
     }
   }
 
@@ -564,11 +564,12 @@ export class ReservationsService {
       }
       if (dto.internalNotes !== undefined) item.internalNotes = dto.internalNotes; const result = await repo.save(item); const changedStart = previousStart.getTime() !== result.startsAt.getTime(); if (previousStatus !== result.status || changedStart) await manager.save(ReservationEvent, manager.create(ReservationEvent, { organizationId, clientId: result.clientId, reservationId: result.id, type: changedStart ? 'rescheduled' : 'status_changed', fromStatus: previousStatus, toStatus: result.status, actorId, actorType, metadata: changedStart ? { from: previousStart.toISOString(), to: result.startsAt.toISOString() } : undefined })); return result; });
     const capabilities = formForMeta ? await this.clientCapabilities(organizationId, formForMeta.clientId) : undefined;
-    // Intentionally no Meta CAPI event for 'no_show': the Conversions API has no concept of a
-    // negative/retracted conversion, so there is nothing correct to send Meta for a no-show —
-    // sending anything would tell the algorithm "this person converted," which is the opposite
-    // of what happened. 'attended' is the only outcome that produces a real conversion signal.
-    // Both outcomes still sync to the CRM below so the team can see/report no-shows internally.
+    // Intencionalmente no se envía evento de Meta CAPI para 'no_show': la Conversions API no tiene
+    // concepto de conversión negativa/revertida, así que no hay nada correcto que enviarle a Meta
+    // por una inasistencia — enviar cualquier cosa le diría al algoritmo "esta persona convirtió",
+    // que es lo opuesto de lo que pasó. 'attended' es el único resultado que produce una señal
+    // de conversión real. Ambos resultados igual se sincronizan al CRM abajo para que el equipo
+    // pueda ver/reportar las inasistencias internamente.
     if (statusChangedTo === 'attended' && formForMeta?.metaCapiEnabled && capabilities?.metaConversions) { try { await this.enqueueMetaConversion(saved, formForMeta, 'Reserva_Asistida', Math.floor(saved.startsAt.getTime() / 1000)); } catch (err) { this.logger.warn(`Meta CAPI attended event failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); await this.recordIntegrationFailure(saved, 'meta_capi'); } }
     if (statusChangedTo === 'attended' || statusChangedTo === 'no_show') { try { await this.leadIntake.updateStatusByContact(organizationId, statusChangedTo === 'attended' ? 'attended' : 'no_show', saved.guestEmail, saved.guestPhone, saved.clientId); } catch (err) { this.logger.warn(`CRM status sync failed for booking ${saved.id}: ${err instanceof Error ? err.message : err}`); /* CRM sync is best-effort */ } }
     return saved;

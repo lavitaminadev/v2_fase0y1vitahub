@@ -6,7 +6,7 @@ import { IntegrationProvider } from '../integration-provider.enum';
 import { revealSecret } from '../../../shared/security/integration-secrets';
 
 /**
- * Shared lookup/token helpers used by both MetaOAuthService and MetaAssetDiscoveryService.
+ * Helpers compartidos de búsqueda/token usados tanto por MetaOAuthService como por MetaAssetDiscoveryService.
  */
 @Injectable()
 export class MetaIntegrationAccessor {

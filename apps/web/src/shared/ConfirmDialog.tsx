@@ -6,7 +6,7 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel?: string;
   pending?: boolean;
-  /** Shown as an inline error banner, e.g. after a failed confirm attempt. */
+  /** Se muestra como un banner de error inline, ej. tras un intento de confirmación fallido. */
   error?: string;
   onClose: () => void;
   onConfirm: () => void;

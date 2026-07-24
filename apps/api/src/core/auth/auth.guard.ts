@@ -4,7 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 
 /**
- * JWT guard that skips authentication for routes decorated with `@Public()`.
+ * Guard JWT que omite la autenticación en rutas decoradas con `@Public()`.
  */
 @Injectable()
 export class JwtAuthGuard extends PassportAuthGuard('jwt') {
