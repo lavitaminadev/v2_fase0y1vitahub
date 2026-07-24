@@ -89,6 +89,8 @@ export function UsersPage() {
   const [clientFilter, setClientFilter] = useState('');
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [createdName, setCreatedName] = useState<string>('');
   // Las acciones masivas confirman antes de ejecutarse; ConfirmDialog es dueño del paso "estás seguro" en vez de window.confirm().
   const [pendingBulkAccess, setPendingBulkAccess] = useState<{ rows: UserRow[]; isActive: boolean } | null>(null);
   const [bulkAccessPending, setBulkAccessPending] = useState(false);
@@ -112,14 +114,16 @@ export function UsersPage() {
     setModalOpen(false);
     setEditing(null);
     setForm(EMPTY_FORM);
+    setCreatedPassword(null);
+    setFeedback(null);
   };
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/users', body),
     onSuccess: async () => {
+      setCreatedPassword(String(form.password));
+      setCreatedName(form.name);
       await queryClient.invalidateQueries({ queryKey: ['users'] });
-      closeModal();
-      setFeedback({ tone: 'success', text: 'Cuenta creada y disponible para iniciar sesión.' });
     },
     onError: (mutationError: Error) => setFeedback({ tone: 'error', text: mutationError.message }),
   });
@@ -289,7 +293,20 @@ export function UsersPage() {
         emptyMessage="No hay usuarios para los filtros seleccionados"
       />
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? `Editar a ${editing.name}` : 'Crear cuenta'}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? `Editar a ${editing.name}` : createdPassword ? 'Cuenta creada' : 'Crear cuenta'}>
+        {createdPassword ? (
+          <div className="modal-form">
+            <div className="temporary-password-result">
+              <span>CLAVE TEMPORAL · 24 HORAS · SE MUESTRA UNA VEZ</span>
+              <strong>{createdPassword}</strong>
+              <small>Usuario: {createdName}</small>
+              <button className="btn btn-outline btn-sm" type="button" onClick={() => { navigator.clipboard.writeText(createdPassword); setFeedback({ tone: 'success', text: 'Clave copiada al portapapeles.' }); }}>📋 Copiar clave</button>
+            </div>
+            <div className="alert alert-info">Comparte esta clave por un canal seguro (correo, WhatsApp, Slack). Al primer ingreso debera aceptar los terminos y crear su propia contraseña.</div>
+            {feedback?.tone === 'success' && <div className="alert alert-success">{feedback.text}</div>}
+            <button className="btn btn-primary btn-block" type="button" onClick={closeModal}>Cerrar</button>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="account-form-intro"><strong>{editing ? 'Datos y permisos' : 'Nueva identidad de acceso'}</strong><p>El rol define los módulos visibles. Una cuenta cliente siempre debe quedar vinculada a una empresa.</p></div>
           {feedback?.tone === 'error' && <div className="alert alert-error" role="alert">{feedback.text}</div>}
@@ -311,6 +328,7 @@ export function UsersPage() {
           <label htmlFor="user-password">{editing ? 'Nueva contraseña temporal (opcional)' : 'Contraseña temporal'}<div className="password-generator"><input id="user-password" className="input" type="text" autoComplete="new-password" minLength={8} maxLength={128} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required={!editing} /><button type="button" className="btn btn-outline btn-sm" onClick={generatePassword}>Generar segura</button></div><small>Se solicitará una clave personal en el primer ingreso.</small></label>
           <div className="modal-actions"><button type="button" className="btn btn-outline" onClick={closeModal}>Cancelar</button><button className="btn btn-primary" type="submit" disabled={isSaving || (clientRequired && !form.clientId)}>{isSaving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear usuario'}</button></div>
         </form>
+        )}
       </Modal>
       <ConfirmDialog
         open={Boolean(accessTarget)}
