@@ -244,9 +244,9 @@ export function LeadDetailDrawer({ leadId, onClose }: LeadDetailDrawerProps) {
                   <div className="drawer-inline-loading"><span className="spinner" /> Cargando historial...</div>
                 ) : interactionsQuery.error ? (
                   <div className="alert alert-error">No fue posible cargar el historial comercial.</div>
-                ) : interactionsQuery.data?.data.length ? (
+                ) : (interactionsQuery.data?.data?.length ?? 0) > 0 ? (
                   <div className="lead-activity-timeline">
-                    {interactionsQuery.data.data.map((interaction) => {
+                    {(interactionsQuery.data?.data ?? []).map((interaction) => {
                       const upcoming = new Date(interaction.date).getTime() > Date.now();
                       return (
                         <article key={interaction.id} className={upcoming ? 'is-upcoming' : ''}>
