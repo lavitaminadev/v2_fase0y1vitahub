@@ -62,7 +62,7 @@ export function ContactsPage() {
   const [historyContact, setHistoryContact] = useState<ReservationContact | null>(null);
   const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: user?.role !== 'client' });
   const clients = (clientsResp as any)?.data ?? [];
-  const contactsQuery = useQuery<ReservationContact[]>({
+  const contactsQuery = useQuery<{ data: ReservationContact[] }>({
     queryKey: ['crm-reservation-contacts', clientFilter, statusFilter],
     queryFn: () => api.get(`/crm/leads?source=vitahub_reservations${clientFilter ? `&clientId=${encodeURIComponent(clientFilter)}` : ''}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ''}`),
   });
@@ -77,7 +77,7 @@ export function ContactsPage() {
     onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }),
   });
 
-  const contacts = (contactsQuery.data ?? []).filter((contact) => matchesSearch(search, [contact.name, contact.email, contact.phone, contact.company, contact.sourceDetail, contact.campaignName, ...(contact.tags || [])]));
+  const contacts = (contactsQuery.data?.data ?? []).filter((contact) => matchesSearch(search, [contact.name, contact.email, contact.phone, contact.company, contact.sourceDetail, contact.campaignName, ...(contact.tags || [])]));
   const updateFilter = (key: 'clientId' | 'status', value: string) => {
     setSearchParams((current) => { const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); return next; });
     if (key === 'clientId') setClientFilter(value);
