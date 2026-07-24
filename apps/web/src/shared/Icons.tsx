@@ -34,6 +34,12 @@ import {
   FaCloudArrowUp,
   FaImage,
   FaQuestion,
+  FaBars,
+  FaList,
+  FaInbox,
+  FaChartLine,
+  FaBuilding,
+  FaXmark,
 } from 'react-icons/fa6';
 
 export const VitaIcons = {
@@ -72,6 +78,14 @@ export const VitaIcons = {
   upload: FaCloudArrowUp,
   image: FaImage,
   question: FaQuestion,
+  menu: FaBars,
+  list: FaList,
+  inbox: FaInbox,
+  chart: FaChartLine,
+  building: FaBuilding,
+  close: FaXmark,
+  cog: FaCog,
+  users: FaUser,
 };
 
 export type VitaIconName = keyof typeof VitaIcons;

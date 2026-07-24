@@ -205,6 +205,41 @@ export class ReservationsController {
     res.send(`\uFEFF${csv}`);
   }
 
+  @Post('forms/:formId/export')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
+  async exportForm(
+    @Req() req: AuthenticatedRequest,
+    @Param('formId') formId: string,
+    @Body() body: { format: 'csv' | 'json' | 'pdf'; dateFrom?: string; dateTo?: string; fields: string[] },
+    @Res() res: Response
+  ) {
+    const scope = await this.scope(req);
+    const result = await this.service.exportFormReservations(
+      req.organizationId,
+      formId,
+      scope.clientId,
+      scope.clientIds,
+      body.format,
+      body.dateFrom,
+      body.dateTo,
+      body.fields
+    );
+
+    if (body.format === 'json') {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.json"`);
+      res.send(JSON.stringify(result, null, 2));
+    } else if (body.format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.csv"`);
+      res.send(`\uFEFF${result}`);
+    } else if (body.format === 'pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.pdf"`);
+      res.send(result);
+    }
+  }
+
   @Get('analytics/metrics')
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async metrics(@Req() req: AuthenticatedRequest, @Query() query: ReservationScopeDto) {

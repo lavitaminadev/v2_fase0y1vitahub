@@ -601,6 +601,63 @@ export class ReservationsService {
     })].map((row) => row.map(escape).join(',')).join('\r\n');
   }
 
+  async exportFormReservations(
+    organizationId: string,
+    formId: string,
+    clientId?: string,
+    clientIds?: string[],
+    format: 'csv' | 'json' | 'pdf' = 'csv',
+    dateFrom?: string,
+    dateTo?: string,
+    fields: string[] = ['name', 'phone', 'email', 'date', 'status', 'attendance']
+  ) {
+    const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId }).andWhere('r.form_id = :formId', { formId });
+    if (clientId) qb.andWhere('r.client_id = :clientId', { clientId });
+    else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds });
+    if (dateFrom) qb.andWhere('r.starts_at >= :dateFrom', { dateFrom });
+    if (dateTo) qb.andWhere('r.starts_at <= :dateTo', { dateTo });
+    const items = await qb.orderBy('r.starts_at', 'DESC').take(50000).getMany();
+
+    const fieldMap: Record<string, (item: Reservation) => string | number | Date | undefined> = {
+      name: (item) => item.guestName,
+      phone: (item) => item.guestPhone,
+      email: (item) => item.guestEmail,
+      date: (item) => item.startsAt.toISOString(),
+      status: (item) => item.status,
+      attendance: (item) => item.status === 'attended' ? 'Sí' : item.status === 'no_show' ? 'No' : '-',
+      notes: (item) => item.internalNotes,
+      campaign: (item) => item.utmCampaign || '-',
+      code: (item) => item.referenceCode,
+      origin: (item) => item.utmSource || 'direct',
+      coupon: (item) => item.couponCode || '-',
+      party_size: (item) => item.partySize,
+    };
+
+    if (format === 'json') {
+      return items.map((item) => {
+        const record: Record<string, any> = {};
+        for (const field of fields) {
+          record[field] = fieldMap[field]?.(item) ?? '-';
+        }
+        return record;
+      });
+    } else if (format === 'csv') {
+      const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const headers = fields;
+      return [headers, ...items.map((item) => fields.map((field) => fieldMap[field]?.(item) ?? '-'))].map((row) => row.map(escape).join(',')).join('\r\n');
+    } else if (format === 'pdf') {
+      // For now, return a simple text representation for PDF
+      // In production, you would use a PDF library like pdfkit or html2pdf
+      let pdfContent = `RESERVAS\nFecha: ${new Date().toISOString()}\n\n`;
+      pdfContent += fields.map((f) => f.toUpperCase()).join('\t') + '\n';
+      pdfContent += '-'.repeat(100) + '\n';
+      pdfContent += items.map((item) => fields.map((field) => String(fieldMap[field]?.(item) ?? '-')).join('\t')).join('\n');
+      return Buffer.from(pdfContent, 'utf8');
+    }
+
+    throw new BadRequestException('Formato no soportado');
+  }
+
   async createCoupon(organizationId: string, userId: string, dto: CreateCouponDto, clientId?: string) {
     const code = dto.code.trim().toUpperCase();
     const exists = await this.coupons.findOne({ where: { organizationId, code } });
