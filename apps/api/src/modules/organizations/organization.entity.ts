@@ -13,8 +13,11 @@ export class Organization {
   @Column({ type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ name: 'logo_url', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'logo_url', type: 'varchar', length: 500, nullable: true })
   logoUrl?: string;
+
+  @Column({ name: 'welcome_message', type: 'varchar', length: 500, nullable: true })
+  welcomeMessage?: string;
 
   @Column({ type: 'varchar', length: 3, default: 'CLP' })
   currency: string;

@@ -5,6 +5,7 @@ import { api } from '../../core/api';
 import { useAuth } from '../../core/auth';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { CloudinaryConfigModal } from './CloudinaryConfigModal';
+import { ImageUpload } from '../../shared/ImageUpload';
 import { MediaLibraryModal } from '../../shared/MediaLibraryModal';
 
 type SettingsTab = 'general' | 'access';
@@ -14,6 +15,8 @@ type Feedback = { tone: 'success' | 'error'; text: string } | null;
 interface OrganizationSummary {
   id: string;
   name: string;
+  logoUrl?: string;
+  welcomeMessage?: string;
 }
 
 interface SettingOption {
@@ -181,6 +184,8 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [profile, setProfile] = useState({ name: user?.name ?? '', email: user?.email ?? '' });
   const [orgName, setOrgName] = useState('');
+  const [orgLogo, setOrgLogo] = useState('');
+  const [orgWelcome, setOrgWelcome] = useState('');
   const [draft, setDraft] = useState<Record<string, SettingValue>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [cloudinaryOpen, setCloudinaryOpen] = useState(false);
@@ -207,7 +212,11 @@ export function SettingsPage() {
   useEffect(() => {
     const currentOrg = organizationsQuery.data?.find((organization) => organization.id === user?.organizationId)
       ?? organizationsQuery.data?.[0];
-    if (currentOrg) setOrgName(currentOrg.name);
+    if (currentOrg) {
+      setOrgName(currentOrg.name);
+      setOrgLogo(currentOrg.logoUrl || '');
+      setOrgWelcome(currentOrg.welcomeMessage || '');
+    }
   }, [organizationsQuery.data, user?.organizationId]);
 
   const profileMutation = useMutation({
@@ -220,7 +229,7 @@ export function SettingsPage() {
   });
 
   const organizationMutation = useMutation({
-    mutationFn: () => api.put('/organizations/profile', { name: orgName.trim() }),
+    mutationFn: () => api.put('/organizations/profile', { name: orgName.trim(), logoUrl: orgLogo || undefined, welcomeMessage: orgWelcome || undefined }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['organizations'] });
       setFeedback({ tone: 'success', text: 'La identidad de la organización quedó actualizada.' });
@@ -296,12 +305,21 @@ export function SettingsPage() {
           </section>
 
           <section className="settings-form-card organization-card">
-            <header><span>Espacio de trabajo</span><h2>Identidad de La Vitamina</h2><p>El nombre se utiliza en paneles, reportes y comunicaciones internas de la organización.</p></header>
+            <header><span>Espacio de trabajo</span><h2>Identidad y marca</h2><p>Logo, nombre y mensaje de bienvenida para nuevos usuarios.</p></header>
             <form onSubmit={(event) => { event.preventDefault(); organizationMutation.mutate(); }}>
-              <label>Nombre de la organización<input className="input" required value={orgName} onChange={(event) => setOrgName(event.target.value)} /></label>
-              <div className="organization-preview"><span>Vista previa</span><div><b>V</b><p><strong>{orgName || 'La Vitamina'}</strong><small>Espacio operativo VITAHUB</small></p></div></div>
+              <ImageUpload
+                label="Logo de la organizacion"
+                value={orgLogo}
+                onChange={(url) => setOrgLogo(url)}
+                placeholder="https://..."
+                maxSizeMB={2}
+                helperText="Aparece en el onboarding de nuevos usuarios. PNG o JPG, max 2MB."
+              />
+              <label>Nombre de la organizacion<input className="input" required value={orgName} onChange={(event) => setOrgName(event.target.value)} /></label>
+              <label>Mensaje de bienvenida<textarea className="input" rows={3} value={orgWelcome} onChange={(event) => setOrgWelcome(event.target.value)} placeholder="Bienvenido a La Vitamina. Nos alegra que seas parte del equipo." /><small>Se muestra en la pantalla de primer ingreso de nuevos usuarios.</small></label>
+              <div className="organization-preview"><span>Vista previa onboarding</span><div>{orgLogo ? <img src={orgLogo} alt="Logo" style={{ maxWidth: 80, maxHeight: 40, marginBottom: 8 }} /> : <b>{orgName?.charAt(0) || 'V'}</b>}<p><strong>{orgName || 'La Vitamina'}</strong><small>{orgWelcome || 'Bienvenido al espacio operativo VITAHUB.'}</small></p></div></div>
               <button className="btn btn-primary" type="submit" disabled={organizationMutation.isPending || !orgName.trim()}>
-                {organizationMutation.isPending ? 'Actualizando...' : 'Actualizar organización'}
+                {organizationMutation.isPending ? 'Actualizando...' : 'Actualizar organizacion'}
               </button>
             </form>
           </section>

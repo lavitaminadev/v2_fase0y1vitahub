@@ -42,3 +42,4 @@
 .terms-list{display:flex;flex-direction:column;gap:10px;margin:16px 0 20px}
 .terms-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;background:#f6f8f6;cursor:pointer;font-size:12px;font-weight:600;color:#294b40;line-height:1.45}
 .terms-item input[type=checkbox]{margin-top:2px;flex-shrink:0;width:16px;height:16px;accent-color:#173f35}
+.onboarding-logo{max-width:120px;max-height:50px;margin-bottom:12px;object-fit:contain}

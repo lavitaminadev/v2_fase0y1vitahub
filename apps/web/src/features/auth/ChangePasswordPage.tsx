@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../core/api';
 import { useAuth } from '../../core/auth';
 
@@ -43,6 +44,8 @@ export function ChangePasswordPage() {
   const navigate = useNavigate();
   const refreshProfile = useAuth((state) => state.refreshProfile);
   const user = useAuth((state) => state.user);
+  const { data: orgs } = useQuery<Array<{ id: string; name: string; logoUrl?: string; welcomeMessage?: string }>>({ queryKey: ['organizations'], queryFn: () => api.get('/organizations') });
+  const org = orgs?.[0];
   const [step, setStep] = useState<'welcome' | 'terms' | 'password'>('welcome');
   const [accepted, setAccepted] = useState<Record<string, boolean>>({});
   const [termsError, setTermsError] = useState('');
@@ -68,9 +71,10 @@ export function ChangePasswordPage() {
   // Step 1: Welcome
   if (step === 'welcome') {
     return <main className="auth-page"><section className="login-card password-card onboarding-card">
+      {org?.logoUrl && <img src={org.logoUrl} alt={org.name} className="onboarding-logo" />}
       <span className="page-eyebrow">BIENVENIDO{user?.name ? `, ${user.name.split(' ')[0].toUpperCase()}` : ''}</span>
-      <h1>¿Es tu primera vez aca?</h1>
-      <p>Revisa y acepta las políticas internas.</p>
+      <h1>{org?.name || 'VITAHUB'}</h1>
+      <p>{org?.welcomeMessage || 'Revisa y acepta las politicas internas.'}</p>
       <div className="onboarding-features">
         <div><span>🔒</span><strong>Confidencialidad</strong><small>Información de clientes protegida.</small></div>
         <div><span>📋</span><strong>Terminos claros</strong><small>Reglas simples para el buen uso de la plataforma.</small></div>
