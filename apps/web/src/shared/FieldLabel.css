@@ -1,0 +1,83 @@
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--txt, #0B0B0C);
+  cursor: text;
+  padding: 4px 0;
+}
+
+.field-label-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-label-lock {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.field-label-text {
+  display: inline;
+}
+
+.field-label-required {
+  color: var(--rosa, #EA0F63);
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.field-label--editing {
+  padding: 0;
+}
+
+.field-label-input {
+  padding: 6px 8px;
+  border: 1.5px solid var(--cian, #0EC6B8);
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--txt, #0B0B0C);
+  background: rgba(14, 198, 184, 0.02);
+  outline: none;
+  transition: all 0.2s;
+  max-width: 300px;
+}
+
+.field-label-input:focus {
+  border-color: var(--cian, #0EC6B8);
+  box-shadow: 0 0 0 3px rgba(14, 198, 184, 0.1);
+}
+
+.field-label-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.5;
+  transition: all 0.2s;
+  border-radius: 3px;
+}
+
+.field-label:hover .field-label-edit-btn {
+  opacity: 1;
+  background: rgba(14, 198, 184, 0.1);
+}
+
+.field-label-edit-btn:hover {
+  background: rgba(14, 198, 184, 0.2);
+  opacity: 1;
+}
+
+.field-label-edit-btn:active {
+  background: rgba(14, 198, 184, 0.3);
+}
