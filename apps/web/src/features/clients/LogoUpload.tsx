@@ -22,9 +22,9 @@ export function LogoUpload({ currentLogoUrl, clientId, onSuccess, onError }: Log
       body.append('file', file);
       // Call uploads/images endpoint which organizes logos by clientId in Cloudinary
       // The URL query parameter clientId tells the server to organize in vitahub/{orgId}/{clientId}/
-      return (api as any).post<{ url: string; publicId: string; width?: number; height?: number }>(
+      return api.post<{ url: string; publicId: string; width?: number; height?: number }>(
         `/uploads/images?clientId=${encodeURIComponent(clientId)}`,
-        body,
+        body as any,
       );
     },
     onSuccess: (res) => {

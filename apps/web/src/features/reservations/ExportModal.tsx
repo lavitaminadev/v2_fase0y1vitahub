@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { api } from '../../core/api';
+import axios from 'axios';
 import './ExportModal.css';
 import { VitaIcons } from '../../shared/Icons';
 import { triggerToast } from '../../shared/Toast';
@@ -27,7 +27,14 @@ export function ExportModal({ open, onClose, formId }: ExportModalProps) {
   });
 
   const exportMutation = useMutation({
-    mutationFn: () => api.post(`/reservations/${formId}/export`, options, { responseType: 'blob' as any }),
+    mutationFn: async () => {
+      const API_BASE = import.meta.env.VITE_API_URL || '/api';
+      const response = await axios.post(`${API_BASE}/reservations/${formId}/export`, options, {
+        responseType: 'blob',
+        withCredentials: true,
+      });
+      return response.data as Blob;
+    },
     onSuccess: (blob: Blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -35,11 +42,11 @@ export function ExportModal({ open, onClose, formId }: ExportModalProps) {
       a.download = `reservas-${new Date().toISOString().slice(0, 10)}.${options.format}`;
       a.click();
       URL.revokeObjectURL(url);
-      triggerToast('success', 'Archivo descargado exitosamente');
+      triggerToast('Archivo descargado exitosamente', 'success');
       onClose();
     },
     onError: () => {
-      triggerToast('error', 'Error al descargar el archivo');
+      triggerToast('Error al descargar el archivo', 'error');
     }
   });
 

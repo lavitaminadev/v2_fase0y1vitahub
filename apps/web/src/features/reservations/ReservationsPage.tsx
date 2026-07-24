@@ -13,6 +13,7 @@ import { triggerToast } from '../../shared/Toast';
 import type { Reservation, ReservationForm } from './types';
 import { localInputToUtc } from './local-time';
 import { publicReservationUrl } from '../../core/public-url';
+import { ExportModal } from './ExportModal';
 
 interface Client { id: string; name: string }
 interface ReservationPage { items: Reservation[]; total: number; page: number; pageSize: number; pages: number }
@@ -23,13 +24,13 @@ const STATUS_LABELS: Record<string, string> = {
   rescheduled: 'Reagendada', cancelled_client: 'Cancelada por cliente',
   cancelled_business: 'Cancelada por empresa', waitlist: 'Lista de espera',
 };
-const NEXT_STATUSES: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled_client', 'cancelled_business', 'waitlist'],
-  confirmed: ['rescheduled', 'cancelled_client', 'cancelled_business', 'attended', 'no_show'],
-  rescheduled: ['confirmed', 'cancelled_client', 'cancelled_business', 'attended', 'no_show'],
-  waitlist: ['confirmed', 'cancelled_client', 'cancelled_business'],
-  attended: [], no_show: [], cancelled_client: [], cancelled_business: [],
-};
+// const NEXT_STATUSES: Record<string, string[]> = {
+//   pending: ['confirmed', 'cancelled_client', 'cancelled_business', 'waitlist'],
+//   confirmed: ['rescheduled', 'cancelled_client', 'cancelled_business', 'attended', 'no_show'],
+//   rescheduled: ['confirmed', 'cancelled_client', 'cancelled_business', 'attended', 'no_show'],
+//   waitlist: ['confirmed', 'cancelled_client', 'cancelled_business'],
+//   attended: [], no_show: [], cancelled_client: [], cancelled_business: [],
+// };
 const MODE_LABELS: Record<string, string> = { appointment: 'Reserva', group: 'Reserva grupal', request: 'Solicitud manual' };
 
 export function ReservationsPage({ clientView = false }: { clientView?: boolean }) {
@@ -50,6 +51,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const [viewingCouponCode, setViewingCouponCode] = useState('');
   const [confirmCoupon, setConfirmCoupon] = useState<{ id: string; active: boolean } | null>(null);
   const [confirmFormAction, setConfirmFormAction] = useState<{ id: string; action: 'duplicate' | 'pause' | 'resume' } | null>(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [clientFilter, setClientFilter] = useState(initialClientId);
   const [formData, setFormData] = useState({ clientId: initialClientId, name: '', mode: 'appointment' });
@@ -89,12 +91,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch<ReservationForm>(`/reservations/forms/${id}`, { status }),
     onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['reservation-forms'] }); triggerToast(vars.status === 'paused' ? 'Formulario pausado' : 'Formulario reanudado'); },
   });
-  const [exportError, setExportError] = useState('');
-  const exportMutation = useMutation({
-    mutationFn: () => api.get<Blob>(`/reservations/export/csv${clientQuery}`, { responseType: 'blob' }),
-    onSuccess: (blob) => { setExportError(''); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `reservas-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); URL.revokeObjectURL(url); triggerToast('CSV exportado'); },
-    onError: (err: Error) => setExportError(err.message),
-  });
+  const [_exportError, _setExportError] = useState('');
   const manualMutation = useMutation({
     mutationFn: () => {
       const form = forms.find((f) => f.id === manualForm.formId);
@@ -184,14 +181,10 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
     </section>}
 
     {tab === 'bookings' && <section>
-      <div className="reservation-section-head"><div><span className="page-eyebrow">OPERACIÓN DIARIA</span><h2>Lista de reservas</h2></div><div className="reservation-actions"><button className="btn btn-outline btn-sm" onClick={() => setManualOpen(true)}>Agregar reserva manual</button><button className={`btn btn-outline btn-sm${exportMutation.isPending ? ' is-loading' : ''}`} onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>{exportMutation.isPending ? 'Exportando...' : 'Exportar CSV'}</button></div></div>{exportError && <div className="alert alert-error">{exportError}</div>}
+      <div className="reservation-section-head"><div><span className="page-eyebrow">OPERACIÓN DIARIA</span><h2>Lista de reservas</h2></div><div className="reservation-actions"><button className="btn btn-outline btn-sm" onClick={() => setManualOpen(true)}>Agregar reserva manual</button><button className="btn btn-outline btn-sm" onClick={() => setExportModalOpen(true)}>Exportar datos</button></div></div>
       <div className="reservation-filters"><input className="input" aria-label="Buscar reservas" placeholder="Buscar nombre, teléfono, correo o código" value={filters.search} onChange={(event) => resetFilters({ search: event.target.value })} /><select className="input" aria-label="Filtrar por formulario" value={filters.formId} onChange={(event) => resetFilters({ formId: event.target.value })}><option value="">Todos los formularios</option>{forms.map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</select><select className="input" aria-label="Filtrar por estado" value={filters.status} onChange={(event) => resetFilters({ status: event.target.value })}><option value="">Todos los estados</option>{Object.entries(STATUS_LABELS).map(([status, label]) => <option value={status} key={status}>{label}</option>)}</select></div>
       {loadingBookings && !bookingPage ? <LoadingSpinner text="Buscando reservas..." /> : bookings.length === 0 ? <div className="reservation-empty"><strong>Sin reservas para estos filtros</strong><p>Las nuevas solicitudes aparecerán aquí en tiempo real.</p></div> : <div className="booking-list">
         {bookings.map((item) => {
-          const next = NEXT_STATUSES[item.status] || [];
-          const canMarkAttendance = next.includes('attended') && next.includes('no_show');
-          const otherNext = next.filter((status) => status !== 'attended' && status !== 'no_show');
-          const pendingStatus = updateMutation.isPending && updateMutation.variables?.id === item.id ? updateMutation.variables.body.status : undefined;
           return <article className="booking-row" key={item.id}>
           <div className="booking-date"><strong>{new Date(item.startsAt).getDate()}</strong><span>{new Date(item.startsAt).toLocaleDateString('es-CL', { month: 'short' })}</span><small>{new Date(item.startsAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</small></div>
           <button className="booking-guest booking-guest-button" onClick={() => { setSelectedBooking(item); setBookingNotes(item.internalNotes || ''); }}><strong>{item.guestName}</strong><span>{item.guestPhone || item.guestEmail || 'Sin contacto'}</span><small>#{item.referenceCode} · {item.utmCampaign || item.utmSource || 'Origen directo'}</small></button>
@@ -228,5 +221,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
     <Modal open={Boolean(selectedBooking)} onClose={() => { setSelectedBooking(null); setRescheduleAt(''); }} title={selectedBooking ? `Reserva #${selectedBooking.referenceCode}` : 'Reserva'}>{selectedBooking && <div className="booking-detail"><div className="booking-detail-grid"><div><span>Visitante</span><strong>{selectedBooking.guestName}</strong></div><div><span>Contacto</span><strong>{selectedBooking.guestPhone || selectedBooking.guestEmail || 'Sin contacto'}</strong></div><div><span>Fecha actual</span><strong>{new Date(selectedBooking.startsAt).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short', timeZone: forms.find((form) => form.id === selectedBooking.formId)?.timezone })}</strong></div><div><span>Estado</span><StatusBadge status={selectedBooking.status} /></div></div>{selectedBooking.answers && Object.keys(selectedBooking.answers).length > 0 && <section className="booking-answers"><h4>Datos recopilados</h4><div>{Object.entries(selectedBooking.answers).map(([label, value]) => <article key={label}><span>{label}</span><strong>{Array.isArray(value) ? value.join(', ') : typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value || 'Sin respuesta')}</strong></article>)}</div></section>}{['pending', 'confirmed', 'rescheduled', 'waitlist'].includes(selectedBooking.status) && <div className="booking-quick-actions"><form className="reschedule-form" onSubmit={(event) => { event.preventDefault(); updateMutation.mutate({ id: selectedBooking.id, body: { startsAt: localInputToUtc(rescheduleAt, forms.find((form) => form.id === selectedBooking.formId)?.timezone || 'America/Santiago') } }); }}><label>Reagendar a una nueva fecha y hora<input className="input" type="datetime-local" required value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} /></label><button className="btn btn-outline btn-sm" disabled={updateMutation.isPending}>Validar y reagendar</button></form><div className="attendance-actions"><strong>Marcar asistencia</strong><button type="button" className="btn btn-primary btn-sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate({ id: selectedBooking.id, body: { status: 'attended' } })}>Asistió</button><button type="button" className="btn btn-outline btn-danger btn-sm" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate({ id: selectedBooking.id, body: { status: 'no_show' } })}>No asistió</button></div></div>}<h4>Historial trazable</h4>{historyLoading ? <p className="page-subtitle">Cargando historial...</p> : <div className="reservation-history">{history.map((event) => <div key={event.id}><span>{event.type === 'created' ? 'Reserva creada' : event.type === 'rescheduled' ? 'Reserva reagendada' : event.type === 'integration_failed' ? 'Integración pendiente' : 'Estado actualizado'}</span><small>{new Date(event.createdAt).toLocaleString('es-CL')} · {event.actorType}</small>{event.fromStatus || event.toStatus ? <em>{event.fromStatus ? STATUS_LABELS[event.fromStatus] || event.fromStatus : 'Inicio'} → {event.toStatus ? STATUS_LABELS[event.toStatus] || event.toStatus : ''}</em> : null}</div>)}</div>}<h4>Notas internas</h4><div className="booking-notes"><textarea className="input" rows={3} value={bookingNotes} onChange={(event) => setBookingNotes(event.target.value)} placeholder="Comentarios solo para el equipo..." /><button type="button" className="btn btn-outline btn-sm" disabled={bookingNotes === (selectedBooking.internalNotes || '') || updateMutation.isPending} onClick={() => updateMutation.mutate({ id: selectedBooking.id, body: { internalNotes: bookingNotes.trim() } })}>{updateMutation.isPending ? 'Guardando...' : 'Guardar notas'}</button></div>{updateMutation.error && <div className="alert alert-error">{updateMutation.error.message}</div>}</div>}</Modal>
     <ConfirmDialog open={Boolean(confirmCoupon)} title="Desactivar cupón" description="¿Desactivar este cupón? Las reservas existentes no se verán afectadas." confirmLabel="Desactivar" pending={couponToggle.isPending} onClose={() => setConfirmCoupon(null)} onConfirm={() => { if (confirmCoupon) couponToggle.mutate(confirmCoupon); setConfirmCoupon(null); }} />
     <ConfirmDialog open={Boolean(confirmFormAction)} title={confirmFormAction?.action === 'pause' ? 'Pausar formulario' : 'Duplicar formulario'} description={confirmFormAction?.action === 'pause' ? 'Al pausar el formulario, los visitantes verán un mensaje de mantenimiento. Las reservas existentes no se verán afectadas.' : 'Se creará una copia exacta de este formulario. ¿Quieres continuar?'} confirmLabel={confirmFormAction?.action === 'pause' ? 'Pausar' : 'Duplicar'} pending={confirmFormAction?.action === 'pause' ? updateFormMutation.isPending : duplicateMutation.isPending} onClose={() => setConfirmFormAction(null)} onConfirm={() => { if (!confirmFormAction) return; if (confirmFormAction.action === 'pause') updateFormMutation.mutate({ id: confirmFormAction.id, status: 'paused' }); else duplicateMutation.mutate(confirmFormAction.id); setConfirmFormAction(null); }} />
+
+    <ExportModal open={exportModalOpen} onClose={() => setExportModalOpen(false)} formId={filters.formId || undefined} />
   </div>;
 }

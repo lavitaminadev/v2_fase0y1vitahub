@@ -70,7 +70,7 @@ function LinearProgressTicket({
 
       {showLabels && (
         <div className="step-labels">
-          {steps.map((step, idx) => (
+          {steps.map((step) => (
             <div key={step.id} className="step-label-item">
               <span className={`step-label ${step.completed ? 'completed' : ''} ${step.current ? 'current' : ''}`}>
                 {step.label}
