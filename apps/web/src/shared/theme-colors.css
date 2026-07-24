@@ -1,0 +1,57 @@
+/* ===== COLORES CORPORATIVOS VITAHUB ===== */
+:root {
+  /* Primarios */
+  --cian: #0EC6B8;
+  --cian-dark: #0AA79B;
+
+  /* Secundarios */
+  --rosa: #EA0F63;
+  --rosa-dark: #C50B52;
+
+  /* Base */
+  --negro: #000000;
+  --blanco: #FFFFFF;
+
+  /* Texto */
+  --txt: #0B0B0C;
+  --txt-secondary: #55575E;
+  --txt-muted: #8A8D95;
+
+  /* Componentes */
+  --line: #E7E8EC;
+  --gray: #F4F5F7;
+  --dark-card: #131316;
+
+  /* Estados */
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --error: #dc2626;
+  --info: #0EC6B8;
+
+  /* Overlays */
+  --overlay-dark: rgba(11, 11, 12, 0.5);
+  --overlay-light: rgba(255, 255, 255, 0.7);
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --txt: #FFFFFF;
+    --txt-secondary: #8A8D95;
+    --txt-muted: #55575E;
+    --gray: #1a1a1d;
+    --line: #2a2a2f;
+  }
+}
+
+/* Alias para compatibilidad con código existente */
+:root {
+  --primary: var(--cian);
+  --primary-dark: var(--cian-dark);
+  --accent: var(--rosa);
+  --accent-dark: var(--rosa-dark);
+  --surface: var(--gray);
+  --text-primary: var(--txt);
+  --text-secondary: var(--txt-secondary);
+  --border: var(--line);
+}
