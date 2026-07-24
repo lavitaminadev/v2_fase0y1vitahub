@@ -269,8 +269,18 @@ export function PublicReservationPage() {
   if (submit.data) {
     const svcDuration = serviceId ? (form.servicesConfig || []).find((s) => s.id === serviceId)?.durationMinutes : null;
     const icsDuration = (svcDuration || form.durationMinutes || 60) * 60000;
-    const icsBody = 'BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:' + new Date(submit.data.startsAt).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z\nDTEND:' + new Date(new Date(submit.data.startsAt).getTime() + icsDuration).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z\nSUMMARY:' + form.name + '\nDESCRIPTION:Reserva ' + submit.data.referenceCode + '\nEND:VEVENT\nEND:VCALENDAR';
-    return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div><small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions"><a className="btn btn-outline" href={'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsBody)} download={`reserva-${submit.data.referenceCode}.ics`}>Agregar al calendario</a>{submit.data.status === 'pending' ? <small>Recibirás una confirmación pronto.</small> : <Link className="btn btn-outline" to={`/book/${slug}`}>Volver al inicio</Link>}</div></section></main>;
+    const startDate = new Date(submit.data.startsAt);
+    const endDate = new Date(startDate.getTime() + icsDuration);
+    const formatIcsDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const icsBody = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${formatIcsDate(startDate)}\nDTEND:${formatIcsDate(endDate)}\nSUMMARY:${form.name}\nDESCRIPTION:Reserva ${submit.data.referenceCode}\nEND:VEVENT\nEND:VCALENDAR`;
+    const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(form.name)}&dates=${formatIcsDate(startDate)}/${formatIcsDate(endDate)}&details=${encodeURIComponent('Reserva ' + submit.data.referenceCode)}`;
+    const icsBlob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
+    const icsUrl = URL.createObjectURL(icsBlob);
+    return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div><small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions">
+      <a className="btn btn-outline" href={gcalUrl} target="_blank" rel="noopener noreferrer">📅 Google Calendar</a>
+      <a className="btn btn-outline" href={icsUrl} download={`reserva-${submit.data.referenceCode}.ics`}>📥 Descargar .ics</a>
+      {submit.data.status === 'pending' ? <small>Recibirás una confirmación pronto.</small> : <Link className="btn btn-outline" to={`/book/${slug}`}>Volver al inicio</Link>}
+    </div></section></main>;
   }
 
   if (form.status === 'paused') return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><h1>Formulario en mantenimiento</h1><p>Este formulario no acepta reservas en este momento. Vuelve más tarde o contacta al establecimiento.</p></section></main>;
