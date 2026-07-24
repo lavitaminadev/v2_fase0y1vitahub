@@ -59,11 +59,14 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const clientQuery = clientFilter ? `?clientId=${encodeURIComponent(clientFilter)}` : '';
   const { data: formsArray = [], isLoading, error: formsError, refetch: refetchForms, isFetching: fetchingForms } = useQuery<ReservationForm[]>({ queryKey: ['reservation-forms', clientFilter], queryFn: () => api.get(`/reservations/forms${clientQuery}`) });
   const forms = Array.isArray(formsArray) ? formsArray : [];
-  const { data: clients = [] } = useQuery<Client[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: !clientView });
+  const { data: clientsData = [] } = useQuery<Client[]>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: !clientView });
+  const clients = Array.isArray(clientsData) ? clientsData : [];
   const query = new URLSearchParams({ page: String(page), pageSize: '20', ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.status ? { status: filters.status } : {}), ...(filters.formId ? { formId: filters.formId } : {}) });
   const { data: bookingPage, isFetching: loadingBookings } = useQuery<ReservationPage>({ queryKey: ['reservations', page, clientFilter, search, filters.status, filters.formId], queryFn: () => api.get(`/reservations?${query}`), enabled: tab === 'bookings', placeholderData: (previous) => previous });
-  const bookings = bookingPage?.items || [];
-  const { data: history = [], isLoading: historyLoading } = useQuery<ReservationEvent[]>({ queryKey: ['reservation-history', selectedBooking?.id], queryFn: () => api.get(`/reservations/${selectedBooking!.id}/history`), enabled: Boolean(selectedBooking) });
+  const bookingsData = bookingPage?.items || [];
+  const bookings = Array.isArray(bookingsData) ? bookingsData : [];
+  const { data: historyData = [], isLoading: historyLoading } = useQuery<ReservationEvent[]>({ queryKey: ['reservation-history', selectedBooking?.id], queryFn: () => api.get(`/reservations/${selectedBooking!.id}/history`), enabled: Boolean(selectedBooking) });
+  const history = Array.isArray(historyData) ? historyData : [];
 
   const createMutation = useMutation({
     mutationFn: () => api.post<ReservationForm>('/reservations/forms', formData),
@@ -113,7 +116,8 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
       triggerToast('Reserva manual creada');
     },
   });
-  const { data: coupons = [] } = useQuery<Array<{ id: string; code: string; discountType: string; value: number; maxUses: number; usageCount: number; validFrom?: string; validUntil?: string; formIds?: string[]; active: boolean; createdAt: string }>>({ queryKey: ['coupons', clientFilter], queryFn: () => api.get(`/reservations/coupons${clientQuery}`), enabled: tab === 'coupons' });
+  const { data: couponsData = [] } = useQuery<Array<{ id: string; code: string; discountType: string; value: number; maxUses: number; usageCount: number; validFrom?: string; validUntil?: string; formIds?: string[]; active: boolean; createdAt: string }>>({ queryKey: ['coupons', clientFilter], queryFn: () => api.get(`/reservations/coupons${clientQuery}`), enabled: tab === 'coupons' });
+  const coupons = Array.isArray(couponsData) ? couponsData : [];
   const couponCreate = useMutation({
     mutationFn: () => {
       const body: Record<string, unknown> = { code: couponForm.code.trim(), discountType: couponForm.discountType, value: couponForm.value, maxUses: couponForm.maxUses };
@@ -129,7 +133,8 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
     mutationFn: ({ id, active }: { id: string; active: boolean }) => api.patch(`/reservations/coupons/${id}`, { active }),
     onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['coupons'] }); triggerToast(vars.active ? 'Cupón activado' : 'Cupón desactivado'); },
   });
-  const { data: couponUsages = [] } = useQuery<Reservation[]>({ queryKey: ['coupon-usages', viewingCouponCode], queryFn: () => api.get(`/reservations?couponCode=${encodeURIComponent(viewingCouponCode)}&pageSize=100`), enabled: Boolean(viewingCouponCode) });
+  const { data: couponUsagesData = [] } = useQuery<Reservation[]>({ queryKey: ['coupon-usages', viewingCouponCode], queryFn: () => api.get(`/reservations?couponCode=${encodeURIComponent(viewingCouponCode)}&pageSize=100`), enabled: Boolean(viewingCouponCode) });
+  const couponUsages = Array.isArray(couponUsagesData) ? couponUsagesData : [];
 
   if (isLoading) return <LoadingSpinner text="Preparando Reservas..." />;
   if (formsError) return <QueryErrorState title="No pudimos abrir Reservas y formularios" message={formsError.message} onRetry={() => void refetchForms()} retrying={fetchingForms} />;
