@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateReservationFormDto {
@@ -27,6 +27,7 @@ export class UpdateReservationFormDto {
   @IsOptional() @IsBoolean() crmEnabled?: boolean;
   @IsOptional() @IsBoolean() calendarEnabled?: boolean;
   @IsOptional() @IsBoolean() metaCapiEnabled?: boolean;
+  @IsOptional() @Matches(/^(G-[A-Z0-9]{4,20})?$/i, { message: 'El ID de medición GA4 debe tener el formato G-XXXXXXXXXX' }) ga4MeasurementId?: string;
   @IsOptional() @IsArray() @IsEmail({}, { each: true }) teamNotifications?: string[];
 }
 export class CreateBlockDto { @IsDateString() startsAt: string; @IsDateString() endsAt: string; @IsOptional() @IsString() @MaxLength(180) reason?: string; }

@@ -9,6 +9,7 @@ import { plainDateInZone } from './local-time';
 import { accessibleForeground, contrastText, normalizeHexColor } from '../../shared/color-contrast';
 import { BrandMark } from '../../shared/Brand';
 import { MetaPixel } from '../../shared/MetaPixel';
+import { Ga4Tag, trackGa4Event } from '../../shared/Ga4Tag';
 import { readMetaMatchData } from '../../shared/meta-match';
 import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible, slotDateKey } from './booking-utils';
 
@@ -132,6 +133,15 @@ export function PublicReservationPage() {
     if (!form?.pixelId) return;
     window.fbq('trackSingle', form.pixelId, 'Schedule', {}, { eventID: `schedule:${submit.data.id}` });
   }, [form?.pixelId, submit.data?.id]);
+
+  useEffect(() => {
+    if (!submit.data?.id || !form?.ga4MeasurementId) return;
+    trackGa4Event(form.ga4MeasurementId, 'reservation_created', {
+      transaction_id: submit.data.id,
+      form_slug: slug,
+      form_name: form.name,
+    });
+  }, [form?.ga4MeasurementId, form?.name, slug, submit.data?.id]);
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -283,10 +293,11 @@ export function PublicReservationPage() {
     </div></section></main>;
   }
 
-  if (form.status === 'paused') return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><h1>Formulario en mantenimiento</h1><p>Este formulario no acepta reservas en este momento. Vuelve más tarde o contacta al establecimiento.</p></section></main>;
+  if (form.status === 'paused') return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><Ga4Tag measurementId={form?.ga4MeasurementId} /><section className="booking-success"><h1>Formulario en mantenimiento</h1><p>Este formulario no acepta reservas en este momento. Vuelve más tarde o contacta al establecimiento.</p></section></main>;
 
   return <main className={`public-booking layout-${safeDesignChoice(design.layoutPosition, ['left', 'center', 'right'], 'right')}`} style={style} onFocusCapture={markStarted} onPointerDown={markStarted}>
     <MetaPixel pixelId={form.pixelId} />
+    <Ga4Tag measurementId={form.ga4MeasurementId} />
     {(visible(design.showPoweredBy) || visible(design.showSecureBadge)) && <header>{visible(design.showPoweredBy) ? <div className="public-brand"><BrandMark decorative /><small>{poweredByText.split('\n').map((line) => <Fragment key={line}>{line}<br /></Fragment>)}</small></div> : <span />}{visible(design.showSecureBadge) && <em>{badgeText}</em>}</header>}
     <div className="public-booking-layout">
       <section className="public-booking-intro">{design.logoUrl && visible(design.showLogo) && <img className="public-booking-logo" src={design.logoUrl} alt="Logo de la empresa" />}{visible(design.showEyebrow) && <span>{eyebrowText}</span>}<h1>{design.title || form.name}</h1>{visible(design.showWelcome) && <p>{design.welcome || 'Elige el horario que mejor te acomode.'}</p>}{visible(design.showFacts) && <div className="public-booking-facts"><div><strong>{selectedService?.durationMinutes || form.durationMinutes}</strong><span>{durationLabel}</span></div><div><strong>{form.confirmationMode === 'automatic' ? (design.automaticLabel || 'Directa') : (design.manualLabel || 'Manual')}</strong><span>{confirmationLabel}</span></div><div><strong>{design.timezoneValue || form.timezone.split('/').pop()?.replaceAll('_', ' ')}</strong><span>{timezoneLabel}</span></div></div>}</section>
