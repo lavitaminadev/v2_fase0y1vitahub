@@ -20,7 +20,7 @@ export function CatalogPage() {
         <div>
           <span className="page-eyebrow">ARQUITECTURA COMERCIAL</span>
           <h1>Catálogo de servicios</h1>
-          <p>Define qué vende La Vitamina, cuánto vale y cuánta capacidad UD requiere antes de construir propuestas o contratos.</p>
+          <p>Servicios, precios y capacidad UD.</p>
         </div>
         <div className="module-hero-stats" aria-label="Resumen del catálogo">
           <span><small>Servicios activos</small><strong>{services.length}</strong></span>

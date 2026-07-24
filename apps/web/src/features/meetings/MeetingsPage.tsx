@@ -143,7 +143,7 @@ export function MeetingsPage() {
       <div className="page-header">
         <div>
           <h1>Reuniones</h1>
-          <p className="page-subtitle">Registro operativo de reuniones y compromisos asociados para seguimiento semanal y estrategico.</p>
+          <p className="page-subtitle">Seguimiento de reuniones y compromisos.</p>
         </div>
         <button className="btn btn-primary" onClick={() => { setForm((current) => ({ ...current, clientId: clientFilter })); setModalOpen(true); }}>
           + Nueva Reunión
@@ -151,7 +151,7 @@ export function MeetingsPage() {
       </div>
       <div className="filters"><select className="input" aria-label="Filtrar reuniones por cliente" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}><option value="">Todos los clientes</option>{(clients ?? []).map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select><span className="filter-result-count">{sorted.length} reuniones</span></div>
       {sorted.length === 0 ? (
-        <EmptyState icon="📅" title="Sin reuniones" description="Programá tu primera reunión para dar seguimiento a los clientes." action={<button className="btn btn-primary" onClick={() => { setForm((current) => ({ ...current, clientId: clientFilter })); setModalOpen(true); }}>+ Nueva Reunión</button>} />
+        <EmptyState icon="📅" title="Sin reuniones" description="Agenda tu primera reunión." action={<button className="btn btn-primary" onClick={() => { setForm((current) => ({ ...current, clientId: clientFilter })); setModalOpen(true); }}>+ Nueva Reunión</button>} />
       ) : (
         <div className="meeting-list">
           {sorted.map((meeting) => {

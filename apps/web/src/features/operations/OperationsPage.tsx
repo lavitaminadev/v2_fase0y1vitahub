@@ -123,7 +123,7 @@ export function OperationsPage() {
         <div className="section-title-row">
           <div>
             <h2>Ciclos mensuales</h2>
-            <p className="page-subtitle">Control integrado de grilla, producción, reuniones y reporte del mes.</p>
+            <p className="page-subtitle">Control de grilla, producción y reportes.</p>
           </div>
           <span className="cycle-period">{now.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}</span>
         </div>

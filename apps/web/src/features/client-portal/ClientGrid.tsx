@@ -31,7 +31,7 @@ export function ClientGrid() {
   return (
     <div className="page">
       <h1>Mi parrilla de contenido</h1>
-      <p className="page-subtitle">Consulta el contenido planificado y la ventana semanal de cada entrega.</p>
+      <p className="page-subtitle">Contenido semanal planificado.</p>
 
       {grids.length === 0 ? (
         <EmptyState

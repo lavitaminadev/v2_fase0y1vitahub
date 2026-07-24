@@ -172,7 +172,7 @@ export function OnboardingPage() {
       <div className="page-header">
         <div>
           <h1>Onboarding</h1>
-          <p className="page-subtitle">Checklist operativo alineado al Documento Maestro: brief, estrategia, traspaso y activacion.</p>
+          <p className="page-subtitle">Checklist: brief, estrategia y traspaso.</p>
         </div>
         <div className="portal-item-actions">
           <select className="input" value={templateClientId} onChange={(e) => setTemplateClientId(e.target.value)}>

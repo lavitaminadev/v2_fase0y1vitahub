@@ -109,7 +109,7 @@ export function ContentGridPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <div><h1>Calendario de contenido</h1><p className="page-subtitle">Planifica semanas, publicaciones y estados por cliente.</p></div>
+        <div><h1>Calendario de contenido</h1><p className="page-subtitle">Planificación semanal por cliente.</p></div>
         <button className="btn btn-primary" onClick={() => { setFeedback(null); setGridForm((current) => ({ ...current, clientId: clientFilter })); setCreateOpen(true); }}>+ Nueva parrilla</button>
       </div>
 

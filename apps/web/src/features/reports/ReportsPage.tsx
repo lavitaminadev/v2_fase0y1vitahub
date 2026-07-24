@@ -32,7 +32,7 @@ export function ReportsPage() {
 
   return (
     <div className="page reports-page">
-      <section className="module-hero reports-hero"><div><span className="page-eyebrow">LECTURA EJECUTIVA</span><h1>Reportes</h1><p>Ingresos pagados, carga productiva y distribución de cuentas a partir de registros reales de VITAHUB.</p></div><div className="report-period"><small>Ventana analítica</small><strong>Últimos 12 meses</strong><span>{monthly.length ? `${monthLabel(monthly[0].month)} - ${monthLabel(monthly.at(-1)!.month)}` : 'Sin movimientos registrados'}</span></div></section>
+      <section className="module-hero reports-hero"><div><span className="page-eyebrow">LECTURA EJECUTIVA</span><h1>Reportes</h1><p>Ingresos, carga y distribución real.</p></div><div className="report-period"><small>Ventana analítica</small><strong>Últimos 12 meses</strong><span>{monthly.length ? `${monthLabel(monthly[0].month)} - ${monthLabel(monthly.at(-1)!.month)}` : 'Sin movimientos registrados'}</span></div></section>
 
       <section className="report-kpis" aria-label="Indicadores principales">
         <article className="report-kpi-primary"><span>Ingresos pagados</span><strong>{money(data.totalRevenue)}</strong><small>{revenueChange == null ? 'Sin base mensual para comparar' : `${revenueChange >= 0 ? '+' : ''}${revenueChange}% respecto al mes anterior`}</small></article>

@@ -81,7 +81,7 @@ export function CatalogQuotesTab() {
       : { title: 'Crear nueva versión', description: 'Se conservará la versión actual y se creará una copia editable con numeración nueva.', label: 'Crear versión' };
 
   return <div className="catalog-panel quote-workspace">
-    <div className="section-header catalog-section-header"><div><h2>Cotizaciones y propuestas</h2><p>Construye la oferta, controla versiones y convierte la aceptación en operación real.</p></div><button className="btn btn-primary" onClick={() => { setFeedback(null); setForm(emptyForm()); setOpen(true); }}>+ Nueva cotización</button></div>
+    <div className="section-header catalog-section-header"><div><h2>Cotizaciones y propuestas</h2><p>De cotización a operación real.</p></div><button className="btn btn-primary" onClick={() => { setFeedback(null); setForm(emptyForm()); setOpen(true); }}>+ Nueva cotización</button></div>
     <div className="quote-flow"><span><b>1</b> Borrador editable</span><span><b>2</b> Envío controlado</span><span><b>3</b> Aceptación</span><span><b>4</b> Contrato + onboarding</span></div>
     {feedback && <div className={`alert alert-${feedback.tone}`} role="status">{feedback.text}</div>}
     <div className="filters"><input className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar número, propuesta o empresa..." /><select className="input" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option><option value="draft">Borrador</option><option value="sent">Enviada</option><option value="accepted">Aceptada</option><option value="rejected">Rechazada</option><option value="expired">Vencida</option></select></div>

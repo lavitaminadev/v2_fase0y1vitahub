@@ -66,7 +66,7 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      <div className="page-header hero-header"><div><span className="page-eyebrow">CENTRO DE CONTROL</span><h1>Dashboard</h1><p className="page-subtitle">Clientes, produccion, rendimiento y resultados en un solo lugar.</p></div><div className="dashboard-header-actions"><span className="date-chip">{new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</span><button className="btn btn-outline btn-sm" onClick={() => setConfigureOpen(true)}>Configurar widgets</button></div></div>
+      <div className="page-header hero-header"><div><span className="page-eyebrow">CENTRO DE CONTROL</span><h1>Dashboard</h1><p className="page-subtitle">Visión general de la operación.</p></div><div className="dashboard-header-actions"><span className="date-chip">{new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</span><button className="btn btn-outline btn-sm" onClick={() => setConfigureOpen(true)}>Configurar widgets</button></div></div>
 
       {widgetVisible('attention') && <div className="attention-strip"><div><span className="attention-kicker">Atencion de hoy</span><strong>{data.pendingPieces ?? 0} piezas esperan movimiento</strong><small>Revisa bloqueos y mantene el ciclo de entrega avanzando.</small></div><Link className="btn btn-primary btn-sm" to="/production">Ir a produccion</Link></div>}
 
@@ -80,7 +80,7 @@ export function DashboardPage() {
       </div>}
 
       {canViewPerformance && widgetVisible('performance') && <div className="section performance-section">
-        <div className="section-title-row"><div><h2>Rendimiento digital</h2><p className="page-subtitle">Ultimos 30 dias consolidados desde Meta y Google.</p></div><span className={`data-health ${performance?.hasData ? 'is-live' : ''}`}>{performance?.hasData ? 'Datos conectados' : 'Sin datos sincronizados'}</span></div>
+        <div className="section-title-row"><div><h2>Rendimiento digital</h2><p className="page-subtitle">Métricas de Meta y Google.</p></div><span className={`data-health ${performance?.hasData ? 'is-live' : ''}`}>{performance?.hasData ? 'Datos conectados' : 'Sin datos sincronizados'}</span></div>
         {performance?.hasData ? <div className="dashboard-charts-row">
           <div className="dashboard-chart-card"><h3>Inversion por plataforma</h3>
             <ResponsiveContainer width="100%" height={200}><BarChart data={performance.providers.map((p) => ({ name: PROVIDER_LABELS[p.provider] ?? p.provider, spend: p.spend, leads: p.leads }))}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip formatter={(v: number) => `$${v.toLocaleString('es-CL')}`} /><Bar dataKey="spend" fill="#173f35" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
@@ -97,7 +97,7 @@ export function DashboardPage() {
       </div>}
 
       {widgetVisible('flow') && <div className="section master-flow-section">
-        <div className="section-title-row"><div><h2>Ciclo Maestro</h2><p className="page-subtitle">Como se conecta la venta con el resultado mensual del cliente.</p></div></div>
+        <div className="section-title-row"><div><h2>Ciclo Maestro</h2><p className="page-subtitle">Flujo de venta a resultado.</p></div></div>
         <div className="master-flow" aria-label="Flujo operativo principal">
           {['01 Lead', '02 Cierre', '03 Onboarding', '04 Planificacion', '05 Produccion', '06 Cliente', '07 Resultados'].map((label, i) => <div className="master-flow-step" key={i}><span className="flow-number">{label.split(' ')[0]}</span><div><strong>{label.split(' ').slice(1).join(' ')}</strong></div>{i < 6 && <span className="flow-line" />}</div>)}
         </div>

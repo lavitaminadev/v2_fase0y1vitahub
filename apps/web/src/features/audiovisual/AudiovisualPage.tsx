@@ -120,7 +120,7 @@ export function AudiovisualPage() {
         <div>
           <span className="page-eyebrow">PRODUCCIÓN AUDIOVISUAL</span>
           <h1>Sesiones y moodboards</h1>
-          <p className="page-subtitle">Planifica referencias, jornadas de grabación y responsables sin mezclar este flujo con diseño gráfico.</p>
+          <p className="page-subtitle">Planificación de sesiones y moodboards.</p>
         </div>
         <div className="portal-item-actions">
           {canManageMoodboards && <button className="btn btn-outline" type="button" onClick={() => setMoodboardOpen(true)}>+ Moodboard</button>}

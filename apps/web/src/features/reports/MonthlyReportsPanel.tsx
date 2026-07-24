@@ -32,7 +32,7 @@ export function MonthlyReportsPanel() {
   const openEdit = (report: MonthlyReport) => { setEditing(report); setSummary(report.executiveSummary ?? ''); setInsights((report.insights ?? []).join('\n')); setRecommendations(report.recommendations ?? ''); setSalesGenerated(String(report.salesGenerated ?? 0)); };
 
   return <section className="monthly-reports-workspace">
-    <header><div><span className="page-eyebrow">ENTREGA AL CLIENTE</span><h2>Informes mensuales</h2><p>Genera una base automática, agrega lectura estratégica y publica solo cuando esté revisada.</p></div><button className="btn btn-primary" onClick={() => { setFeedback(null); setGenerateOpen(true); }}>+ Generar informe</button></header>
+    <header><div><span className="page-eyebrow">ENTREGA AL CLIENTE</span><h2>Informes mensuales</h2><p>Genera y publica informes revisados.</p></div><button className="btn btn-primary" onClick={() => { setFeedback(null); setGenerateOpen(true); }}>+ Generar informe</button></header>
     <div className="report-publish-flow"><span><b>1</b> Consolidar datos</span><span><b>2</b> Revisar narrativa</span><span><b>3</b> Publicar al cliente</span><span><b>4</b> Imprimir / PDF</span></div>
     {feedback && <div className={`alert alert-${feedback.tone}`}>{feedback.text}</div>}
     {error && <div className="alert alert-error">No fue posible cargar los informes: {error.message}</div>}

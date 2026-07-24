@@ -70,9 +70,9 @@ export function ChangePasswordPage() {
     return <main className="auth-page"><section className="login-card password-card onboarding-card">
       <span className="page-eyebrow">BIENVENIDO{user?.name ? `, ${user.name.split(' ')[0].toUpperCase()}` : ''}</span>
       <h1>¿Es tu primera vez aca?</h1>
-      <p>VITAHUB es el sistema operativo de La Vitamina. Antes de continuar necesitamos que revises y aceptes nuestras politicas internas.</p>
+      <p>Revisa y acepta las políticas internas.</p>
       <div className="onboarding-features">
-        <div><span>🔒</span><strong>Confidencialidad</strong><small>Toda la informacion de clientes, campañas y resultados es privada.</small></div>
+        <div><span>🔒</span><strong>Confidencialidad</strong><small>Información de clientes protegida.</small></div>
         <div><span>📋</span><strong>Terminos claros</strong><small>Reglas simples para el buen uso de la plataforma.</small></div>
         <div><span>🛡</span><strong>Datos protegidos</strong><small>Cumplimos con la normativa de proteccion de datos.</small></div>
       </div>

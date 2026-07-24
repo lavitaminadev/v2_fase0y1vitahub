@@ -121,7 +121,7 @@ export function CatalogPacksTab() {
   return (
     <div className="catalog-panel">
       <div className="section-header catalog-section-header">
-        <div><h2>Packs comerciales</h2><p>Agrupa servicios, capacidad mensual y precio en una oferta clara.</p></div>
+        <div><h2>Packs comerciales</h2><p>Servicios, capacidad y precio en pack.</p></div>
         <button className="btn btn-primary" onClick={openCreate}>+ Nuevo pack</button>
       </div>
       {feedback && <div className={`alert alert-${feedback.tone}`} role="status">{feedback.text}</div>}

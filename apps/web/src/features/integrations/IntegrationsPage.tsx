@@ -31,7 +31,7 @@ export function IntegrationsPage() {
   return (
     <div className="page">
       <h1>Integraciones de conversiones</h1>
-      <p className="page-subtitle">Conecta tus campañas de Meta con las reservas para medir conversiones reales.</p>
+      <p className="page-subtitle">Conexion Meta y reservas para conversiones.</p>
 
       <h2>Meta Pixel y Conversions API</h2>
       <MetaConnectCard integration={metaIntegration} />
@@ -45,14 +45,14 @@ export function IntegrationsPage() {
             <div className="integration-provider">Logos, fondos e imágenes de formularios públicos</div>
           </div>
         </div>
-        <p className="page-subtitle">Configura Cloudinary para subir logos e imágenes de fondo. Las credenciales son tuyas.</p>
+        <p className="page-subtitle">Sube logos e imágenes con tus credenciales.</p>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setCloudinaryOpen(true)}>
           Configurar Cloudinary
         </button>
       </section>
 
       <div className="alert alert-info">
-        Google Ads, Analytics, Calendar y Drive estarán disponibles en futuras fases.
+        Google estará disponible en futuras fases.
       </div>
 
       <CloudinaryConfigModal open={cloudinaryOpen} onClose={() => setCloudinaryOpen(false)} />

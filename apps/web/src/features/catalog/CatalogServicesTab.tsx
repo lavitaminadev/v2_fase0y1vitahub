@@ -116,7 +116,7 @@ export function CatalogServicesTab() {
   return (
     <div className="catalog-panel">
       <div className="section-header catalog-section-header">
-        <div><h2>Servicios base</h2><p>Cada servicio define precio de referencia y esfuerzo operativo en UD.</p></div>
+        <div><h2>Servicios base</h2><p>Precio de referencia y esfuerzo en UD.</p></div>
         <button className="btn btn-primary" onClick={openCreate}>+ Nuevo servicio</button>
       </div>
       {feedback && <div className={`alert alert-${feedback.tone}`} role="status">{feedback.text}</div>}

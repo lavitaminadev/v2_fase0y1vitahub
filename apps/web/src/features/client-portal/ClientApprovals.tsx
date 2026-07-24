@@ -57,7 +57,7 @@ export function ClientApprovals() {
   return (
     <div className="page">
       <h1>Mis aprobaciones</h1>
-      <p className="page-subtitle">Revisa piezas pendientes, abre la versión entregada y responde desde el portal.</p>
+      <p className="page-subtitle">Revisa y decide sobre tus piezas.</p>
       {feedback && <div className={`alert alert-${feedback.tone}`} role="status">{feedback.text}</div>}
 
       {approvals.length === 0 ? (

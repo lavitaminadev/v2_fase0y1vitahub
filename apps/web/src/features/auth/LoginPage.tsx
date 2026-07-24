@@ -70,7 +70,7 @@ export function LoginPage() {
       <section className="login-story" aria-label="VITAHUB">
         <span className="login-eyebrow">NUESTRO NEGOCIO ES HACER CRECER EL TUYO</span>
         <h2>Todo el pulso de La Vitamina, en un solo lugar.</h2>
-        <p>Clientes, producción, aprobaciones y resultados conectados desde el primer contacto hasta la entrega.</p>
+        <p>Gestión conectada de punta a punta.</p>
         <div className="login-flow"><span>CRM</span><span>Producción</span><span>Resultados</span></div>
       </section>
       <form className="login-form" onSubmit={handleSubmit} autoComplete="on">

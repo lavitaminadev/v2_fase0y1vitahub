@@ -245,7 +245,7 @@ export function DocumentsPage() {
       <div className="page-header">
         <div>
           <h1>Documentos</h1>
-          <p className="page-subtitle">Repositorio operativo con alta, edición y trazabilidad básica por cliente.</p>
+          <p className="page-subtitle">Alta, edición y trazabilidad.</p>
         </div>
         {canManage && <div className="page-header-actions"><button className="btn btn-outline" onClick={() => { setDriveClientId(clientFilter); setDriveOpen(true); setFeedback(null); }}>Preparar Drive</button><button className="btn btn-primary" onClick={openCreate}>Nuevo documento</button></div>}
       </div>

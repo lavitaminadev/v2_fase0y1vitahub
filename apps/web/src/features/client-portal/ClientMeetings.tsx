@@ -40,7 +40,7 @@ export function ClientMeetings() {
   return (
     <div className="page">
       <h1>Mis reuniones</h1>
-      <p className="page-subtitle">Revisa proximas instancias, modalidad, enlaces y compromisos para cada reunion.</p>
+      <p className="page-subtitle">Próximas reuniones y compromisos.</p>
 
       {meetings.length === 0 ? (
         <EmptyState

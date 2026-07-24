@@ -32,7 +32,7 @@ const STAGES: Record<string, { label: string; detail: string }> = {
 export function VitaminaPulse({ compact = false }: { compact?: boolean }) {
   const { data: response, isLoading, error } = useQuery<PulseResponse>({ queryKey: ['vitamina-pulse'], queryFn: () => api.get('/reporting/pulse') });
   if (isLoading) return <section className="pulse-shell pulse-loading" aria-label="Cargando Pulso Vitamina"><div className="skeleton-line wide" /><div className="skeleton-line" /><div className="skeleton-line short" /></section>;
-  if (error || !response) return <section className="pulse-shell"><span className="page-eyebrow">PULSO VITAMINA</span><h2>Pulso temporalmente no disponible</h2><p className="page-subtitle">La operación continúa funcionando. Intenta actualizar esta lectura en unos minutos.</p></section>;
+  if (error || !response) return <section className="pulse-shell"><span className="page-eyebrow">PULSO VITAMINA</span><h2>Pulso temporalmente no disponible</h2><p className="page-subtitle">Intenta de nuevo en unos minutos.</p></section>;
   const data: PulseData = {
     score: typeof response.score === 'number' && Number.isFinite(response.score) ? Math.min(100, Math.max(0, response.score)) : null,
     coverage: typeof response.coverage === 'number' && Number.isFinite(response.coverage) ? Math.min(100, Math.max(0, response.coverage)) : 0,
@@ -51,7 +51,7 @@ export function VitaminaPulse({ compact = false }: { compact?: boolean }) {
   const statusLabel = data.status === 'healthy' ? 'Saludable' : data.status === 'attention' ? 'Requiere atención' : data.status === 'blocked' ? 'Con bloqueos' : 'Sin evidencia';
 
   return <section className={`pulse-shell ${compact ? 'is-compact' : ''}`}>
-    <header className="pulse-header"><div><span className="page-eyebrow">METODOLOGÍA PROPIA · PULSO VITAMINA</span><h2>El pulso de {compact ? 'tu marca' : 'la operación'}</h2><p>Una lectura trazable de lo que avanza, lo que está bloqueado y la próxima mejor acción.</p></div><span className={`pulse-status is-${data.status}`}>{statusLabel}</span></header>
+    <header className="pulse-header"><div><span className="page-eyebrow">METODOLOGÍA PROPIA · PULSO VITAMINA</span><h2>El pulso de {compact ? 'tu marca' : 'la operación'}</h2><p>Avances, bloqueos y próximos pasos.</p></div><span className={`pulse-status is-${data.status}`}>{statusLabel}</span></header>
     <div className="pulse-overview">
       <div className="pulse-score-wrap"><div className="pulse-score" style={{ '--pulse': `${data.score ?? 0}%` } as CSSProperties}><div><strong>{data.score ?? '—'}</strong><span>/ 100</span></div></div><small>{data.coverage}% de cobertura de datos</small></div>
       <div className="pulse-stage"><span>Momento actual</span><strong>{stage.label}</strong><p>{stage.detail}</p><div className="stage-track"><i style={{ width: `${Math.max(['activation','building','traction','optimization','scaling'].indexOf(data.stage) + 1, 1) * 20}%` }} /></div></div>

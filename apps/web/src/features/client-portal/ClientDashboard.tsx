@@ -5,25 +5,25 @@ import { VitaminaPulse } from '../pulse/VitaminaPulse';
 const PORTAL_CARDS = [
   {
     title: 'Mi parrilla',
-    description: 'Revisa el contenido planificado para tu marca y sus ventanas de publicación.',
+    description: 'Contenido planificado y ventanas.',
     link: '/portal/grid',
     action: 'Ver parrilla',
   },
   {
     title: 'Aprobaciones',
-    description: 'Resuelve piezas pendientes y mantén el flujo creativo avanzando sin fricción.',
+    description: 'Aprueba o rechaza piezas pendientes.',
     link: '/portal/approvals',
     action: 'Revisar piezas',
   },
   {
     title: 'Reuniones',
-    description: 'Consulta próximos encuentros, modalidad y enlaces de acceso.',
+    description: 'Próximos encuentros y enlaces.',
     link: '/portal/meetings',
     action: 'Ver reuniones',
   },
   {
     title: 'Reportes',
-    description: 'Accede a resultados, contexto y entregables de performance.',
+    description: 'Resultados y métricas de performance.',
     link: '/portal/reports',
     action: 'Ver reportes',
   },
@@ -34,7 +34,7 @@ export function ClientDashboard() {
 
   return (
     <div className="page">
-      <section className="portal-welcome"><span className="page-eyebrow">TU ESPACIO DE MARCA</span><h1>Bienvenido, {user?.name}</h1><p>Contenido, decisiones y resultados organizados para que siempre sepas qué está avanzando y qué necesita tu atención.</p><div className="portal-pulse"><span><i className="online-dot" />Cuenta activa</span><span>Actualizado hoy</span></div></section>
+      <section className="portal-welcome"><span className="page-eyebrow">TU ESPACIO DE MARCA</span><h1>Bienvenido, {user?.name}</h1><p>Tu panel de avances y decisiones.</p><div className="portal-pulse"><span><i className="online-dot" />Cuenta activa</span><span>Actualizado hoy</span></div></section>
       <VitaminaPulse compact />
 
       <div className="card-grid">

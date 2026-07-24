@@ -251,7 +251,7 @@ export function UsersPage() {
         <div>
           <span className="page-eyebrow">SEGURIDAD Y ALCANCE</span>
           <h1>Usuarios y accesos</h1>
-          <p className="page-subtitle">Crea cuentas, asigna responsabilidades y limita el portal de clientes a una sola empresa.</p>
+          <p className="page-subtitle">Gestión de cuentas y permisos.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={openCreateModal}>+ Crear cuenta</button>
       </div>

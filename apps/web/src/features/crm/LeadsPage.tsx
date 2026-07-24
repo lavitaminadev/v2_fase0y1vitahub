@@ -215,7 +215,7 @@ export function LeadsPage() {
   return (
     <div className="page">
       <CrmNav />
-      <div className="page-header"><div><span className="page-eyebrow">CRM COMERCIAL</span><h1>Pipeline comercial</h1><p className="page-subtitle">Prioriza prospectos útiles, registra su origen y avanza cada oportunidad con evidencia.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
+      <div className="page-header"><div><span className="page-eyebrow">CRM COMERCIAL</span><h1>Pipeline comercial</h1><p className="page-subtitle">Pipeline con trazabilidad y evidencia.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
 
       <div className="card-grid">
         <div className="card">
@@ -268,7 +268,7 @@ export function LeadsPage() {
           <div className="card crm-sync-card">
           <h3>Sincronizar lead de Meta</h3>
           <p className="page-subtitle">
-            Usa <code>pageId</code> y <code>leadgenId</code> reales para disparar la descarga completa del lead y verificar el flujo de punta a punta.
+            Descarga y verifica leads de Meta con IDs reales.
           </p>
           <div className="modal-form">
             <label>
@@ -338,7 +338,7 @@ export function LeadsPage() {
         <EmptyState
           icon="[]"
           title="Sin leads en este filtro"
-          description="Ajusta el filtro o conecta Meta Lead Ads para empezar a poblar el pipeline con prospectos reales."
+          description="Conecta Meta Lead Ads o ajusta el filtro."
         />
       ) : (
         <>

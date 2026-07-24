@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+﻿import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
@@ -31,8 +31,8 @@ export function DirectionPage() {
   ];
 
   return <div className="page direction-page">
-    <section className="direction-hero"><div><span className="page-eyebrow">DIRECCIÓN GENERAL</span><h1>Radar estratégico</h1><p>Una lectura honesta del negocio: qué sabemos hoy, de dónde proviene y qué falta instrumentar.</p></div><div className="direction-confidence"><strong>4</strong><span>indicadores<br />verificados</span><small>Datos trazables en VITAHUB</small></div></section>
-    <div className="direction-source-note"><span>i</span><p><strong>La métrica antes llamada “retención” fue corregida.</strong> El dato disponible sólo demuestra cobertura de entregas; no mide permanencia contractual.</p></div>
+    <section className="direction-hero"><div><span className="page-eyebrow">DIRECCIÓN GENERAL</span><h1>Radar estratégico</h1><p>Lectura estratégica del negocio.</p></div><div className="direction-confidence"><strong>4</strong><span>indicadores<br />verificados</span><small>Datos trazables en VITAHUB</small></div></section>
+    <div className="direction-source-note"><span>i</span><p><strong>La métrica fue corregida.</strong> Mide cobertura de entregas, no permanencia.</p></div>
     <section className="strategic-grid">{metrics.map((metric) => { const progress = metric.target ? Math.min(100, Math.round(metric.current * 100 / metric.target)) : null; return <article className={`strategic-card ${metric.tone}`} key={metric.title}><header><span>{metric.source}</span><i>Dato real</i></header><h2>{metric.title}</h2><strong>{metric.value}</strong><p>{metric.detail}</p>{progress == null ? <div className="metric-verified"><b>✓</b> Fuente operativa conectada</div> : <div className="target-progress"><span><i style={{ width: `${progress}%` }} /></span><small>{progress}% de meta {metric.targetText}</small></div>}</article>; })}</section>
     <section className="measurement-backlog"><header><div><span className="page-eyebrow">INSTRUMENTACIÓN PENDIENTE</span><h2>No inventamos lo que aún no se mide</h2></div><Link className="btn btn-outline" to="/settings">Revisar configuración</Link></header><div>{pending.map((item) => <article key={item.title}><span>Fuente pendiente</span><h3>{item.title}</h3><strong>{item.value}</strong><p>{item.detail}</p></article>)}</div></section>
   </div>;

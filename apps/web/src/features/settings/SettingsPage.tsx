@@ -259,8 +259,8 @@ export function SettingsPage() {
       <section className="settings-hero">
         <div>
           <span className="page-eyebrow">CONFIGURACIÓN CENTRAL</span>
-          <h1>Base simple para operar reservas y conversiones.</h1>
-          <p>Administrá identidad, accesos, empresas, Meta Pixel y Cloudinary.</p>
+          <h1>Configuración de reservas y Meta.</h1>
+          <p>Identidad, accesos y configuraciones.</p>
         </div>
         <div className="settings-hero-mark" aria-hidden="true"><span>LV</span><small>control</small></div>
       </section>
@@ -318,12 +318,12 @@ export function SettingsPage() {
 
       {activeTab === 'access' && (
         <div className="settings-access-grid">
-          <Link to="/clients" className="settings-access-card"><span>01</span><div><strong>Empresas y permisos</strong><p>Define qué funciones usa cada empresa: reservas, CRM y Meta Pixel + CAPI.</p></div><b>Configurar →</b></Link>
-          <Link to="/users" className="settings-access-card"><span>02</span><div><strong>Usuarios y accesos</strong><p>Crea cuentas, asócialas a empresa, bloquea accesos y fuerza cambio de contraseña inicial.</p></div><b>Administrar →</b></Link>
-          <Link to="/integrations" className="settings-access-card"><span>03</span><div><strong>Meta Pixel + CAPI</strong><p>Gestiona Pixels por empresa, tokens CAPI, evento de prueba y diagnóstico de conversiones.</p></div><b>Ver Meta →</b></Link>
-          <button type="button" className="settings-access-card" onClick={() => setCloudinaryOpen(true)}><span>04</span><div><strong>Cloudinary global</strong><p>Configura la cuenta compartida para subir logos e imágenes de fondo de los formularios públicos.</p></div><b>Configurar →</b></button>
-          <button type="button" className="settings-access-card" onClick={() => setMediaLibraryOpen(true)}><span>05</span><div><strong>Biblioteca de imágenes</strong><p>Explora, copia URLs y administra las imágenes subidas a Cloudinary.</p></div><b>Abrir →</b></button>
-          <section className="settings-session-card"><span>SESIÓN ACTUAL</span><strong>{user?.email}</strong><p>Al cerrar sesión se revoca el acceso del navegador y se elimina la credencial segura.</p><button className="btn btn-outline" type="button" onClick={logout}>Cerrar sesión de forma segura</button></section>
+          <Link to="/clients" className="settings-access-card"><span>01</span><div><strong>Empresas y permisos</strong><p>Reservas, CRM y Meta para cada empresa.</p></div><b>Configurar →</b></Link>
+          <Link to="/users" className="settings-access-card"><span>02</span><div><strong>Usuarios y accesos</strong><p>Cuentas, bloqueos y contraseñas.</p></div><b>Administrar →</b></Link>
+          <Link to="/integrations" className="settings-access-card"><span>03</span><div><strong>Meta Pixel + CAPI</strong><p>Pixels, tokens CAPI y diagnóstico.</p></div><b>Ver Meta →</b></Link>
+          <button type="button" className="settings-access-card" onClick={() => setCloudinaryOpen(true)}><span>04</span><div><strong>Cloudinary global</strong><p>Logos e imágenes de formularios.</p></div><b>Configurar →</b></button>
+          <button type="button" className="settings-access-card" onClick={() => setMediaLibraryOpen(true)}><span>05</span><div><strong>Biblioteca de imágenes</strong><p>Explora y administra imágenes.</p></div><b>Abrir →</b></button>
+          <section className="settings-session-card"><span>SESIÓN ACTUAL</span><strong>{user?.email}</strong><p>Revoca el acceso del navegador.</p><button className="btn btn-outline" type="button" onClick={logout}>Cerrar sesión de forma segura</button></section>
         </div>
       )}
 
