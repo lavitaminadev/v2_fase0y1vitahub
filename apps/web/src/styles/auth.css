@@ -32,3 +32,13 @@
   margin-bottom: 24px;
 }
 
+
+.onboarding-card h1{font-size:32px!important}
+.onboarding-features{display:grid;gap:12px;margin:16px 0 20px}
+.onboarding-features>div{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;gap:2px 12px;align-items:center;padding:12px;border-radius:12px;background:#f6f8f6}
+.onboarding-features>div span{font-size:24px;grid-row:1/3}
+.onboarding-features>div strong{font-size:13px;color:#294b40}
+.onboarding-features>div small{font-size:11px;color:#889991;line-height:1.4}
+.terms-list{display:flex;flex-direction:column;gap:10px;margin:16px 0 20px}
+.terms-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;background:#f6f8f6;cursor:pointer;font-size:12px;font-weight:600;color:#294b40;line-height:1.45}
+.terms-item input[type=checkbox]{margin-top:2px;flex-shrink:0;width:16px;height:16px;accent-color:#173f35}

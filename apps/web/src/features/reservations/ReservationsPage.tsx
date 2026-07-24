@@ -2,7 +2,6 @@ import { Fragment, useDeferredValue, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../core/api';
-import { ReservationsMetricsDashboard } from './ReservationsMetricsDashboard';
 import { Modal } from '../../shared/Modal';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
@@ -17,12 +16,6 @@ import { publicReservationUrl } from '../../core/public-url';
 interface Client { id: string; name: string }
 interface ReservationPage { items: Reservation[]; total: number; page: number; pageSize: number; pages: number }
 interface ReservationEvent { id: string; type: string; fromStatus?: string; toStatus?: string; actorType: string; metadata?: Record<string, string>; createdAt: string }
-interface Metrics {
-  totals: { total: string; pending: string; confirmed: string; attended: string; no_show: string; waitlist: string; cancelled: string };
-  funnel: { views: number; starts: number; completed: number; conversionRate: number | null };
-  daily: Array<{ day: string; hour: number; total: string }>;
-  sources: Array<{ source: string; campaign: string; total: string; attended: string }>;
-}
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente', confirmed: 'Confirmada', attended: 'Asistió', no_show: 'No asistió',
@@ -51,7 +44,6 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const [bookingNotes, setBookingNotes] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   const [manualForm, setManualForm] = useState({ formId: '', startsAt: '', guestName: '', guestEmail: '', guestPhone: '', partySize: 1, serviceId: '', resourceId: '', internalNotes: '', skipAvailability: false });
-  const [metricsDays, setMetricsDays] = useState(30);
   const [couponCreateOpen, setCouponCreateOpen] = useState(false);
   const [couponForm, setCouponForm] = useState({ code: '', discountType: 'percentage', value: 0, maxUses: 0, validFrom: '', validUntil: '', formIds: '', validDaysOfWeek: [] as number[] });
   const [viewingCouponCode, setViewingCouponCode] = useState('');
@@ -70,7 +62,6 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const query = new URLSearchParams({ page: String(page), pageSize: '20', ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.status ? { status: filters.status } : {}), ...(filters.formId ? { formId: filters.formId } : {}) });
   const { data: bookingPage, isFetching: loadingBookings } = useQuery<ReservationPage>({ queryKey: ['reservations', page, clientFilter, search, filters.status, filters.formId], queryFn: () => api.get(`/reservations?${query}`), enabled: tab === 'bookings', placeholderData: (previous) => previous });
   const bookings = bookingPage?.items || [];
-  const { data: metrics } = useQuery<Metrics>({ queryKey: ['reservation-metrics', clientFilter, metricsDays], queryFn: () => api.get(`/reservations/analytics/metrics${clientFilter ? `${clientQuery}&days=${metricsDays}` : `?days=${metricsDays}`}`), enabled: tab === 'metrics' });
   const { data: history = [], isLoading: historyLoading } = useQuery<ReservationEvent[]>({ queryKey: ['reservation-history', selectedBooking?.id], queryFn: () => api.get(`/reservations/${selectedBooking!.id}/history`), enabled: Boolean(selectedBooking) });
 
   const createMutation = useMutation({
@@ -141,13 +132,6 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
 
   if (isLoading) return <LoadingSpinner text="Preparando Reservas..." />;
   if (formsError) return <QueryErrorState title="No pudimos abrir Reservas y formularios" message={formsError.message} onRetry={() => void refetchForms()} retrying={fetchingForms} />;
-  const total = Number(metrics?.totals.total || 0);
-  const attended = Number(metrics?.totals.attended || 0);
-  const cancelled = Number(metrics?.totals.cancelled || 0);
-  const noShow = Number(metrics?.totals.no_show || 0);
-  const waitlist = Number(metrics?.totals.waitlist || 0);
-  const dailyTotals = (metrics?.daily || []).reduce<Record<string, number>>((days, entry) => ({ ...days, [entry.day.slice(0, 10)]: (days[entry.day.slice(0, 10)] || 0) + Number(entry.total) }), {});
-  const maxDailyTotal = Math.max(...Object.values(dailyTotals), 1);
   const formPath = (id: string) => clientView ? `/portal/reservations/forms/${id}` : `/reservations/forms/${id}`;
   const formPublicUrl = (form: ReservationForm) => publicReservationUrl(form.publicSlug, form.publicUrl);
   const clientForms = forms.filter((form) => !clientFilter || form.clientId === clientFilter);
@@ -219,7 +203,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
     </section>}
 
     {tab === 'metrics' && <section style={{ padding: '24px', background: '#fafbfc' }}>
-      <ReservationsMetricsDashboard metrics={metrics} bookingPage={bookingPage} metricsDays={metricsDays} onMetricsDaysChange={setMetricsDays} />
+
     </section>}
 
     {tab === 'coupons' && <section>
