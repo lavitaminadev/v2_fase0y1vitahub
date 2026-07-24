@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../../core/api';
+import './PublicReservationPage.premium.css';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import type { FormField, ReservationForm } from './types';
 import { plainDateInZone } from './local-time';
