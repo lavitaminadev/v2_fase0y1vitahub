@@ -4,6 +4,7 @@ import { ReservationForm } from './domain/reservation-form.entity';
 import { Reservation } from './domain/reservation.entity';
 import { AvailabilityBlock } from './domain/availability-block.entity';
 import { ReservationsService } from './application/reservations.service';
+import { ReservationsBulkImportService } from './application/bulk-import.service';
 import { ReservationsController } from './reservations.controller';
 import { PublicReservationsController } from './public-reservations.controller';
 import { ReservationEvent } from './domain/reservation-event.entity';
@@ -15,5 +16,5 @@ import { MetaModule } from '../integrations/meta/meta.module';
 import { NotificationsModule } from '../../core/notifications/notifications.module';
 import { AuditModule } from '../../core/audit/audit.module';
 
-@Module({ imports: [TypeOrmModule.forFeature([ReservationForm, Reservation, AvailabilityBlock, ReservationEvent, ReservationFormEvent, ReservationCoupon]), CrmModule, GoogleModule, MetaModule, NotificationsModule, AuditModule], providers: [ReservationsService], controllers: [ReservationsController, PublicReservationsController], exports: [ReservationsService] })
+@Module({ imports: [TypeOrmModule.forFeature([ReservationForm, Reservation, AvailabilityBlock, ReservationEvent, ReservationFormEvent, ReservationCoupon]), CrmModule, GoogleModule, MetaModule, NotificationsModule, AuditModule], providers: [ReservationsService, ReservationsBulkImportService], controllers: [ReservationsController, PublicReservationsController], exports: [ReservationsService] })
 export class ReservationsModule {}

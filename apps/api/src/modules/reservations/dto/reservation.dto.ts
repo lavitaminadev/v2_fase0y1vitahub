@@ -80,6 +80,16 @@ export class CreateManualReservationDto {
   @IsOptional() @IsString() @MaxLength(10000) internalNotes?: string;
 }
 
+export class ImportReservationsDto {
+  @IsUUID() formId: string;
+  /** Contenido del CSV en texto plano. */
+  @IsString() @MaxLength(1_000_000) csvContent: string;
+  /** Sólo valida y devuelve la vista previa, sin crear nada. */
+  @IsOptional() @IsBoolean() dryRun?: boolean;
+  /** Para cargar histórico que ya ocurrió. */
+  @IsOptional() @IsBoolean() skipAvailability?: boolean;
+}
+
 export class ListReservationsDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;

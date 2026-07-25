@@ -1,13 +1,15 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import type { Response } from 'express';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { ReservationsService } from './application/reservations.service';
-import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, ReservationScopeDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
+import { ReservationsBulkImportService } from './application/bulk-import.service';
+import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ImportReservationsDto, ListReservationsDto, ReservationScopeDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
 
 @ApiTags('Reservas')
 @ApiBearerAuth()
@@ -17,6 +19,7 @@ export class ReservationsController {
   constructor(
     private readonly service: ReservationsService,
     private readonly accountAccess: AccountAccessService,
+    private readonly bulkImport: ReservationsBulkImportService,
   ) {}
 
   private publicOrigin(): string | undefined {
@@ -142,6 +145,21 @@ export class ReservationsController {
   async createManual(@Req() req: AuthenticatedRequest, @Body() dto: CreateManualReservationDto) {
     const scope = await this.scope(req);
     return this.service.createManual(req.organizationId, req.user.id, dto, scope.clientId, scope.clientIds);
+  }
+
+  @Post('import')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async importReservations(@Req() req: AuthenticatedRequest, @Body() dto: ImportReservationsDto) {
+    const scope = await this.scope(req);
+    // La vista previa no escribe nada: valida el archivo y devuelve fila a fila
+    // qué se importaría y qué errores hay, para revisar antes de confirmar.
+    if (dto.dryRun) return this.bulkImport.parse(dto.csvContent, dto.formId);
+    return this.bulkImport.import(req.organizationId, req.user.id, dto.csvContent, dto.formId, {
+      skipAvailability: dto.skipAvailability,
+      clientId: scope.clientId,
+      clientIds: scope.clientIds,
+    });
   }
 
   @Get()
