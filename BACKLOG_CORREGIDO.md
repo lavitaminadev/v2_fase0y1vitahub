@@ -135,14 +135,43 @@ No hacer. Ya existe, o no aplica a la plataforma.
 
 ## 📋 PARTE 4: BACKLOG REAL
 
-| # | Task | Horas | Estado | Bloqueo |
-|---|---|---|---|---|
-| 1 | GA4 tracking | 5h | ✅ **Hecho** (`1fa3de5`) | — |
-| 2 | Ubicación aproximada → Meta CAPI | 4h | ✅ **Hecho** (`14d8470`) | — |
-| 3 | Google Ads: subida de conversiones | 6h | 🟡 **Servicio hecho** (`0de500b`); falta outbox + config | Ver abajo |
-| 4 | Importación masiva CSV | 8h | Pendiente | — |
-| 5 | Feature flags: extender a 28 módulos | 6h | Pendiente | — |
-| 6 | Medir cobertura real de tests | 1h | Pendiente | Correr `vitest --coverage` |
+| # | Task | Horas | Estado |
+|---|---|---|---|
+| 1 | GA4 tracking | 5h | ✅ Hecho (`1fa3de5`) |
+| 2 | Ubicación aproximada → Meta CAPI | 4h | ✅ Hecho (`14d8470`) |
+| 3 | Google Ads: servicio de conversiones | 6h | ✅ Hecho (`0de500b`) |
+| 4 | Google Ads: outbox, cron y wiring | 7h | ✅ Hecho (`1f65746`) |
+| 5 | Feature flag `googleConversions` | 2h | ✅ Hecho (`b605b25`) |
+| 6 | Importación masiva CSV | 8h | ✅ Hecho (`3514651`) |
+| 7 | Medir cobertura real de tests | 1h | ✅ Hecho (ver abajo) |
+
+**Backlog vaciado.** 233/233 tests pasan, `tsc` limpio en API y web.
+
+### Cobertura real de tests
+
+Otra afirmación falsa de la auditoría: decía "<10%". La medición real
+(`npm run test:cov` en `apps/api`) da:
+
+| Métrica | Cobertura |
+|---|---|
+| Statements | 58.1% |
+| Branches | 41.0% |
+| Functions | 51.3% |
+| **Lines** | **63.3%** |
+
+Bien cubierto: `shared` 92.6%, `modules/integrations` 88.5%, `core/tenancy` 97.3%,
+`modules/approvals` 85.1%.
+
+Puntos débiles reales, si se quiere subir cobertura:
+`core/client-scope` 5.6%, `core/errors` 43.1%, `core/audit` 51.9%,
+`modules/crm/leads` 56.0%.
+
+### Feature flags: por qué no se extendió a los 28 módulos
+
+Añadir una clave por módulo habría sido cosmético: claves que no controlan
+nada. Las capabilities valen cuando algo las verifica. Se añadió
+`googleConversions`, que sí gatea el envío de datos personales a Google —
+simétrica a `metaConversions` y desactivada por defecto.
 
 ### Resuelto: geolocalización sin proveedor externo
 
@@ -160,21 +189,28 @@ La pregunta era cómo saber la zona/región aproximada sin pagar un proveedor.
 
 Implementado en `apps/api/src/shared/geo-inference.ts`, sin dependencias nuevas.
 
-### Google Ads: qué falta para cerrar el circuito
+### Google Ads: circuito cerrado
 
-`GoogleConversionsService` ya construye y sube el payload (con gclid o
-enhanced conversions), y está cubierto por 13 tests. Falta:
+La integración con Google era **solo de entrada**: `google-data.service.ts`
+lee métricas de Ads y GA4 hacia `integration_metric`, pero nada reportaba
+conversiones de vuelta. Y el `gclid` ya se capturaba en `Reservation.clickId`
+desde la URL del anuncio, sin que ningún consumidor lo usara.
 
-- **Outbox + reintentos**: espejo de `meta-conversion-outbox` (entidad,
-  migración, servicio, y un `processPending` colgado del cron de cPanel que ya
-  existe en `core/cron`). ~4h.
-- **Config por cliente**: el `conversionAction` (`customers/{id}/conversionActions/{id}`)
-  necesita almacenarse por cliente. `IntegrationAccount` ya existe por cliente
-  para `google_ads`; es el lugar natural. ~2h + UI.
-- **Wiring**: llamar al servicio donde hoy se encola Meta
-  (`reservations.service.ts:enqueueMetaConversion`). ~1h.
+Ahora el circuito está completo:
 
-**Total accionable restante: ~22h.**
+- `GoogleConversionsService` construye y sube el payload (gclid o enhanced
+  conversions con identificadores hasheados).
+- `google_conversion_outbox` (migración 0058) da persistencia y reintentos con
+  backoff exponencial, espejo de `meta_conversion_outbox`.
+- `/cron/google-ads` y `/cron/google-ads/diagnostics`, disparados por el cron
+  de cPanel igual que `meta-capi`.
+- La acción de conversión por cliente se resuelve desde
+  `IntegrationAccount.metadata.conversionActions`.
+
+**Configuración pendiente del operador** (no es código): registrar el
+`conversionActionId` de cada cliente en la cuenta de Ads correspondiente y
+activarle la capability `googleConversions`. Sin eso, el envío se omite en
+silencio y la reserva funciona igual.
 
 ---
 

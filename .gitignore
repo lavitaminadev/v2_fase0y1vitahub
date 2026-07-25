@@ -27,3 +27,6 @@ coverage/
 .claude/caveman/
 .claude/skills-345/
 .claude/worktrees/
+
+# Credenciales en texto plano — nunca versionar
+docs/ACCESOS.md

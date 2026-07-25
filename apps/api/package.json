@@ -11,7 +11,8 @@
     "start:prod": "node dist/main",
     "start:dev": "ts-node src/main.ts",
     "lint": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "test:cov": "vitest run --config vitest.config.ts --coverage"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -56,6 +57,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/passport-jwt": "^4.0.0",
     "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
