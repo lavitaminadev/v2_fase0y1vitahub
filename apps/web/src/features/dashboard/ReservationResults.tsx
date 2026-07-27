@@ -62,8 +62,11 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
  *
  * @param clientId - Acota las métricas a un cliente. Sin él, el backend responde según el
  *   alcance de cuentas del usuario autenticado.
+ * @param headingLevel - Nivel del encabezado del panel. Es 2 cuando el panel se incrusta bajo
+ *   el título de otra vista, y 1 cuando el panel es el contenido principal de la ruta.
  */
-export function ReservationResults({ clientId }: { clientId?: string } = {}) {
+export function ReservationResults({ clientId, headingLevel = 2 }: { clientId?: string; headingLevel?: 1 | 2 } = {}) {
+  const Heading = headingLevel === 1 ? 'h1' : 'h2';
   const [days, setDays] = useState(30);
   const [showTable, setShowTable] = useState(false);
   const { data, isLoading, error, refetch, isFetching } = useQuery<Metrics>({
@@ -125,7 +128,7 @@ export function ReservationResults({ clientId }: { clientId?: string } = {}) {
     <div className="section viz-root">
       <div className="section-title-row">
         <div>
-          <h2>Resultados de reservas</h2>
+          <Heading>Resultados de reservas</Heading>
           <p className="page-subtitle">De la visita a la asistencia: lo que se le devuelve a Meta como conversión.</p>
         </div>
         <div className="viz-controls">

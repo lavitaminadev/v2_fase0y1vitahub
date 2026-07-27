@@ -9,7 +9,8 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
 import { statusLabel } from '../../shared/status-labels';
 import { matchesSearch } from '../../shared/search';
-import { CrmNav } from './CrmNav';
+import { StatusTrafficLight } from '../../shared/StatusTrafficLight';
+import { CONTACT_STATUS_OPTIONS } from '../../shared/status-palette';
 import { useSearchParams } from 'react-router-dom';
 
 interface PageResult<T> { data: T[]; total: number }
@@ -23,8 +24,13 @@ const EMPTY_OPPORTUNITY = { name: '', amount: '', stage: 'new', probability: '20
 const EMPTY_INTERACTION = { type: 'call', description: '', date: '', leadId: '', contactId: '' };
 const STAGES = ['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
 
+/**
+ * Cabecera de las vistas del pipeline comercial de La Vitamina (oportunidades e
+ * interacciones), que se apoyan en los prospectos de la agencia y no en los contactos
+ * de campañas de los clientes.
+ */
 function WorkspaceHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action: () => void }) {
-  return <div className="page-header"><div><span className="page-eyebrow">{eyebrow}</span><h1>{title}</h1><p className="page-subtitle">{description}</p></div><button type="button" className="btn btn-primary" onClick={action}>+ Nuevo registro</button></div>;
+  return <div className="page-header"><div><span className="crm-scope is-agency">CRM de La Vitamina</span><span className="page-eyebrow">{eyebrow}</span><h1>{title}</h1><p className="page-subtitle">{description}</p></div><button type="button" className="btn btn-primary" onClick={action}>+ Nuevo registro</button></div>;
 }
 
 function DeleteRecordModal({ open, name, pending, error, onClose, onConfirm }: { open: boolean; name: string; pending: boolean; error?: Error | null; onClose: () => void; onConfirm: () => void }) {
@@ -52,12 +58,12 @@ interface ReservationContact {
  * Cubren el recorrido de un contacto: ingresa, reserva y termina asistiendo o no. Las
  * etapas del pipeline comercial de la agencia se administran en otra pantalla.
  */
-const CONTACT_STATUSES: Record<string, string> = {
-  new: 'Nuevo', reserved: 'Reservó', attended: 'Asistió', no_show: 'No asistió',
-};
+const CONTACT_STATUSES: Record<string, string> = Object.fromEntries(
+  CONTACT_STATUS_OPTIONS.map((option) => [option.value, option.label]),
+);
 
 /** Orden de presentación de los estados, según el recorrido del contacto. */
-const CONTACT_STATUS_ORDER = ['new', 'reserved', 'attended', 'no_show'] as const;
+const CONTACT_STATUS_ORDER = CONTACT_STATUS_OPTIONS.map((option) => option.value);
 
 /** Contactos por página. `PaginationDto` acepta hasta 100. */
 const CONTACTS_PAGE_SIZE = 50;
@@ -141,19 +147,20 @@ export function ContactsPage() {
     setTagging(null);
   };
 
-  return <div className="page"><CrmNav />
-  <div className="page-header"><div><span className="page-eyebrow">CONTACTOS DE CAMPAÑAS</span><h1>Contactos</h1><p className="page-subtitle">Personas que llegaron desde las campañas de cada cliente, incluidas las que reservaron.</p></div></div>
+  return <div className="page">
+  <div className="page-header"><div><span className="crm-scope is-client">CRM de los clientes</span><span className="page-eyebrow">CONTACTOS DE CAMPAÑAS</span><h1>Contactos</h1><p className="page-subtitle">Personas que llegaron desde las campañas de cada cliente, incluidas las que reservaron. El pipeline comercial de La Vitamina vive en Prospectos.</p></div></div>
 
-  <div className="contact-status-tiles" role="group" aria-label="Filtrar por estado del ciclo de reserva">
-    {CONTACT_STATUS_ORDER.map((status) => (
+  <div className="status-tiles" role="group" aria-label="Filtrar por estado del ciclo de reserva">
+    {CONTACT_STATUS_OPTIONS.map(({ value: status, color }) => (
       <button
         key={status}
         type="button"
-        className={`contact-status-tile is-${status} ${statusFilter === status ? 'is-active' : ''}`}
+        className={`status-tile ${statusFilter === status ? 'is-active' : ''}`}
+        style={{ '--tile-color': color } as React.CSSProperties}
         aria-pressed={statusFilter === status}
         onClick={() => updateFilter('status', statusFilter === status ? '' : status)}
       >
-        <span className="contact-status-tile-label">{CONTACT_STATUSES[status]}</span>
+        <span className="status-tile-label">{CONTACT_STATUSES[status]}</span>
         <strong>{countsQuery.isLoading ? '—' : statusCounts[status]}</strong>
         {status === 'attended' && attendanceRate !== null && <small>{attendanceRate}% de asistencia</small>}
         {status !== 'attended' && <small>{statusFilter === status ? 'Filtro activo' : 'Ver solo estos'}</small>}
@@ -165,7 +172,7 @@ export function ContactsPage() {
     { key: 'name', label: 'Persona', sortable: true, render: (contact) => <div className="user-cell"><strong>{contact.name}</strong><small>{contact.email || contact.phone || 'Sin canal de contacto'}</small></div> },
     { key: 'clientId', label: 'Cliente', sortable: true, render: (contact) => contact.clientId ? (clientNameById.get(contact.clientId) ?? 'Cliente no encontrado') : 'Sin cliente' },
     { key: 'phone', label: 'Teléfono', render: (contact) => contact.phone || '-' },
-    { key: 'status', label: 'Estado', sortable: true, render: (contact) => <div className="contact-status-cell"><span className={`crm-stage is-${contact.status}`}>{CONTACT_STATUSES[contact.status] || contact.status}</span><select className="input input-sm" aria-label={`Cambiar estado de ${contact.name}`} value={contact.status} disabled={statusMutation.isPending} onChange={(event) => statusMutation.mutate({ id: contact.id, status: event.target.value })}>{CONTACT_STATUS_ORDER.map((status) => <option key={status} value={status}>{CONTACT_STATUSES[status]}</option>)}</select></div> },
+    { key: 'status', label: 'Estado', sortable: true, render: (contact) => <div className="contact-status-cell"><StatusTrafficLight status={contact.status} label={contact.name} options={CONTACT_STATUS_OPTIONS} disabled={statusMutation.isPending} onChange={(status) => statusMutation.mutate({ id: contact.id, status })} /></div> },
     { key: 'source', label: 'Origen', render: (contact) => <div className="crm-table-stack"><strong>{contact.sourceDetail || 'Reserva'}</strong><small>{contact.campaignName || 'Sin campaña'}</small></div> },
     { key: 'tags', label: 'Etiquetas', render: (contact) => <div className="contact-tags">{contact.tags?.map((tag) => <span key={tag} className="tag-chip">{tag}</span>) || <small>Sin etiquetas</small>}<button type="button" className="btn btn-outline btn-xs" onClick={() => { setTagging(contact); setTagInput((contact.tags || []).join(', ')); }}>Editar</button></div> },
     { key: 'createdAt', label: 'Creado', sortable: true, render: (contact) => contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('es-CL') : '-' },

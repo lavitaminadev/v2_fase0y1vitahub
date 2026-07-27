@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { triggerToast } from '../../shared/Toast';
 import { ImageUpload } from '../../shared/ImageUpload';
 import type { DesignConfig, FormField, ReservationForm } from './types';
-import { localInputToUtc } from './local-time';
+import { localInputToUtc, plainDateInZone } from './local-time';
 import { contrastText, normalizeHexColor } from '../../shared/color-contrast';
 import { APP_PUBLIC_URL_CONFIGURED, APP_PUBLIC_URL_IS_HTTPS, publicReservationUrl } from '../../core/public-url';
 import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible } from './booking-utils';
@@ -117,7 +117,7 @@ export function ReservationBuilderPage() {
   const [copied, setCopied] = useState(false);
   const [block, setBlock] = useState({ startsAt: '', endsAt: '', reason: '' });
   const [blockRepeat, setBlockRepeat] = useState(1);
-  const [fullDayDate, setFullDayDate] = useState('');
+  const [blockMonth, setBlockMonth] = useState(0);
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop');
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [confirmDeleteField, setConfirmDeleteField] = useState<string | null>(null);
@@ -165,7 +165,7 @@ export function ReservationBuilderPage() {
   }, [change, draft, saveMutation]);
   const blockMutation = useMutation({
     mutationFn: (body: { startsAt: string; endsAt: string; reason?: string }) => api.post(`/reservations/forms/${id}/blocks`, { ...body, startsAt: localInputToUtc(body.startsAt, draft?.timezone || 'America/Santiago'), endsAt: localInputToUtc(body.endsAt, draft?.timezone || 'America/Santiago') }),
-    onSuccess: () => { setBlock({ startsAt: '', endsAt: '', reason: '' }); setBlockRepeat(1); setFullDayDate(''); qc.invalidateQueries({ queryKey: ['reservation-blocks', id] }); triggerToast('Bloqueo agregado'); },
+    onSuccess: () => { setBlock({ startsAt: '', endsAt: '', reason: '' }); setBlockRepeat(1); qc.invalidateQueries({ queryKey: ['reservation-blocks', id] }); triggerToast('Bloqueo agregado'); },
   });
   const batchBlockMutation = useMutation({
     mutationFn: async (body: { startsAt: string; endsAt: string; reason?: string; repeat: number }) => {
@@ -186,13 +186,56 @@ export function ReservationBuilderPage() {
       });
       return api.post(`/reservations/forms/${id}/blocks/batch`, dtos);
     },
-    onSuccess: () => { setBlock({ startsAt: '', endsAt: '', reason: '' }); setBlockRepeat(1); setFullDayDate(''); qc.invalidateQueries({ queryKey: ['reservation-blocks', id] }); },
+    onSuccess: () => { setBlock({ startsAt: '', endsAt: '', reason: '' }); setBlockRepeat(1); qc.invalidateQueries({ queryKey: ['reservation-blocks', id] }); },
   });
-  const blockFullDay = () => {
-    if (!fullDayDate || !draft) return;
-    const startsAt = `${fullDayDate}T00:00`;
-    const endsAt = `${fullDayDate}T23:59`;
-    blockMutation.mutate({ startsAt, endsAt, reason: 'Cierre de día completo' });
+  const timezone = draft?.timezone || 'America/Santiago';
+  /**
+   * Reparte los bloqueos existentes por fecha local del formulario.
+   *
+   * `closed` guarda el bloqueo que cubre el día entero, que es el que se puede quitar
+   * tocando el día. `partial` marca los días con cierres de solo algunas horas, que se
+   * señalan pero se administran desde la lista.
+   */
+  const blocksByDate = useMemo(() => {
+    const closed = new Map<string, string>();
+    const partial = new Set<string>();
+    for (const item of blocks) {
+      const start = new Date(item.startsAt);
+      const end = new Date(item.endsAt);
+      for (let cursor = new Date(start); cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+        const key = plainDateInZone(cursor, timezone);
+        const dayStart = new Date(localInputToUtc(`${key}T00:00`, timezone));
+        const dayEnd = new Date(localInputToUtc(`${key}T23:59`, timezone));
+        if (start <= dayStart && end >= dayEnd) closed.set(key, item.id);
+        else partial.add(key);
+      }
+    }
+    return { closed, partial };
+  }, [blocks, timezone]);
+
+  /** Rejilla del mes visible, alineada a semanas que empiezan en lunes. */
+  const blockCalendar = useMemo(() => {
+    const base = new Date();
+    const anchor = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + blockMonth, 1));
+    const year = anchor.getUTCFullYear();
+    const month = anchor.getUTCMonth();
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const leading = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+    const cells: Array<{ key: string; day: number } | null> = Array.from({ length: leading }, () => null);
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({ key: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`, day });
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    const weeks: typeof cells[] = [];
+    for (let index = 0; index < cells.length; index += 7) weeks.push(cells.slice(index, index + 7));
+    return { label: anchor.toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: 'UTC' }), weeks };
+  }, [blockMonth]);
+
+  /** Cierra el día si está abierto; si ya estaba cerrado por completo, pide confirmar el retiro. */
+  const toggleDayClosed = (dateKey: string) => {
+    const existing = blocksByDate.closed.get(dateKey);
+    if (existing) { setConfirmDeleteBlock(existing); return; }
+    blockMutation.mutate({ startsAt: `${dateKey}T00:00`, endsAt: `${dateKey}T23:59`, reason: 'Cierre de día completo' });
   };
   const deleteBlock = useMutation({ mutationFn: (blockId: string) => api.delete(`/reservations/blocks/${blockId}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ['reservation-blocks', id] }); triggerToast('Bloqueo eliminado'); } });
 
@@ -284,10 +327,46 @@ export function ReservationBuilderPage() {
     </Fragment>}
 
     {step === 1 && <div className="builder-stage"><div className="stage-heading"><span className="page-eyebrow">AGENDA Y CAPACIDAD</span><h2>¿Cuándo pueden reservar?</h2><p>Define el horario habitual y bloqueos.</p></div><div className="schedule-layout">
-      <div className="schedule-card"><h3>Reglas generales</h3><div className="schedule-settings schedule-settings-wide"><label>Zona horaria<select className="input" value={draft.timezone} onChange={(event) => change({ timezone: event.target.value })}>{TIMEZONES.map((timezone) => <option key={timezone}>{timezone}</option>)}</select></label><label>Duración<select className="input" value={draft.durationMinutes} onChange={(event) => change({ durationMinutes: Number(event.target.value) })}>{[15, 30, 45, 60, 90, 120].map((value) => <option key={value} value={value}>{value} minutos</option>)}</select></label><label>Separación (min)<input className="input" type="number" min="0" max="240" value={draft.bufferMinutes} onChange={(event) => change({ bufferMinutes: Number(event.target.value) })} /></label><label>Cupos por bloque<input className="input" type="number" min="1" max="500" value={draft.capacityPerSlot} onChange={(event) => change({ capacityPerSlot: Number(event.target.value) })} /></label><label>Tope diario de reservas<small>0 = sin límite. Al alcanzarlo, el día se muestra completo.</small><input className="input" type="number" min="0" max="5000" value={draft.dailyCapacity ?? 0} onChange={(event) => change({ dailyCapacity: Number(event.target.value) })} /></label><label>Anticipación mínima (h)<input className="input" type="number" min="0" value={draft.minimumNoticeHours} onChange={(event) => change({ minimumNoticeHours: Number(event.target.value) })} /></label><label>Ventana máxima (días)<input className="input" type="number" min="1" max="365" value={draft.maximumAdvanceDays} onChange={(event) => change({ maximumAdvanceDays: Number(event.target.value) })} /></label>            <label>Confirmación<select className="input" value={draft.confirmationMode} onChange={(event) => change({ confirmationMode: event.target.value })}><option value="automatic">Automática</option><option value="manual">Revisión manual</option></select></label>
+      <div className="schedule-card">
+        <h3>Cuánto puedes recibir</h3>
+        <div className="schedule-capacity">
+          <label className="capacity-primary">Tope diario de reservas<small>0 = sin límite. Al alcanzarlo, el día se muestra completo en la página pública.</small><input className="input" type="number" min="0" max="5000" value={draft.dailyCapacity ?? 0} onChange={(event) => change({ dailyCapacity: Number(event.target.value) })} /></label>
+          <label>Cupos por bloque<input className="input" type="number" min="1" max="500" value={draft.capacityPerSlot} onChange={(event) => change({ capacityPerSlot: Number(event.target.value) })} /></label>
+          <label>Duración<select className="input" value={draft.durationMinutes} onChange={(event) => change({ durationMinutes: Number(event.target.value) })}>{[15, 30, 45, 60, 90, 120].map((value) => <option key={value} value={value}>{value} minutos</option>)}</select></label>
+        </div>
+        <details className="schedule-advanced">
+          <summary>Ajustes avanzados</summary>
+          <div className="schedule-settings schedule-settings-wide"><label>Zona horaria<select className="input" value={draft.timezone} onChange={(event) => change({ timezone: event.target.value })}>{TIMEZONES.map((timezone) => <option key={timezone}>{timezone}</option>)}</select></label><label>Separación (min)<input className="input" type="number" min="0" max="240" value={draft.bufferMinutes} onChange={(event) => change({ bufferMinutes: Number(event.target.value) })} /></label><label>Anticipación mínima (h)<input className="input" type="number" min="0" value={draft.minimumNoticeHours} onChange={(event) => change({ minimumNoticeHours: Number(event.target.value) })} /></label><label>Ventana máxima (días)<input className="input" type="number" min="1" max="365" value={draft.maximumAdvanceDays} onChange={(event) => change({ maximumAdvanceDays: Number(event.target.value) })} /></label><label>Confirmación<select className="input" value={draft.confirmationMode} onChange={(event) => change({ confirmationMode: event.target.value })}><option value="automatic">Automática</option><option value="manual">Revisión manual</option></select></label>
             <label className="wide">Notificaciones al equipo<small>Correos que recibirán aviso por cada reserva (separados por coma).</small><input className="input" value={(draft.teamNotifications || []).join(', ')} onChange={(event) => change({ teamNotifications: event.target.value.split(/[,;\s]+/).filter(Boolean) })} placeholder="equipo@empresa.cl" /></label>
-            <label className="toggle-row"><input type="checkbox" checked={draft.designConfig?.couponEnabled !== 'false'} onChange={(event) => change({ designConfig: { ...draft.designConfig, couponEnabled: event.target.checked ? 'true' : 'false' } })} /> Habilitar cupón promocional en el formulario</label></div><h3>Semana habitual</h3><div className="week-editor week-editor-multi">{DAYS.map((label, uiDay) => { const jsDay = UI_TO_JS_DAY[uiDay]; const dayWindows = windows.map((window, index) => ({ window, index })).filter((entry) => entry.window.day === jsDay); return <div key={label} className={dayWindows.length ? 'enabled' : ''}><label className="toggle-row"><input type="checkbox" checked={dayWindows.length > 0} onChange={() => toggleDay(uiDay)} /><strong>{label}</strong></label><div className="day-windows">{dayWindows.map(({ window, index }) => <div key={`${jsDay}-${index}`}><input aria-label={`Inicio ${label}`} type="time" value={window.start} onChange={(event) => updateWindow(index, { start: event.target.value })} /><span>a</span><input aria-label={`Fin ${label}`} type="time" value={window.end} onChange={(event) => updateWindow(index, { end: event.target.value })} /><button type="button" aria-label={`Quitar franja de ${label}`} onClick={() => removeWindow(index)}>×</button></div>)}{dayWindows.length > 0 && dayWindows.length < 4 && <button type="button" className="add-window" onClick={() => addWindow(uiDay)}>+ Agregar franja</button>}{dayWindows.length === 0 && <em>Cerrado</em>}</div></div>; })}</div></div>
-      <aside className="schedule-card"><h3>Cierres y bloqueos</h3><p className="page-subtitle">Bloquea una hora, un día completo o un periodo especial.</p><form className="block-form" onSubmit={(event) => { event.preventDefault(); if (blockRepeat > 1) { batchBlockMutation.mutate({ ...block, repeat: blockRepeat }); } else { blockMutation.mutate(block); } }}><label>Desde<input className="input" type="datetime-local" required value={block.startsAt} onChange={(event) => setBlock({ ...block, startsAt: event.target.value })} /></label><label>Hasta<input className="input" type="datetime-local" required value={block.endsAt} onChange={(event) => setBlock({ ...block, endsAt: event.target.value })} /></label><label>Motivo<input className="input" value={block.reason} onChange={(event) => setBlock({ ...block, reason: event.target.value })} placeholder="Feriado, evento interno..." /></label><label>Repetir durante<small>Cantidad de semanas consecutivas.</small><input className="input" type="number" min="1" max="12" value={blockRepeat} onChange={(event) => setBlockRepeat(Number(event.target.value))} /></label>{(blockMutation.error || batchBlockMutation.error) && <div className="alert alert-error">{(blockMutation.error || batchBlockMutation.error)?.message}</div>}<button className="btn btn-primary btn-block" disabled={blockMutation.isPending || batchBlockMutation.isPending}>{batchBlockMutation.isPending ? 'Creando bloqueos...' : blockRepeat > 1 ? `Crear ${blockRepeat} bloqueos` : 'Agregar bloqueo'}</button></form><div className="block-full-day"><label>Cerrar día completo<small>Selecciona una fecha para cerrarla toda.</small><input className="input" type="date" value={fullDayDate} onChange={(event) => setFullDayDate(event.target.value)} /></label><button className="btn btn-outline btn-block" disabled={!fullDayDate || blockMutation.isPending || batchBlockMutation.isPending} onClick={blockFullDay}>Cerrar día</button></div><div className="block-list">{blocks.length === 0 ? <p className="page-subtitle">No hay bloqueos futuros.</p> : blocks.map((item) => <div key={item.id}><div><strong>{item.reason || 'Agenda cerrada'}</strong><small>{new Date(item.startsAt).toLocaleString('es-CL')} → {new Date(item.endsAt).toLocaleString('es-CL')}</small></div><button onClick={() => setConfirmDeleteBlock(item.id)}>Quitar</button></div>)}</div></aside>
+            <label className="toggle-row wide"><input type="checkbox" checked={draft.designConfig?.couponEnabled !== 'false'} onChange={(event) => change({ designConfig: { ...draft.designConfig, couponEnabled: event.target.checked ? 'true' : 'false' } })} /> Aceptar cupones promocionales en este formulario</label></div>
+        </details>
+        <h3>Semana habitual</h3><div className="week-editor week-editor-multi">{DAYS.map((label, uiDay) => { const jsDay = UI_TO_JS_DAY[uiDay]; const dayWindows = windows.map((window, index) => ({ window, index })).filter((entry) => entry.window.day === jsDay); return <div key={label} className={dayWindows.length ? 'enabled' : ''}><label className="toggle-row"><input type="checkbox" checked={dayWindows.length > 0} onChange={() => toggleDay(uiDay)} /><strong>{label}</strong></label><div className="day-windows">{dayWindows.map(({ window, index }) => <div key={`${jsDay}-${index}`}><input aria-label={`Inicio ${label}`} type="time" value={window.start} onChange={(event) => updateWindow(index, { start: event.target.value })} /><span>a</span><input aria-label={`Fin ${label}`} type="time" value={window.end} onChange={(event) => updateWindow(index, { end: event.target.value })} /><button type="button" aria-label={`Quitar franja de ${label}`} onClick={() => removeWindow(index)}>×</button></div>)}{dayWindows.length > 0 && dayWindows.length < 4 && <button type="button" className="add-window" onClick={() => addWindow(uiDay)}>+ Agregar franja</button>}{dayWindows.length === 0 && <em>Cerrado</em>}</div></div>; })}</div></div>
+      <aside className="schedule-card"><h3>Cierres y bloqueos</h3><p className="page-subtitle">Toca un día para cerrarlo. Vuelve a tocarlo para reabrirlo.</p>
+        <div className="block-calendar">
+          <div className="block-calendar-nav"><button type="button" className="btn btn-outline btn-xs" disabled={blockMonth <= 0} onClick={() => setBlockMonth((value) => Math.max(0, value - 1))}>←</button><span>{blockCalendar.label}</span><button type="button" className="btn btn-outline btn-xs" onClick={() => setBlockMonth((value) => value + 1)}>→</button></div>
+          <div className="block-calendar-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          {blockCalendar.weeks.map((week, weekIndex) => <div className="block-calendar-week" key={weekIndex}>{week.map((cell, cellIndex) => {
+            if (!cell) return <span key={`empty-${cellIndex}`} className="block-calendar-day is-empty" />;
+            const isClosed = blocksByDate.closed.has(cell.key);
+            const isPartial = !isClosed && blocksByDate.partial.has(cell.key);
+            return <button
+              type="button"
+              key={cell.key}
+              className={`block-calendar-day ${isClosed ? 'is-closed' : ''} ${isPartial ? 'is-partial' : ''}`}
+              aria-pressed={isClosed}
+              aria-label={`${cell.day} de ${blockCalendar.label}${isClosed ? ', cerrado' : isPartial ? ', con horas bloqueadas' : ', abierto'}`}
+              disabled={blockMutation.isPending}
+              onClick={() => toggleDayClosed(cell.key)}
+            >{cell.day}</button>;
+          })}</div>)}
+          <div className="block-calendar-hint"><span className="dot closed" /> Cerrado <span className="dot partial" /> Horas bloqueadas</div>
+        </div>
+        {blockMutation.error && <div className="alert alert-error">{blockMutation.error.message}</div>}
+        <details className="block-range">
+          <summary>Bloquear solo algunas horas</summary>
+          <form className="block-form" onSubmit={(event) => { event.preventDefault(); if (blockRepeat > 1) { batchBlockMutation.mutate({ ...block, repeat: blockRepeat }); } else { blockMutation.mutate(block); } }}><label>Desde<input className="input" type="datetime-local" required value={block.startsAt} onChange={(event) => setBlock({ ...block, startsAt: event.target.value })} /></label><label>Hasta<input className="input" type="datetime-local" required value={block.endsAt} onChange={(event) => setBlock({ ...block, endsAt: event.target.value })} /></label><label>Motivo<input className="input" value={block.reason} onChange={(event) => setBlock({ ...block, reason: event.target.value })} placeholder="Feriado, evento interno..." /></label><label>Repetir durante<small>Cantidad de semanas consecutivas.</small><input className="input" type="number" min="1" max="12" value={blockRepeat} onChange={(event) => setBlockRepeat(Number(event.target.value))} /></label>{batchBlockMutation.error && <div className="alert alert-error">{batchBlockMutation.error.message}</div>}<button className="btn btn-primary btn-block" disabled={blockMutation.isPending || batchBlockMutation.isPending}>{batchBlockMutation.isPending ? 'Creando bloqueos...' : blockRepeat > 1 ? `Crear ${blockRepeat} bloqueos` : 'Agregar bloqueo'}</button></form>
+        </details>
+        <div className="block-list">{blocks.length === 0 ? <p className="page-subtitle">No hay bloqueos futuros.</p> : blocks.map((item) => <div key={item.id}><div><strong>{item.reason || 'Agenda cerrada'}</strong><small>{new Date(item.startsAt).toLocaleString('es-CL')} → {new Date(item.endsAt).toLocaleString('es-CL')}</small></div><button onClick={() => setConfirmDeleteBlock(item.id)}>Quitar</button></div>)}</div></aside>
     </div></div>}
 
     {step === 2 && <div className="builder-stage"><div className="stage-heading"><span className="page-eyebrow">ENTORNO VISUAL</span><h2>Haz que la reserva se sienta propia.</h2><p>Personaliza logo, colores y mensaje sin afectar la claridad.</p></div><div className="design-studio"><div className="design-controls"><label>Título público<input className="input" value={draft.designConfig.title || ''} onChange={(event) => change({ designConfig: { ...draft.designConfig, title: event.target.value } })} /></label><label>Mensaje de bienvenida<textarea className="input" rows={4} value={draft.designConfig.welcome || ''} onChange={(event) => change({ designConfig: { ...draft.designConfig, welcome: event.target.value } })} /></label><ImageUpload

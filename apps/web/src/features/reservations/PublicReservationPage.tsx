@@ -80,7 +80,10 @@ export function PublicReservationPage() {
   }, [from, monthOffset, form]);
 
   const slotParams = new URLSearchParams({ from: fromDate, days: String(slotDays), ...(serviceId ? { serviceId } : {}), ...(resourceId ? { resourceId } : {}) });
-  const { data: slots = [], isFetching: loadingSlots } = useQuery<Slot[]>({ queryKey: ['public-slots', slug, fromDate, slotDays, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form), staleTime: 30_000, gcTime: 60_000 });
+  const { data: availability, isFetching: loadingSlots } = useQuery<{ slots: Slot[]; fullDays: string[] }>({ queryKey: ['public-slots', slug, fromDate, slotDays, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form), staleTime: 30_000, gcTime: 60_000 });
+  const slots = useMemo(() => availability?.slots ?? [], [availability]);
+  /** Dias que alcanzaron el tope diario: se muestran completos, no cerrados. */
+  const fullDays = useMemo(() => new Set(availability?.fullDays ?? []), [availability]);
 
   const pageTitle = useMemo(() => form ? `${form.name} · Reserva en línea · VITAHUB` : 'Reserva en línea · VITAHUB', [form]);
   const pageDescription = useMemo(() => form ? `Reserva tu hora para ${form.name}. ${form.designConfig?.welcome || 'Agenda fácil y segura.'}` : 'Agenda tu hora de forma fácil y segura.', [form]);
@@ -235,7 +238,7 @@ export function PublicReservationPage() {
     if (!form) return [];
     const [y, m, d] = fromDate.split('-').map(Number);
     const start = new Date(Date.UTC(y, m - 1, d));
-    const rawDays: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean }> = [];
+    const rawDays: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean; isFull: boolean }> = [];
     for (let i = 0; i < 28; i++) {
       const date = new Date(start);
       date.setUTCDate(date.getUTCDate() + i);
@@ -245,7 +248,7 @@ export function PublicReservationPage() {
       const key = `${year}-${month}-${dayNum}`;
       const weekday = new Intl.DateTimeFormat('es-CL', { weekday: 'short', timeZone: form.timezone }).format(date);
       const daySlots = slotsByDate.get(key) || [];
-      rawDays.push({ date: key, day: date.getUTCDate(), weekday, slots: daySlots, hasSlots: daySlots.length > 0 });
+      rawDays.push({ date: key, day: date.getUTCDate(), weekday, slots: daySlots, hasSlots: daySlots.length > 0, isFull: fullDays.has(key) });
     }
     // Agrupar en semanas que empiezan en lunes
     const weeks: typeof rawDays[] = [];
@@ -265,7 +268,7 @@ export function PublicReservationPage() {
     }
     if (currentWeek.length > 0) weeks.push(currentWeek);
     return { rawDays, weeks };
-  }, [fromDate, slotsByDate, form]);
+  }, [fromDate, slotsByDate, form, fullDays]);
 
   // ── Caminos de render ──
   if (isLoading) return <LoadingSpinner text="Cargando disponibilidad..." />;
@@ -354,8 +357,8 @@ export function PublicReservationPage() {
           {!loadingSlots && calendarDays.rawDays.length > 0 && <div>
             <div className="calendar-month-nav"><button type="button" className="btn btn-outline btn-xs" disabled={monthOffset <= 0} onClick={() => { setMonthOffset((m) => Math.max(0, m - 1)); setSelected(''); setSelectedDate(''); }}>← Mes anterior</button><span>{new Date(fromDate + 'T00:00:00').toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: form.timezone })}</span><button type="button" className="btn btn-outline btn-xs" onClick={() => { setMonthOffset((m) => m + 1); setSelected(''); setSelectedDate(''); }}>Mes siguiente →</button></div>
             <div className="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
-            <div className="calendar-grid">{calendarDays.weeks.map((week, weekIndex) => <div key={weekIndex} className="calendar-week">{week.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span></button>)}</div>)}</div>
-            <div className="calendar-hint"><span className="dot available" /> Disponible <span className="dot taken" /> Sin cupo</div>
+            <div className="calendar-grid">{calendarDays.weeks.map((week, weekIndex) => <div key={weekIndex} className="calendar-week">{week.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : day.isFull ? 'is-full' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} aria-label={`${day.weekday} ${day.day}${day.hasSlots ? '' : day.isFull ? ', completo' : ', cerrado'}`} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span>{day.isFull && !day.hasSlots && <span className="calendar-day-tag">Completo</span>}</button>)}</div>)}</div>
+            <div className="calendar-hint"><span className="dot available" /> Disponible <span className="dot full" /> Completo <span className="dot taken" /> Cerrado</div>
             {slotDays <= 60 && <button type="button" className="btn btn-outline btn-sm calendar-load-more" onClick={() => setSlotDays((d) => d + 14)}>Cargar más fechas</button>}
           </div>}
           {!loadingSlots && calendarDays.rawDays.length === 0 && <div className="no-slots"><strong>Sin horarios disponibles</strong><p>Prueba otro servicio o contacta al local.</p></div>}

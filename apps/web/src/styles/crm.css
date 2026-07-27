@@ -1,14 +1,11 @@
 /* CRM workspace: section nav and the leads pipeline board. */
 
 /* CRM workspace navigation */
-.crm-section-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 24px; padding: 6px; border: 1px solid #dce4dd; border-radius: 17px; background: #f4f7f2; }
-.crm-section-nav a { min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; padding: 13px; border-radius: 12px; color: #66766f; text-decoration: none; transition: transform .18s, background .18s, box-shadow .18s; }
-.crm-section-nav a:hover { transform: translateY(-1px); color: #173f35; }
-.crm-section-nav a.active { background: #fff; color: #173f35; box-shadow: 0 8px 24px rgba(25,62,52,.1); }
-.crm-section-nav a > span { grid-row: 1 / 3; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #e4ebe3; color: #60736b; font-size: 11px; font-weight: 900; }
-.crm-section-nav a.active > span { background: #173f35; color: #d7eb79; }
-.crm-section-nav strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; }
-.crm-section-nav small { overflow: hidden; color: #89958f; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+/* Marca de origen del CRM: distingue el pipeline de La Vitamina del CRM de sus clientes. */
+.crm-scope { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; padding: 5px 11px; border: 1px solid var(--scope-color); border-radius: 999px; background: color-mix(in srgb, var(--scope-color) 8%, #fff); color: var(--scope-color); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.crm-scope::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--scope-color); }
+.crm-scope.is-agency { --scope-color: #7040a0; }
+.crm-scope.is-client { --scope-color: #176f63; }
 .crm-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0 22px; }
 .crm-summary-grid article { min-height: 115px; display: grid; align-content: center; gap: 7px; padding: 20px 22px; border: 1px solid #e0e7df; border-radius: 16px; background: linear-gradient(145deg,#fff,#f7f9f4); box-shadow: 0 12px 32px rgba(25,62,52,.06); }
 .crm-summary-grid span { color: #7b8983; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
@@ -201,27 +198,23 @@
 }
 
 
-/* ── CRM Fase 1: contactos de reservas ───────────────────────────────────────
-   Cuatro estados del ciclo de reserva como tarjetas-filtro. El color acompana a
-   una etiqueta de texto en cada tarjeta: nunca es el unico portador del estado. */
-.contact-status-tiles { display: grid; grid-template-columns: repeat(4,minmax(140px,1fr)); gap: 10px; margin: 0 0 16px; }
-.contact-status-tile { --tile-color: #596562; display: grid; gap: 2px; padding: 13px 14px; text-align: left; border: 1px solid #dbe4dc; border-left: 3px solid var(--tile-color); border-radius: 12px; background: #fff; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
-.contact-status-tile:hover { border-color: var(--tile-color); }
-.contact-status-tile:focus-visible { outline: 2px solid var(--tile-color); outline-offset: 2px; }
-.contact-status-tile.is-active { border-color: var(--tile-color); box-shadow: inset 0 0 0 1px var(--tile-color); background: #f7faf7; }
-.contact-status-tile-label { color: #52605b; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-.contact-status-tile strong { color: #173f35; font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.contact-status-tile small { color: #75857e; font-size: 10px; font-weight: 700; }
-.contact-status-tile.is-new { --tile-color: #2a78d6; }
-.contact-status-tile.is-reserved { --tile-color: #1baf7a; }
-.contact-status-tile.is-attended { --tile-color: #1f7a46; }
-.contact-status-tile.is-no_show { --tile-color: #b5332d; }
+/* ── Tarjetas-filtro del ciclo de reserva ────────────────────────────────────
+   Las usan el CRM de contactos y la bandeja de reservas. El color llega por
+   `--tile-color` desde la paleta compartida y siempre acompana a una etiqueta de
+   texto: nunca es el unico portador del estado. */
+.status-tiles { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; margin: 0 0 16px; }
+.status-tile { --tile-color: #596562; display: grid; gap: 2px; padding: 13px 14px; text-align: left; border: 1px solid #dbe4dc; border-left: 3px solid var(--tile-color); border-radius: 12px; background: #fff; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+.status-tile:hover { border-color: var(--tile-color); }
+.status-tile:focus-visible { outline: 2px solid var(--tile-color); outline-offset: 2px; }
+.status-tile.is-active { border-color: var(--tile-color); box-shadow: inset 0 0 0 1px var(--tile-color); background: #f7faf7; }
+.status-tile-label { color: #52605b; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.status-tile strong { color: #173f35; font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.status-tile small { color: #75857e; font-size: 10px; font-weight: 700; }
 
-.contact-status-cell { display: grid; gap: 5px; justify-items: start; }
-.contact-status-cell .input-sm { min-width: 132px; padding: 4px 7px; font-size: 11px; }
+.contact-status-cell { display: grid; justify-items: start; }
 
 @media (max-width: 900px) {
-  .contact-status-tiles { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .status-tiles { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 .contact-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 16px 0 4px; }

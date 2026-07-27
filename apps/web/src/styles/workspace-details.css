@@ -142,7 +142,6 @@
   .analytics-register-form .btn { align-self: end; }
 }
 @media (max-width: 760px) {
-  .crm-section-nav { grid-template-columns: repeat(4,minmax(115px,1fr)); overflow-x: auto; }
   .crm-summary-grid { grid-template-columns: 1fr; }
   .client-hero { grid-template-columns: 1fr; min-height: 0; }
   .client-hero-actions { flex-wrap: wrap; }
@@ -179,7 +178,8 @@
 .reservation-status-summary button:hover, .reservation-status-summary button.active { border-color: #1e5b4c; background: #edf5f0; color: #153f35; }
 .reservation-status-summary strong { font: 600 22px Georgia,serif; }
 .reservation-status-summary span { font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
-.reservation-form-filters { display: grid; grid-template-columns: minmax(220px,1fr) minmax(180px,.55fr) minmax(150px,.35fr); gap: 9px; margin-bottom: 18px; }
+.reservation-form-filters { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 18px; }
+.reservation-form-filters .input:first-child { flex: 1 1 320px; }
 .form-client-name { display: inline-flex; margin: 0 0 12px; padding: 5px 8px; border-radius: 99px; background: #edf3ee; color: #52675f; font-size: 9px; font-weight: 800; }
 .booking-answers { margin: 18px 0; padding: 16px; border: 1px solid #dfe7df; border-radius: 14px; background: #f8faf7; }
 .booking-answers h4 { margin-top: 0; }

@@ -250,7 +250,7 @@ export function LeadsPage() {
 
   return (
     <div className="page">
-      <div className="page-header"><div><span className="page-eyebrow">PIPELINE DE LA VITAMINA</span><h1>Prospectos de la agencia</h1><p className="page-subtitle">Prospectos propios de La Vitamina, distintos de los contactos de campañas de los clientes.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
+      <div className="page-header"><div><span className="crm-scope is-agency">CRM de La Vitamina</span><span className="page-eyebrow">PIPELINE COMERCIAL</span><h1>Prospectos de la agencia</h1><p className="page-subtitle">Prospectos propios de La Vitamina, distintos de los contactos de campañas de los clientes.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
 
       <div className="card-grid">
         <div className="card">

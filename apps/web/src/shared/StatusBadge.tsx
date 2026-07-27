@@ -4,6 +4,7 @@
 
 import { memo, type JSX } from 'react';
 import { statusLabel } from './status-labels';
+import { CYCLE_COLORS } from './status-palette';
 
 /**
  * Mapea cadenas de estado conocidas a colores de visualización.
@@ -36,13 +37,11 @@ const STATUS_COLORS: Record<string, string> = {
   converted: '#1f7a46',
   won: '#1f7a46',
   lost: '#b5332d',
-  // Ciclo de reserva: reservo -> asistio / no asistio.
-  reserved: '#176f63',
-  attended: '#1f7a46',
-  no_show: '#b5332d',
   in_progress: '#1f6fb2',
   on_hold: '#9a5a00',
-  cancelled: '#b5332d',
+  // El ciclo de reserva se define en un solo lugar porque lo comparten la bandeja,
+  // el CRM de contactos y esta insignia.
+  ...CYCLE_COLORS,
 };
 
 /**

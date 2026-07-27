@@ -150,7 +150,8 @@ describe('ReservationsService', () => {
     };
     dataSource.transaction.mockImplementation(async (cb: Function) => cb(manager));
     const result = await service.slots('evaluacion', future.toISOString().slice(0, 10), 1);
-    expect(Array.isArray(result)).toBe(true);
+    expect(Array.isArray(result.slots)).toBe(true);
+    expect(Array.isArray(result.fullDays)).toBe(true);
   });
 
   /**
@@ -183,10 +184,11 @@ describe('ReservationsService', () => {
       const day = nextMonday();
       slotsScenario({ ...publishedForm(), dailyCapacity: 5 });
       const result = await service.slots('evaluacion', day, 1);
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.slots.length).toBeGreaterThan(0);
+      expect(result.fullDays).toEqual([]);
     });
 
-    it('deja el día sin horarios cuando se alcanzó el tope diario de reservas', async () => {
+    it('deja el día sin horarios y lo marca completo cuando se alcanzó el tope diario', async () => {
       const day = nextMonday();
       const startsAt = new Date(`${day}T13:00:00.000Z`);
       slotsScenario(
@@ -194,10 +196,11 @@ describe('ReservationsService', () => {
         [{ startsAt, endsAt: startsAt, partySize: 1 }, { startsAt, endsAt: startsAt, partySize: 1 }],
       );
       const result = await service.slots('evaluacion', day, 1);
-      expect(result).toEqual([]);
+      expect(result.slots).toEqual([]);
+      expect(result.fullDays).toEqual([day]);
     });
 
-    it('excluye las horas cubiertas por un bloqueo', async () => {
+    it('excluye las horas cubiertas por un bloqueo sin marcar el día como completo', async () => {
       const day = nextMonday();
       const open = await (async () => {
         slotsScenario(publishedForm());
@@ -208,8 +211,9 @@ describe('ReservationsService', () => {
         endsAt: new Date(`${day}T23:59:59.000Z`),
       }]);
       const blocked = await service.slots('evaluacion', day, 1);
-      expect(open.length).toBeGreaterThan(0);
-      expect(blocked).toEqual([]);
+      expect(open.slots.length).toBeGreaterThan(0);
+      expect(blocked.slots).toEqual([]);
+      expect(blocked.fullDays).toEqual([]);
     });
   });
 

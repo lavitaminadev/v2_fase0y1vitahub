@@ -13,6 +13,23 @@
 .schedule-card:first-child > h3:nth-of-type(2)::after { content:'Marca los días abiertos y agrega más franjas si atienden en turnos.'; display:block; margin-left:auto; color:#6d7d77; font-size:11px; font-weight:600; letter-spacing:0; }
 .schedule-card:nth-child(2) { position:sticky; top:92px; }
 .schedule-card:nth-child(2) > .page-subtitle { margin:0 0 18px; padding:12px 14px; border-radius:12px; background:#f4f8f1; color:#526c63; font-size:13px; line-height:1.45; }
+/* Capacidad: lo que el brief exige decidir primero. El tope diario ocupa la fila completa
+   porque gobierna cuando un dia se muestra completo en la pagina publica. */
+.schedule-capacity { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:18px 0 20px; }
+.schedule-capacity label { display:flex; flex-direction:column; gap:7px; padding:12px; border:1px solid #edf2ed; border-radius:13px; background:#fff; color:#40584f; font-size:12px; font-weight:900; line-height:1.25; }
+.schedule-capacity label small { color:#708079; font-size:11px; font-weight:600; line-height:1.35; }
+.schedule-capacity .input { min-height:44px; font-size:14px; font-weight:800; color:#173f35; }
+.capacity-primary { grid-column:1/-1; border-color:#cfe0a8!important; background:#fbfdf3!important; }
+.capacity-primary .input { font-size:20px!important; }
+
+/* Ajustes que rara vez se tocan tras el onboarding: presentes pero fuera del camino. */
+.schedule-advanced { margin-bottom:24px; border:1px solid #e3ebe3; border-radius:16px; background:#fbfdf9; }
+.schedule-advanced > summary { padding:13px 16px; color:#40584f; font-size:12px; font-weight:900; cursor:pointer; list-style:none; }
+.schedule-advanced > summary::after { content:'▾'; float:right; transition:transform .15s ease; }
+.schedule-advanced[open] > summary::after { transform:rotate(180deg); }
+.schedule-advanced > summary::-webkit-details-marker { display:none; }
+.schedule-advanced .schedule-settings-wide { margin:0; border:0; background:transparent; }
+
 .schedule-settings { gap:14px; margin:18px 0 28px; }
 .schedule-settings-wide { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .schedule-settings label,
@@ -42,6 +59,32 @@
 .block-form .btn-block { min-height:46px; margin-top:2px; font-size:14px; }
 .block-full-day { margin-top:18px; padding-top:18px; border-top:1px solid #edf2ed; }
 .block-full-day button { min-height:42px; margin-top:8px; }
+
+/* Calendario de cierres: el gesto es tocar el dia, como pide el brief. El rango horario
+   queda disponible pero replegado, porque es el caso menos frecuente. */
+.block-calendar { padding:14px; border:1px solid #e3ebe3; border-radius:16px; background:#fbfdf9; }
+.block-calendar-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.block-calendar-nav span { color:#173f35; font-size:13px; font-weight:800; text-transform:capitalize; }
+.block-calendar-weekdays,
+.block-calendar-week { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.block-calendar-weekdays { margin-bottom:4px; }
+.block-calendar-weekdays span { padding:2px 0; color:#8a9691; font-size:10px; font-weight:800; text-align:center; }
+.block-calendar-week { margin-bottom:4px; }
+.block-calendar-day { min-height:36px; display:grid; place-items:center; border:1px solid var(--border-light); border-radius:9px; background:#fff; color:#40584f; font-size:12px; font-weight:700; cursor:pointer; transition:border-color .15s ease, background .15s ease; }
+.block-calendar-day:hover:not(:disabled):not(.is-empty) { border-color:#173f35; }
+.block-calendar-day.is-empty { border:0; background:transparent; cursor:default; }
+.block-calendar-day.is-closed { border-color:#b5332d; background:rgba(181,51,45,.1); color:#8f2b25; text-decoration:line-through; }
+.block-calendar-day.is-partial { border-color:#9a5a00; background:rgba(154,90,0,.08); color:#7d4900; }
+.block-calendar-hint { display:flex; gap:12px; justify-content:center; margin-top:8px; color:#6d7d77; font-size:11px; }
+.block-calendar-hint .dot { width:9px; height:9px; display:inline-block; margin-right:4px; border-radius:50%; }
+.block-calendar-hint .dot.closed { background:#b5332d; }
+.block-calendar-hint .dot.partial { background:#9a5a00; }
+
+.block-range { margin-top:16px; border:1px solid #e3ebe3; border-radius:14px; background:#fbfdf9; }
+.block-range > summary { padding:11px 14px; color:#40584f; font-size:12px; font-weight:900; cursor:pointer; list-style:none; }
+.block-range > summary::after { content:'▾'; float:right; }
+.block-range > summary::-webkit-details-marker { display:none; }
+.block-range .block-form { padding:0 14px 14px; }
 .block-list { margin-top:20px; }
 .block-list .page-subtitle { padding:13px; border-radius:12px; background:#f7f8f6; color:#697870; font-size:13px; }
 
@@ -145,12 +188,16 @@
 .calendar-day { display:flex; flex-direction:column; align-items:center; padding:8px 4px; border-radius:var(--booking-field-radius,10px); border:1px solid var(--border); background:transparent; cursor:pointer; transition:.15s; }
 .calendar-day.has-slots { border-color:var(--booking-primary,#173f35); }
 .calendar-day.no-slots { opacity:.35; cursor:default; }
+/* Dia que agoto su tope diario: se muestra presente pero sin cupo, no apagado como un cierre. */
+.calendar-day.is-full { position:relative; border-style:dashed; border-color:#b5332d; background:rgba(181,51,45,.06); color:#8f2b25; cursor:default; }
+.calendar-day-tag { margin-top:2px; font-size:8px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
 .calendar-day.selected { background:var(--booking-primary,#173f35); color:#fff; }
 .calendar-weekday { font-size:10px; text-transform:uppercase; opacity:.7; }
 .calendar-number { font-size:18px; font-weight:700; }
 .calendar-hint { display:flex; gap:12px; justify-content:center; font-size:12px; margin:8px 0; }
 .calendar-hint .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
 .calendar-hint .dot.available { background:var(--booking-primary,#173f35); }
+.calendar-hint .dot.full { background:#b5332d; }
 .calendar-hint .dot.taken { background:var(--border); }
 .calendar-month-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 .calendar-month-nav span { font-size:14px; font-weight:600; text-transform:capitalize; }
