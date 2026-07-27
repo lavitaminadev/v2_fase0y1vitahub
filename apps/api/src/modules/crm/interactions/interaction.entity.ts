@@ -1,7 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Organization } from '../../organizations/organization.entity';
-import { Lead } from '../leads/lead.entity';
-import { Contact } from '../contacts/contact.entity';
 
 @Entity('crm_interactions')
 export class Interaction {

@@ -16,6 +16,7 @@ import { createOAuthState, verifyOAuthState } from '../../../shared/security/oau
 import { MetaInsightsService } from './meta-insights.service';
 import { resolveOAuthRedirect } from '../../../shared/security/oauth-redirect';
 import { MetaClientPixelService } from './meta-client-pixel.service';
+import { MetaConversionOutboxService } from './meta-conversion-outbox.service';
 
 @Controller('integrations/meta')
 @UseGuards(AuthGuard('jwt'))
@@ -28,12 +29,42 @@ export class MetaPixelController {
     private metaLeadAds: MetaLeadAdsService,
     private insights: MetaInsightsService,
     private clientPixels: MetaClientPixelService,
+    private conversionOutbox: MetaConversionOutboxService,
   ) {}
 
   @Get('client-pixels/catalog')
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR)
   clientPixelCatalog(@Req() req: AuthenticatedRequest) {
     return this.clientPixels.catalog(req.organizationId);
+  }
+
+  /**
+   * Estado de la cola de conversiones. Hasta ahora solo era visible por el endpoint de
+   * cron con secreto, asi que un evento atascado no se notaba desde la aplicacion.
+   */
+  @Get('conversions/outbox')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR)
+  @ApiOperation({ summary: 'Estado de la cola de conversiones a Meta' })
+  async conversionsOutbox(@Req() req: AuthenticatedRequest) {
+    const [stats, problems] = await Promise.all([
+      this.conversionOutbox.stats(req.organizationId),
+      this.conversionOutbox.recentProblems(req.organizationId),
+    ]);
+    return {
+      stats,
+      problems: problems.map((item) => ({
+        id: item.id,
+        eventId: item.eventId,
+        pixelId: item.pixelId,
+        eventName: (item.eventData as { eventName?: string })?.eventName ?? null,
+        status: item.status,
+        attempts: item.attempts,
+        lastError: item.lastError ?? null,
+        nextAttemptAt: item.nextAttemptAt ?? null,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
+    };
   }
 
   @Post('client-pixels/setup')

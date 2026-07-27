@@ -16,6 +16,9 @@ export interface ResolvedAdsConversionConfig {
   conversionAction: string;
 }
 
+/** Tiempo tras el cual un evento tomado se considera abandonado y vuelve a la cola. */
+const CLAIM_TIMEOUT_MS = 10 * 60_000;
+
 @Injectable()
 export class GoogleConversionOutboxService {
   private readonly logger = new Logger(GoogleConversionOutboxService.name);
@@ -77,28 +80,63 @@ export class GoogleConversionOutboxService {
     }));
   }
 
-  async stats(): Promise<{ pending: number; retry: number; failed: number; processed: number; total: number }> {
-    const [pending, retry, failed, processed, total] = await Promise.all([
-      this.outbox.count({ where: { status: 'pending' } }),
-      this.outbox.count({ where: { status: 'retry' } }),
-      this.outbox.count({ where: { status: 'failed' } }),
-      this.outbox.count({ where: { status: 'processed' } }),
-      this.outbox.count(),
+  /**
+   * Conteo de conversiones por estado de la cola.
+   *
+   * `processing` corresponde a las reservadas por una ejecución en curso; un valor que no
+   * baja entre consultas indica lotes que no están completando el envío.
+   */
+  async stats(): Promise<{ pending: number; retry: number; processing: number; failed: number; processed: number; total: number }> {
+    const countBy = (status?: string) => this.outbox.count({ where: status ? { status } : {} });
+    const [pending, retry, processing, failed, processed, total] = await Promise.all([
+      countBy('pending'),
+      countBy('retry'),
+      countBy('processing'),
+      countBy('failed'),
+      countBy('processed'),
+      countBy(),
     ]);
-    return { pending, retry, failed, processed, total };
+    return { pending, retry, processing, failed, processed, total };
+  }
+
+  /**
+   * Reserva un lote de conversiones marcándolas como `processing`.
+   *
+   * La reserva ocurre en una transacción corta porque el bloqueo pesimista de TypeORM
+   * requiere una transacción abierta, y la subida a Google Ads se hace fuera de ella para
+   * no mantener filas bloqueadas durante llamadas HTTP.
+   *
+   * @param limit - Máximo de conversiones a reservar.
+   * @returns Las conversiones reservadas, incluidas las que quedaron abandonadas por una
+   *   ejecución previa que no terminó.
+   */
+  private async claimBatch(limit: number): Promise<GoogleConversionOutbox[]> {
+    const now = new Date();
+    return this.outbox.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(GoogleConversionOutbox);
+      // Libera las conversiones abandonadas por una ejecución previa.
+      await repository.createQueryBuilder()
+        .update()
+        .set({ status: 'retry' })
+        .where('status = :status AND updated_at <= :staleBefore', { status: 'processing', staleBefore: new Date(now.getTime() - CLAIM_TIMEOUT_MS) })
+        .execute();
+      const items = await repository.find({
+        where: [
+          { status: In(['pending', 'retry']), nextAttemptAt: IsNull() },
+          { status: In(['pending', 'retry']), nextAttemptAt: LessThanOrEqual(now) },
+        ],
+        order: { createdAt: 'ASC' },
+        take: limit,
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (items.length === 0) return [];
+      await repository.update(items.map((item) => item.id), { status: 'processing' });
+      return items;
+    });
   }
 
   async processPending(limit = 25): Promise<{ processed: number; failed: number }> {
-    const now = new Date();
-    const items = await this.outbox.find({
-      where: [
-        { status: In(['pending', 'retry']), nextAttemptAt: IsNull() },
-        { status: In(['pending', 'retry']), nextAttemptAt: LessThanOrEqual(now) },
-      ],
-      order: { createdAt: 'ASC' },
-      take: limit,
-      lock: { mode: 'pessimistic_write' },
-    });
+    const items = await this.claimBatch(limit);
 
     let processed = 0;
     let failed = 0;

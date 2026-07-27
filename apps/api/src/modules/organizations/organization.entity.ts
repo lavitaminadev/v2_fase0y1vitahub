@@ -1,6 +1,8 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
+  AfterLoad, BeforeInsert, BeforeUpdate,
 } from 'typeorm';
+import { OrganizationFeatures, normalizeOrganizationFeatures } from './organization-features';
 
 @Entity('organizations')
 export class Organization {
@@ -25,9 +27,26 @@ export class Organization {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  /** Modulos habilitados. Ver `organization-features.ts` para el criterio y los valores por defecto. */
+  @Column({ type: 'json', nullable: true })
+  features: OrganizationFeatures;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  /**
+   * Se normaliza en los tres puntos para que el resto del sistema nunca reciba `null` ni
+   * un objeto incompleto: una clave ausente debe resolverse al valor por defecto, no a
+   * `undefined`, porque `undefined` en una comprobacion de permiso significa "apagado"
+   * por accidente.
+   */
+  @AfterLoad()
+  @BeforeInsert()
+  @BeforeUpdate()
+  normalizeFeatures(): void {
+    this.features = normalizeOrganizationFeatures(this.features);
+  }
 }

@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, LessThanOrEqual, Repository } from 'typeorm';
+import { EntityManager, In, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { ConversionEvent, MetaConversionsService } from './meta-conversions.service';
 import { MetaConversionOutbox } from './meta-conversion-outbox.entity';
 import { MetaClientPixelService } from './meta-client-pixel.service';
+
+/** Tiempo tras el cual un evento tomado se considera abandonado y vuelve a la cola. */
+const CLAIM_TIMEOUT_MS = 10 * 60_000;
 
 interface ApiError {
   response?: {
@@ -31,28 +34,86 @@ export class MetaConversionOutboxService {
     return this.outbox.save(this.outbox.create({ organizationId, pixelId, eventId, eventData: event }));
   }
 
-  async stats(): Promise<{ pending: number; retry: number; failed: number; processed: number; total: number }> {
-    const [pending, retry, failed, processed, total] = await Promise.all([
-      this.outbox.count({ where: { status: 'pending' } }),
-      this.outbox.count({ where: { status: 'retry' } }),
-      this.outbox.count({ where: { status: 'failed' } }),
-      this.outbox.count({ where: { status: 'processed' } }),
-      this.outbox.count(),
+  /**
+   * @param organizationId - Acota el conteo a una organizacion. El diagnostico por cron lo
+   *   omite a proposito para ver la cola completa; cualquier consulta desde la aplicacion
+   *   debe pasarlo para no exponer numeros de otras organizaciones.
+   */
+  async stats(organizationId?: string): Promise<{ pending: number; retry: number; processing: number; failed: number; processed: number; total: number }> {
+    const scope = organizationId ? { organizationId } : {};
+    const countBy = (status?: string) => this.outbox.count({ where: status ? { ...scope, status } : scope });
+    const [pending, retry, processing, failed, processed, total] = await Promise.all([
+      countBy('pending'),
+      countBy('retry'),
+      // 'processing' son eventos ya tomados por una ejecucion en curso. Si este numero no
+      // baja entre diagnosticos, hay lotes quedandose atascados.
+      countBy('processing'),
+      countBy('failed'),
+      countBy('processed'),
+      countBy(),
     ]);
-    return { pending, retry, failed, processed, total };
+    return { pending, retry, processing, failed, processed, total };
+  }
+
+  /** Eventos que no lograron enviarse, con su motivo, para diagnosticar desde la aplicacion. */
+  async recentProblems(organizationId: string, limit = 20): Promise<MetaConversionOutbox[]> {
+    return this.outbox.find({
+      where: [
+        { organizationId, status: 'failed' },
+        { organizationId, status: 'retry' },
+      ],
+      order: { updatedAt: 'DESC' },
+      take: Math.min(Math.max(limit, 1), 100),
+    });
+  }
+
+  /**
+   * Devuelve a la cola los eventos tomados por una ejecución que no llegó a terminar.
+   *
+   * @param staleBefore - Momento a partir del cual un evento en `processing` se considera
+   *   abandonado y vuelve a estar disponible.
+   */
+  private async releaseStaleClaims(manager: EntityManager, staleBefore: Date): Promise<void> {
+    await manager.getRepository(MetaConversionOutbox)
+      .createQueryBuilder()
+      .update()
+      .set({ status: 'retry' })
+      .where('status = :status AND updated_at <= :staleBefore', { status: 'processing', staleBefore })
+      .execute();
+  }
+
+  /**
+   * Reserva un lote de eventos marcándolos como `processing`.
+   *
+   * La reserva ocurre en una transacción corta porque el bloqueo pesimista de TypeORM
+   * requiere una transacción abierta, y el envío se hace fuera de ella para no mantener
+   * filas bloqueadas durante llamadas HTTP a Meta.
+   *
+   * @param limit - Máximo de eventos a reservar.
+   * @returns Los eventos reservados, ya marcados como en proceso.
+   */
+  private async claimBatch(limit: number): Promise<MetaConversionOutbox[]> {
+    const now = new Date();
+    return this.outbox.manager.transaction(async (manager) => {
+      await this.releaseStaleClaims(manager, new Date(now.getTime() - CLAIM_TIMEOUT_MS));
+      const repository = manager.getRepository(MetaConversionOutbox);
+      const items = await repository.find({
+        where: [
+          { status: In(['pending', 'retry']), nextAttemptAt: IsNull() },
+          { status: In(['pending', 'retry']), nextAttemptAt: LessThanOrEqual(now) },
+        ],
+        order: { createdAt: 'ASC' },
+        take: limit,
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (items.length === 0) return [];
+      await repository.update(items.map((item) => item.id), { status: 'processing' });
+      return items;
+    });
   }
 
   async processPending(limit = 25): Promise<{ processed: number; failed: number }> {
-    const now = new Date();
-    const items = await this.outbox.find({
-      where: [
-        { status: In(['pending', 'retry']), nextAttemptAt: IsNull() },
-        { status: In(['pending', 'retry']), nextAttemptAt: LessThanOrEqual(now) },
-      ],
-      order: { createdAt: 'ASC' },
-      take: limit,
-      lock: { mode: 'pessimistic_write' },
-    });
+    const items = await this.claimBatch(limit);
     let processed = 0;
     let failed = 0;
     for (const item of items) {

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AccountAccessModule } from '../../core/client-scope/account-access.module';
 import { Lead } from './leads/lead.entity';
 import { LeadController } from './leads/lead.controller';
 import { CreateLeadUseCase } from './leads/use-cases/create-lead.use-case';
@@ -28,7 +29,7 @@ import { Client } from '../clients/client.entity';
 import { Reservation } from '../reservations/domain/reservation.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Lead, Contact, Opportunity, Interaction, User, Client, Reservation])],
+  imports: [TypeOrmModule.forFeature([Lead, Contact, Opportunity, Interaction, User, Client, Reservation]), AccountAccessModule],
   controllers: [LeadController, ContactsController, OpportunitiesController, InteractionsController],
   providers: [
     CreateLeadUseCase, ListLeadsUseCase, GetLeadUseCase, ConvertLeadUseCase, UpdateLeadUseCase, LeadIntakeService, CrmLeadAutomationService,

@@ -11,10 +11,12 @@ import { ListOpportunitiesDto } from './dto/list-opportunities.dto';
 import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
+import { RequiresFeature } from '../../../core/authorization/requires-feature.decorator';
 
 @Controller('crm/opportunities')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
+@RequiresFeature('commercialPipeline')
 export class OpportunitiesController {
   constructor(
     private createOpportunity: CreateOpportunityUseCase,

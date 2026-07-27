@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseArrayPipe, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -9,7 +9,7 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { ReservationsService } from './application/reservations.service';
 import { ReservationsBulkImportService } from './application/bulk-import.service';
-import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ImportReservationsDto, ListReservationsDto, ReservationScopeDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
+import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ExportFormReservationsDto, ImportReservationsDto, ListReservationsDto, ReservationScopeDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
 
 @ApiTags('Reservas')
 @ApiBearerAuth()
@@ -125,7 +125,8 @@ export class ReservationsController {
 
   @Post('forms/:id/blocks/batch')
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
-  async batchBlock(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() dtos: CreateBlockDto[]) {
+  async batchBlock(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body(new ParseArrayPipe({ items: CreateBlockDto, whitelist: true, forbidNonWhitelisted: true })) dtos: CreateBlockDto[]) {
+    if (dtos.length > 365) throw new BadRequestException('No puedes crear mÃ¡s de 365 bloqueos por lote');
     const scope = await this.scope(req);
     const errors: string[] = [];
     const results = await Promise.all(dtos.map((dto) => this.service.addBlock(req.organizationId, id, req.user.id, dto, scope.clientId, scope.clientIds).catch((err: Error) => { errors.push(err.message); return null; })));
@@ -228,7 +229,7 @@ export class ReservationsController {
   async exportForm(
     @Req() req: AuthenticatedRequest,
     @Param('formId') formId: string,
-    @Body() body: { format: 'csv' | 'json' | 'pdf'; dateFrom?: string; dateTo?: string; fields: string[] },
+    @Body() body: ExportFormReservationsDto,
     @Res() res: Response
   ) {
     const scope = await this.scope(req);

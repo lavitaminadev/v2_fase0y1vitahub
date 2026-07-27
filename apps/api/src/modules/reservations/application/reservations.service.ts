@@ -203,7 +203,7 @@ export class ReservationsService {
     if (!capabilities.crm) form.crmEnabled = false;
     if (!capabilities.metaConversions) form.metaCapiEnabled = false;
     this.validateConfiguration(form);
-    if (dto.status === 'published' && ((form.scheduleConfig as { windows?: unknown[] }).windows?.length || 0) === 0) throw new BadRequestException('No puedes publicar sin disponibilidad');
+    if (form.status === 'published' && ((form.scheduleConfig as { windows?: unknown[] }).windows?.length || 0) === 0) throw new BadRequestException('No puedes publicar sin disponibilidad');
     return this.forms.save(form);
   }
   async duplicateForm(organizationId: string, id: string, userId: string, clientIds?: string[]) { const source = await this.getForm(organizationId, id, undefined, clientIds); const copy = this.forms.create({ ...source, id: undefined, name: `${source.name} (copia)`, publicSlug: await this.uniqueSlug(source.publicSlug), status: 'draft', createdBy: userId, createdAt: undefined, updatedAt: undefined }); return this.forms.save(copy); }
@@ -218,7 +218,13 @@ export class ReservationsService {
     const form = await qb.getOne(); if (!form) throw new NotFoundException('Este formulario no está disponible');
     const capabilities = await this.clientCapabilities(form.organizationId, form.clientId, manager?.query.bind(manager));
     if (!capabilities.reservations) throw new NotFoundException('Este formulario no está disponible');
-    this.validateConfiguration(form); return form;
+    // Un formulario publicado con configuracion invalida no debe mostrarle un error de validacion
+    // al visitante: se registra para poder corregirlo y la pagina responde como no disponible.
+    try { this.validateConfiguration(form); } catch (err) {
+      this.logger.error(`Formulario publicado ${form.id} (${slug}) tiene configuración inválida: ${err instanceof Error ? err.message : err}`);
+      throw new NotFoundException('Este formulario no está disponible');
+    }
+    return form;
   }
   async publicForm(slug: string) {
     const form = await this.publishedForm(slug);
@@ -640,7 +646,7 @@ export class ReservationsService {
     const scoped = this.sqlClientScope(clientId, clientIds); const params = [organizationId, ...scoped.params]; const scope = scoped.clause;
     const daysNum = Math.min(Math.max(Number(days) || 30, 1), 365);
     params.push(daysNum as never);
-    const [totals, daily, sources, funnel] = await Promise.all([this.dataSource.query(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='confirmed') confirmed, SUM(status='attended') attended, SUM(status='no_show') no_show, SUM(status='waitlist') waitlist, SUM(status LIKE 'cancelled%') cancelled FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params), this.dataSource.query(`SELECT DATE(starts_at) day, HOUR(starts_at) hour, COUNT(*) total FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY day,hour ORDER BY day`, params), this.dataSource.query(`SELECT COALESCE(utm_source,'direct') source, COALESCE(utm_campaign,'Sin campaña') campaign, COUNT(*) total, SUM(status='attended') attended FROM reservations WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY source,campaign ORDER BY total DESC LIMIT 20`, params), this.dataSource.query(`SELECT SUM(type='view') views, SUM(type='start') starts FROM reservation_form_events WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params)]);
+    const [totals, daily, sources, funnel] = await Promise.all([this.dataSource.query(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='confirmed') confirmed, SUM(status='attended') attended, SUM(status='no_show') no_show, SUM(status='waitlist') waitlist, SUM(status LIKE 'cancelled%') cancelled FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params), this.dataSource.query(`SELECT DATE(starts_at) day, COUNT(*) total, SUM(status='attended') attended, SUM(status='no_show') no_show FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY day ORDER BY day`, params), this.dataSource.query(`SELECT COALESCE(utm_source,'direct') source, COALESCE(utm_campaign,'Sin campaña') campaign, COUNT(*) total, SUM(status='attended') attended FROM reservations WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY source,campaign ORDER BY total DESC LIMIT 20`, params), this.dataSource.query(`SELECT SUM(type='view') views, SUM(type='start') starts FROM reservation_form_events WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params)]);
     const total = Number(totals[0]?.total || 0); const views = Number(funnel[0]?.views || 0);
     return { totals: totals[0] || {}, daily, sources, funnel: { views, starts: Number(funnel[0]?.starts || 0), completed: total, conversionRate: views ? Math.round(total * 1000 / views) / 10 : null }, days: daysNum };
   }
