@@ -10,6 +10,8 @@ const mockUserRepo = {
 const mockOrgRepo = {
   create: vi.fn(),
   save: vi.fn(),
+  // `me()` lee los modulos habilitados de la organizacion para devolverlos junto al perfil.
+  findOne: vi.fn().mockResolvedValue({ id: 'org-1', features: null }),
 };
 
 const mockJwtService = {

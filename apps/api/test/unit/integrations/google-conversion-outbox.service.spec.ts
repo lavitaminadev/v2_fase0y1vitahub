@@ -2,15 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoogleConversionOutboxService } from '../../../src/modules/integrations/google/google-conversion-outbox.service';
 import { IntegrationAccountType } from '../../../src/modules/integrations/integration-account-type.enum';
 
+/**
+ * `processPending` toma el lote dentro de una transaccion (el bloqueo pesimista lo exige),
+ * asi que el mock debe exponer `manager.transaction` y un repositorio transaccional que
+ * reutiliza los mismos espias del repositorio principal.
+ */
 function makeService(overrides: Record<string, any> = {}) {
-  const outbox = {
+  const outbox: Record<string, any> = {
     findOne: vi.fn().mockResolvedValue(null),
     create: vi.fn((value: any) => value),
     save: vi.fn(async (value: any) => ({ id: 'row-1', attempts: 0, ...value })),
     find: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue({ affected: 0 }),
     count: vi.fn().mockResolvedValue(0),
     delete: vi.fn().mockResolvedValue({ affected: 0 }),
+    createQueryBuilder: vi.fn(() => {
+      const builder: Record<string, any> = {};
+      for (const method of ['update', 'set', 'where']) builder[method] = vi.fn(() => builder);
+      builder.execute = vi.fn().mockResolvedValue({ affected: 0 });
+      return builder;
+    }),
     ...overrides.outbox,
+  };
+  outbox.manager = {
+    transaction: vi.fn(async (callback: any) => callback({ getRepository: () => outbox })),
   };
   const integrations = { findOne: vi.fn().mockResolvedValue(null), ...overrides.integrations };
   const accounts = { find: vi.fn().mockResolvedValue([]), ...overrides.accounts };

@@ -39,6 +39,9 @@ describe('ReservationsService', () => {
   let service: ReservationsService;
   beforeEach(() => {
     vi.clearAllMocks();
+    // mockReset descarta las colas de mockResolvedValueOnce que un test previo haya dejado sin
+    // consumir: clearAllMocks solo limpia las llamadas y esas colas se filtran al test siguiente.
+    dataSource.query.mockReset();
     dataSource.query.mockResolvedValue([{ capabilities: { reservations: true, crm: true, metaConversions: false } }]);
     formQuery.where.mockReturnValue(formQuery); formQuery.setLock.mockReturnValue(formQuery);
     service = new ReservationsService(forms as never, reservations as never, blocks as never, events as never, formEvents as never, coupons as never, dataSource as never, leadIntake as never, calendar as never, metaOutbox as never, clientPixels as never, notifications as never, emails as never, audit as never);
@@ -150,8 +153,88 @@ describe('ReservationsService', () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
+  /**
+   * Criterios de aceptación del documento "CRM básico y Reservas", sección 8: son los
+   * casos que Nico corre él mismo contra la página pública.
+   */
+  describe('criterios de aceptación de disponibilidad', () => {
+    function slotsScenario(form: Record<string, unknown>, existingReservations: unknown[] = [], blockRows: unknown[] = []) {
+      formQuery.getOne.mockResolvedValue(form);
+      formQuery.setLock.mockReturnValue(formQuery);
+      reservations.createQueryBuilder.mockReturnValue({
+        where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue(existingReservations),
+      });
+      blocks.createQueryBuilder.mockReturnValue({
+        where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue(blockRows),
+      });
+    }
+
+    /** Un lunes futuro, que es el único día con ventana horaria en `publishedForm`. */
+    function nextMonday(): string {
+      const now = new Date();
+      const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      date.setUTCDate(date.getUTCDate() + ((8 - date.getUTCDay()) % 7 || 7));
+      return date.toISOString().slice(0, 10);
+    }
+
+    it('ofrece horarios cuando el día está abierto y sin tope alcanzado', async () => {
+      const day = nextMonday();
+      slotsScenario({ ...publishedForm(), dailyCapacity: 5 });
+      const result = await service.slots('evaluacion', day, 1);
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('deja el día sin horarios cuando se alcanzó el tope diario de reservas', async () => {
+      const day = nextMonday();
+      const startsAt = new Date(`${day}T13:00:00.000Z`);
+      slotsScenario(
+        { ...publishedForm(), dailyCapacity: 2 },
+        [{ startsAt, endsAt: startsAt, partySize: 1 }, { startsAt, endsAt: startsAt, partySize: 1 }],
+      );
+      const result = await service.slots('evaluacion', day, 1);
+      expect(result).toEqual([]);
+    });
+
+    it('excluye las horas cubiertas por un bloqueo', async () => {
+      const day = nextMonday();
+      const open = await (async () => {
+        slotsScenario(publishedForm());
+        return service.slots('evaluacion', day, 1);
+      })();
+      slotsScenario(publishedForm(), [], [{
+        startsAt: new Date(`${day}T00:00:00.000Z`),
+        endsAt: new Date(`${day}T23:59:59.000Z`),
+      }]);
+      const blocked = await service.slots('evaluacion', day, 1);
+      expect(open.length).toBeGreaterThan(0);
+      expect(blocked).toEqual([]);
+    });
+  });
+
   it('createCoupon validates code uniqueness', async () => {
     coupons.findOne.mockResolvedValue({ id: 'existing', code: 'DUPE' });
     await expect(service.createCoupon('org-1', 'user-1', { code: 'DUPE', discountType: 'percentage', value: 10 })).rejects.toThrow('Ya existe un cupón');
+  });
+
+  it('rejects clearing availability on a form that is already published', async () => {
+    dataSource.query.mockResolvedValue([{ capabilities: { reservations: true, crm: true, metaConversions: false } }]);
+    forms.findOne.mockResolvedValue(publishedForm());
+    await expect(service.updateForm('org-1', 'form-1', { scheduleConfig: { windows: [] } } as never))
+      .rejects.toThrow('No puedes publicar sin disponibilidad');
+    expect(forms.save).not.toHaveBeenCalled();
+  });
+
+  it('keeps rejecting a publish attempt without availability', async () => {
+    dataSource.query.mockResolvedValue([{ capabilities: { reservations: true, crm: true, metaConversions: false } }]);
+    forms.findOne.mockResolvedValue({ ...publishedForm(), status: 'draft' });
+    await expect(service.updateForm('org-1', 'form-1', { status: 'published', scheduleConfig: { windows: [] } } as never))
+      .rejects.toThrow('No puedes publicar sin disponibilidad');
+  });
+
+  it('hides a published form with invalid stored configuration instead of leaking the validation error', async () => {
+    formQuery.getOne.mockResolvedValue({ ...publishedForm(), designConfig: { primaryColor: 'rojo' } });
+    await expect(service.publicForm('evaluacion')).rejects.toThrow('Este formulario no está disponible');
   });
 });
