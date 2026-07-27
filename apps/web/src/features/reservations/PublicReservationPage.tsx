@@ -235,7 +235,7 @@ export function PublicReservationPage() {
     if (!form) return [];
     const [y, m, d] = fromDate.split('-').map(Number);
     const start = new Date(Date.UTC(y, m - 1, d));
-    const days: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean }> = [];
+    const rawDays: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean }> = [];
     for (let i = 0; i < 28; i++) {
       const date = new Date(start);
       date.setUTCDate(date.getUTCDate() + i);
@@ -245,9 +245,26 @@ export function PublicReservationPage() {
       const key = `${year}-${month}-${dayNum}`;
       const weekday = new Intl.DateTimeFormat('es-CL', { weekday: 'short', timeZone: form.timezone }).format(date);
       const daySlots = slotsByDate.get(key) || [];
-      days.push({ date: key, day: date.getUTCDate(), weekday, slots: daySlots, hasSlots: daySlots.length > 0 });
+      rawDays.push({ date: key, day: date.getUTCDate(), weekday, slots: daySlots, hasSlots: daySlots.length > 0 });
     }
-    return days;
+    // Agrupar en semanas que empiezan en lunes
+    const weeks: typeof rawDays[] = [];
+    let currentWeek: typeof rawDays = [];
+    for (const day of rawDays) {
+      const dow = new Date(day.date + 'T00:00:00').getUTCDay();
+      // Si es domingo (0) o es el primer día y no es lunes, rellenar con placeholders
+      if (dow === 1 && currentWeek.length > 0) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+      currentWeek.push(day);
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+    if (currentWeek.length > 0) weeks.push(currentWeek);
+    return { rawDays, weeks };
   }, [fromDate, slotsByDate, form]);
 
   // ── Caminos de render ──
@@ -334,16 +351,17 @@ export function PublicReservationPage() {
             {resources.length > 0 && <label>Profesional o sucursal<select required value={resourceId} onChange={(event) => { setResourceId(event.target.value); setSelected(''); }}><option value="">Selecciona una opción</option>{resources.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}</select></label>}
           </div>}
           {loadingSlots && <div className="no-slots"><LoadingSpinner text="Buscando disponibilidad..." /></div>}
-          {!loadingSlots && calendarDays.length > 0 && <div>
+          {!loadingSlots && calendarDays.rawDays.length > 0 && <div>
             <div className="calendar-month-nav"><button type="button" className="btn btn-outline btn-xs" disabled={monthOffset <= 0} onClick={() => { setMonthOffset((m) => Math.max(0, m - 1)); setSelected(''); setSelectedDate(''); }}>← Mes anterior</button><span>{new Date(fromDate + 'T00:00:00').toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: form.timezone })}</span><button type="button" className="btn btn-outline btn-xs" onClick={() => { setMonthOffset((m) => m + 1); setSelected(''); setSelectedDate(''); }}>Mes siguiente →</button></div>
-            <div className="calendar-grid">{calendarDays.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span></button>)}</div>
+            <div className="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+            <div className="calendar-grid">{calendarDays.weeks.map((week, weekIndex) => <div key={weekIndex} className="calendar-week">{week.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span></button>)}</div>)}</div>
             <div className="calendar-hint"><span className="dot available" /> Disponible <span className="dot taken" /> Sin cupo</div>
             {slotDays <= 60 && <button type="button" className="btn btn-outline btn-sm calendar-load-more" onClick={() => setSlotDays((d) => d + 14)}>Cargar más fechas</button>}
           </div>}
-          {!loadingSlots && calendarDays.length === 0 && <div className="no-slots"><strong>Sin horarios disponibles</strong><p>Prueba otro servicio o contacta al local.</p></div>}
+          {!loadingSlots && calendarDays.rawDays.length === 0 && <div className="no-slots"><strong>Sin horarios disponibles</strong><p>Prueba otro servicio o contacta al local.</p></div>}
 
           {selectedDate && <div className="slot-time-picker">
-            <h3>Horarios de {calendarDays.find((d) => d.date === selectedDate)?.weekday} {calendarDays.find((d) => d.date === selectedDate)?.day}</h3>
+            <h3>Horarios de {calendarDays.rawDays.find((d) => d.date === selectedDate)?.weekday} {calendarDays.rawDays.find((d) => d.date === selectedDate)?.day}</h3>
             <div className="slot-time-grid">{selectedDaySlots.map((slot) => <button type="button" className={`slot-time-btn ${selected === slot.startsAt ? 'active' : ''}`} onClick={() => { setSelected(slot.startsAt); goToForm(); }} key={slot.startsAt}>
               <strong>{new Date(slot.startsAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</strong>
               <small>{slot.available} cupo{slot.available !== 1 ? 's' : ''}</small>
