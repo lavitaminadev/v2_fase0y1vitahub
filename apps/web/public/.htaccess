@@ -18,5 +18,9 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
+# If Passenger serves the API under /api on the same domain, let Apache hand that
+# prefix to the Node.js app instead of rewriting it back to index.html.
+RewriteRule ^api(/.*)?$ - [L]
+
 # React Router fallback for direct links such as /portal/reservations and /book/slug.
 RewriteRule ^ index.html [L]
