@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   envDir: '../../',
+  // `@vitahub/shared` se emite en CommonJS para que la API lo consuma. El pre-bundling es
+  // necesario para que Vite resuelva sus exportaciones nombradas en tiempo de ejecución.
+  optimizeDeps: { include: ['@vitahub/shared'] },
   plugins: [react(), VitePWA({
     registerType: 'autoUpdate',
     includeAssets: ['favicon.svg', 'icon-192x192.png', 'icon-512x512.png', 'icon-maskable-512x512.png', 'brand/la-vitamina-mark.svg', 'brand/la-vitamina-lockup.png', 'brand/open-sans.woff2'],

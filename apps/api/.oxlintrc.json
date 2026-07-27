@@ -1,0 +1,12 @@
+{
+  "plugins": ["typescript", "oxc", "import"],
+  "env": { "node": true, "es2022": true },
+  "ignorePatterns": ["dist/**", "coverage/**", "node_modules/**"],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-console": "warn",
+    "eqeqeq": ["warn", "smart"],
+    "no-throw-literal": "error",
+    "no-control-regex": "off"
+  }
+}

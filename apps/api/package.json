@@ -10,7 +10,7 @@
     "start": "node dist/main",
     "start:prod": "node dist/main",
     "start:dev": "ts-node src/main.ts",
-    "lint": "tsc --noEmit",
+    "lint": "oxlint --config .oxlintrc.json src && tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:cov": "vitest run --config vitest.config.ts --coverage"
   },
@@ -61,6 +61,7 @@
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "oxlint": "^1.71.0"
   }
 }
