@@ -21,7 +21,7 @@ nvm use
 npm ci
 
 # 4. Configurar variables de entorno
-cp .env.example .env
+cp apps/api/.env.example .env
 # Editar .env con los valores locales
 ```
 

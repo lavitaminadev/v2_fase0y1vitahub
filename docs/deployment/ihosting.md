@@ -1,10 +1,10 @@
 # Deploy en iHosting (cPanel + Phusion Passenger)
 
 ESTADO: VIGENTE
-FECHA VERIFICACION: `2026-07-17`
+FECHA VERIFICACION: `2026-07-27`
 FUENTE: estrategia oficial de despliegue para VITAHUB en iHosting
 
-## Estrategia Oficial
+## Estrategia oficial
 
 La unica estrategia soportada para produccion es:
 
@@ -16,34 +16,33 @@ La unica estrategia soportada para produccion es:
 
 ## Requisitos
 
-- Node.js `20.20.2` en cPanel.
-- repositorio Git gestionado desde cPanel.
-- `app.js` en la raiz del repo.
-- `.cpanel.yml` versionado en la raiz del repo.
-- `.env` productivo configurado en el servidor.
+- Node.js `20.20.2` en cPanel;
+- repositorio Git gestionado desde cPanel;
+- `app.js` en la raiz del repo;
+- `.cpanel.yml` versionado en la raiz del repo;
+- `.env` productivo configurado en el servidor;
 - working tree limpio antes de publicar cambios.
 
-## Flujo Recomendado
+## Flujo recomendado
 
-1. Subir cambios a GitHub.
+1. Subir cambios al remoto usado por cPanel.
 2. En cPanel, usar `Update from Remote`.
 3. En cPanel, usar `Deploy HEAD Commit`.
 4. cPanel ejecuta `.cpanel.yml`.
 5. Passenger reinicia la API.
 6. Si corresponde, correr `npm run migration:run` manualmente.
 
-## Que Hace `.cpanel.yml`
+## Que hace `.cpanel.yml`
 
 El flujo oficial ejecuta:
 
 1. `npm ci --include=dev`
-2. `npm run build:shared`
-3. `npm run build:api`
-4. `npm run build:web`
-5. valida el `.env` productivo y los artefactos compilados
-6. crea almacenamiento privado en `$HOME/vitahub_storage` y `$HOME/vitahub_uploads`
-7. copia `apps/web/dist/` a `$HOME/public_html`
-8. crea `tmp/restart.txt` y toca `app.js` para reiniciar Passenger
+2. `npm run build:cpanel`
+3. `npm run check:production-env`
+4. valida artefactos compilados
+5. crea almacenamiento privado en `$HOME/vitahub_storage`, `$HOME/vitahub_uploads`, `$HOME/vitahub_backups`, `$APP_ROOT/tmp` y `$APP_ROOT/logs`
+6. copia `apps/web/dist/` a `$HOME/public_html`
+7. crea `tmp/restart.txt` y toca `app.js` para reiniciar Passenger
 
 ## Passenger
 
@@ -85,19 +84,21 @@ OperationalSchema1710000000019
 
 El cargador de entorno usa siempre el `.env` de la raiz, tanto al iniciar Passenger como al ejecutar migraciones.
 
-## Tareas Programadas (Cron)
+## Tareas programadas (cron)
 
 Instalar las tareas cron que procesan la cola de conversiones Meta CAPI:
 
 ```bash
-bash scripts/deploy/setup-crontab.sh <CRON_SECRET>
+bash scripts/deploy/setup-crontab.sh <CRON_SECRET> https://api.midominio.cl
 ```
+
+El script exige el origen de la API como segundo argumento y valida que sea `https`. Si el repositorio no esta en `$HOME/vitahub`, indicarlo con `APP_DIR=/ruta/al/repo` delante del comando.
 
 Tareas instaladas:
 
-- `*/5 * * * *` — procesa el outbox de conversiones Meta CAPI pendientes.
-- `0 * * * *` — diagnostico de Meta CAPI.
-- `0 3 * * *` — backup diario de MySQL (`mysqldump` comprimido) a `$HOME/vitahub_backups`, retiene 30 dias localmente. **Pendiente:** decidir almacenamiento externo/offsite — un backup que vive en el mismo servidor no protege ante falla de disco completa. Ver `docs/decisions/pending-business-decisions.md` #15.
+- `*/5 * * * *` procesa el outbox de conversiones Meta CAPI pendientes.
+- `0 * * * *` ejecuta diagnostico de Meta CAPI.
+- `0 3 * * *` genera backup diario de MySQL (`mysqldump` comprimido) a `$HOME/vitahub_backups` y retiene 30 dias localmente. Sigue pendiente definir almacenamiento externo u offsite.
 
 Verificar con `crontab -l`. Los logs quedan en `$APP_DIR/logs/`.
 
@@ -144,19 +145,20 @@ MAX_UPLOAD_BYTES=20971520
 TRUST_PROXY_HOPS=1
 ```
 
-Activar AutoSSL y **Force HTTPS Redirect** para los dominios del frontend y de la API en cPanel. El `.htaccess` del frontend fuerza HTTPS, HSTS y el fallback de React Router; el subdominio Passenger de la API debe mantener también la redirección HTTPS del panel.
+Activar AutoSSL y **Force HTTPS Redirect** para los dominios del frontend y de la API en cPanel. El `.htaccess` del frontend fuerza HTTPS, HSTS y el fallback de React Router; el subdominio Passenger de la API debe mantener tambien la redireccion HTTPS del panel.
 
 La renovacion de sesion se entrega en una cookie `HttpOnly`, `SameSite=Strict` y `Secure` en produccion. Por eso no se debe abrir la aplicacion productiva por HTTP ni desactivar `credentials` en CORS. El frontend conserva el token de acceso solo en memoria y el backend guarda unicamente el hash de la credencial de renovacion.
 
 Crear `UPLOAD_DIR` fuera de `public_html`, con escritura para el proceso de Passenger. `.cpanel.yml` prepara `$HOME/vitahub_uploads`; reemplazar `ACCOUNT` por el usuario real de cPanel en el `.env`. Los archivos temporales nunca deben quedar publicados directamente por Apache.
 
-## Meta y Google
+## Integraciones activas en Fase 0 / Fase 1
 
-Configurar en las consolas de cada proveedor estas URLs exactas:
+Configurar en las consolas de los proveedores solo las URLs que sigan activas en la fase publicada. Al lunes 27 de julio de 2026, Meta sigue dentro del circuito operativo y Google Ads/OAuth no debe considerarse requisito de salida para el despliegue base en iHosting.
+
+URLs activas:
 
 ```text
 Meta OAuth:   https://app.tudominio.cl/integrations/meta/callback
-Google OAuth: https://app.tudominio.cl/integrations/google/callback
 Meta webhook: https://api.tudominio.cl/api/webhooks/meta
 Meta borrado: https://api.tudominio.cl/api/webhooks/meta/data-deletion
 ```
@@ -172,21 +174,9 @@ META_CONVERSIONS_ACCESS_TOKEN=...
 META_TEST_EVENT_CODE=...
 ```
 
-Variables de Google:
+En Meta, suscribir la aplicacion a `leadgen` y habilitar los permisos solicitados por el flujo OAuth. En produccion, completar la revision de la aplicacion antes de conectar cuentas de clientes que no pertenezcan a los administradores de la app.
 
-```dotenv
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_DEVELOPER_TOKEN=...
-GOOGLE_LOGIN_CUSTOMER_ID=...
-GOOGLE_ADS_API_VERSION=v24
-```
-
-`GOOGLE_DEVELOPER_TOKEN` es obligatorio para descubrir y sincronizar Google Ads. La versión queda configurable porque Google retira versiones periódicamente; revisar su calendario oficial antes de cada actualización mayor.
-
-En Meta, suscribir la aplicación a `leadgen` y habilitar los permisos solicitados por el flujo OAuth. En producción, completar la revisión de la aplicación antes de conectar cuentas de clientes que no pertenezcan a los administradores de la app.
-
-La mensajería automática de Instagram no forma parte del flujo principal de Lead Ads. Solo se activa si se definen `CONVERSATION_SERVICE_URL` con HTTPS e `INTERNAL_API_TOKEN` de al menos 32 caracteres; sin esas variables, los mensajes se omiten sin interrumpir la captura de leads.
+La mensajeria automatica de Instagram no forma parte del flujo principal de Lead Ads. Solo se activa si se definen `CONVERSATION_SERVICE_URL` con HTTPS e `INTERNAL_API_TOKEN` de al menos 32 caracteres; sin esas variables, los mensajes se omiten sin interrumpir la captura de leads.
 
 Generar secretos distintos con Node.js:
 
@@ -195,11 +185,11 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Usar el primer formato para `JWT_SECRET` y `OAUTH_STATE_SECRET`. El segundo contiene exactamente 32 bytes y corresponde a `INTEGRATION_ENCRYPTION_KEY`. No cambiar esa llave después de conectar Meta o Google: hacerlo impediría descifrar los tokens ya guardados.
+Usar el primer formato para `JWT_SECRET` y `OAUTH_STATE_SECRET`. El segundo contiene exactamente 32 bytes y corresponde a `INTEGRATION_ENCRYPTION_KEY`. No cambiar esa llave despues de conectar Meta: hacerlo impediria descifrar los tokens ya guardados.
 
-Si Passenger corre en mas de un proceso, dejar `ENABLE_INTERNAL_SCHEDULER=false` y configurar un unico cron/worker para evitar trabajos duplicados. En una instalacion inicial de un solo proceso puede quedar en `true` para reintentos de Meta CAPI y tareas internas.
+Si Passenger corre en mas de un proceso, dejar `ENABLE_INTERNAL_SCHEDULER=false` y configurar un unico cron o worker para evitar trabajos duplicados. En una instalacion inicial de un solo proceso puede quedar en `true` para reintentos de Meta CAPI y tareas internas.
 
-## Estructura Esperada
+## Estructura esperada
 
 ```text
 /home/ACCOUNT/repositories/vitahub/
@@ -211,14 +201,16 @@ Si Passenger corre en mas de un proceso, dejar `ENABLE_INTERNAL_SCHEDULER=false`
 `-- .env
 ```
 
-## Verificacion Post-Despliegue
+## Verificacion post-despliegue
 
 ```bash
-# API responde
-curl -s https://api.tudominio.cl/api/health
+# API responde: 200 si esta operativa, 503 si alguna dependencia falla.
+# El detalle (base, memoria, disco) esta en /api/health/details, que exige sesion de
+# administracion: la sonda publica no expone informacion de infraestructura.
+curl -s -o /dev/null -w "%{http_code}\n" https://api.tudominio.cl/api/health
 
 # Frontend sirve
-curl -s -o /dev/null -w "%{http_code}" https://app.tudominio.cl
+curl -s -o /dev/null -w "%{http_code}\n" https://app.tudominio.cl
 
 # Cron funciona (requiere CRON_SECRET)
 curl -s -X POST https://api.tudominio.cl/api/cron/meta-capi \
@@ -228,16 +220,14 @@ curl -s -X POST https://api.tudominio.cl/api/cron/meta-capi \
 ## Rollback
 
 ```bash
-# Revertir la ultima migracion
+# Revertir la ultima migracion, solo si el cambio la incluyo y se evaluo el impacto
 npm run migration:revert
 
-# Volver al commit anterior y reconstruir
-git reset --hard HEAD~1
-npm run build:cpanel
-
-# Republicar el frontend
-npm run deploy:web:cpanel
+# Volver a desplegar el ultimo commit estable conocido desde Git/cPanel
+# usando el flujo normal de Update from Remote + Deploy HEAD Commit
 ```
+
+Evitar `git reset --hard` en el servidor como procedimiento por defecto.
 
 ## Troubleshooting
 
@@ -254,6 +244,7 @@ npm run deploy:web:cpanel
 - Passenger no compila; solo ejecuta `app.js`.
 - Si falla el arranque, primero validar que existan `apps/api/dist/main.js` y `apps/web/dist/index.html`.
 - Si cambia `.env`, reiniciar Passenger tocando `app.js` o desde cPanel.
-- Verificar que el registro público continúe deshabilitado y crear usuarios desde Administracion > Usuarios.
-- Probar OAuth, descubrimiento, asignación a cliente y una sincronización controlada en Meta y Google antes de activar tareas programadas.
-- Los scripts Docker de `infrastructure/` quedan como legacy y no son la ruta oficial de produccion en iHosting — sirven solo para desarrollo/pruebas locales con Docker si se prefiere a `scripts/local/`.
+- Verificar que el registro publico continue deshabilitado y crear usuarios desde Administracion > Usuarios.
+- Probar OAuth, asignacion a cliente y una sincronizacion controlada en Meta antes de activar tareas programadas.
+- Los scripts Docker de `infrastructure/` quedan como legacy y no son la ruta oficial de produccion en iHosting; sirven solo para desarrollo o pruebas locales con Docker si se prefiere a `scripts/local/`.
+- Usar `docs/deployment/DEPLOY-CHECKLIST-IHOSTING.md` como checklist breve de salida antes de publicar.

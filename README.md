@@ -11,7 +11,7 @@ Backend NestJS + Frontend React/PWA + MySQL. Multi-tenant agency management plat
 └──────────────────────┬──────────────────────────┘
                        │ HTTP/REST
 ┌──────────────────────▼──────────────────────────┐
-│                   API (NestJS 10)                │
+│                   API (NestJS 11)                │
 │  apps/api/src                                    │
 │  ├── core/        Auth, tenancy, audit, params   │
 │  ├── modules/     Business domains               │
@@ -20,13 +20,13 @@ Backend NestJS + Frontend React/PWA + MySQL. Multi-tenant agency management plat
                        │
           ┌────────────┼────────────┐
           ▼            ▼            ▼
-       MySQL 8+     Redis 7     Google Drive / Meta API
+       MySQL 8+ / MariaDB 10.6+      Google Drive / Meta API
 ```
 
 ## Tech Stack
 
-- **Backend:** NestJS 10, TypeORM, MySQL 8+, JWT Auth, Multi-tenancy
-- **Frontend:** React 19, Vite 5, React Router 7, TanStack Query, Zustand, PWA
+- **Backend:** NestJS 11, TypeORM, MySQL 8+ / MariaDB 10.6+, JWT Auth, Multi-tenancy
+- **Frontend:** React 19, Vite 8, React Router 7, TanStack Query, Zustand, PWA
 - **Production deploy:** iHosting/cPanel via `.cpanel.yml` + Phusion Passenger — see [`docs/deployment/ihosting.md`](docs/deployment/ihosting.md)
 - **CI/CD:** GitHub Actions (`.github/`)
 
@@ -83,11 +83,14 @@ npm.cmd run local:stop
    - CRM → Contactos → Filtra por cliente
    - Verifica que el comensal aparece con estado `reserved` → `attended`
 
-### With Docker (recommended)
+### With Docker (optional, local dev only)
+
+> Not the production path and not the recommended local setup — the portable
+> MariaDB workspace above is. Use this only if you specifically need containers.
 
 ```bash
 # 1. Clone and configure
-cp .env.example .env
+cp apps/api/.env.example .env
 # Edit .env with your settings
 
 # 2. Start all services
@@ -99,20 +102,26 @@ docker-compose exec api npm run migration:run
 
 ### Manual setup
 
+> The app reads a **single `.env` at the repository root** — `apps/api/src/config/load-environment.ts`
+> resolves it there, and `apps/web/vite.config.ts` sets `envDir: '../../'`. A `.env` placed
+> inside `apps/api/` or `apps/web/` is ignored.
+
 ```bash
-# 1. Database
-mysql -u root -p < database/seeds/seed.sql
+# 1. Environment (root, not apps/api)
+cp apps/api/.env.example .env
+# Fill DB_*, JWT_SECRET, INTEGRATION_ENCRYPTION_KEY, OAUTH_STATE_SECRET, UPLOAD_DIR,
+# APP_PUBLIC_URL, API_PUBLIC_URL, VITE_API_URL and VITE_APP_PUBLIC_URL.
 
-# 2. API
-cd apps/api
-cp .env.example .env
+# 2. Database schema — migrations create the tables; the seed only inserts demo rows
 npm install
-npm run start:dev
+npm run migration:run
+mysql -u root -p vitahub < database/seeds/seed.sql
 
-# 3. Web (separate terminal)
-cd apps/web
-npm install
-npm run dev
+# 3. API
+npm run dev:api
+
+# 4. Web (separate terminal)
+npm run dev:web
 ```
 
 ## Project Structure
@@ -143,6 +152,14 @@ vitahub/
 │   │   │   ├── knowledge/
 │   │   │   ├── reports/
 │   │   │   ├── dashboards/
+│   │   │   ├── reservations/  # Fase 1: pagina publica, bandeja, cupones
+│   │   │   ├── users/
+│   │   │   ├── operations/
+│   │   │   ├── objectives/
+│   │   │   ├── account-cycles/
+│   │   │   ├── audiovisual/
+│   │   │   ├── pods/
+│   │   │   ├── workflows/
 │   │   │   └── integrations/  # Meta, OAuth, etc.
 │   │   └── infrastructure/    # Migrations, data-source
 │   └── web/src/               # React + Vite + PWA frontend
@@ -191,13 +208,14 @@ npm run dev:web          # Start web in watch mode
 npm run build:api        # Build API
 npm run build:web        # Build web
 npm run test:api         # Run API tests
-npm run lint:api         # Lint API
+npm run test:web         # Run web tests
+npm run lint:api         # Lint API (oxlint + tsc)
+npm run lint:web         # Lint web
 ```
 
 ## Database Commands
 
 ```bash
-npm run migration:generate -- apps/api/src/infrastructure/migrations/MigrationName
 npm run migration:run
 npm run migration:revert
 ```
@@ -219,7 +237,7 @@ Docker Compose / PM2 / Nginx / Prometheus-Grafana under `infrastructure/` are a 
 ./infrastructure/scripts/backup.sh ./backups
 ```
 
-## Business Rules (ported from Lavitamina V2)
+## Business Rules
 
 - **UD Calculator** — Cost matrix by piece type
 - **XP Calculator** — XP with speed/quality bonuses

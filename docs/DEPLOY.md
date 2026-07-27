@@ -20,7 +20,7 @@ git clone https://github.com/tu-org/hubvit.git /opt/vitahub
 cd /opt/vitahub
 
 # 2. Configurar variables de producción
-cp .env.example .env
+cp apps/api/.env.example .env
 # Editar JWT_SECRET, DB_PASSWORD, etc.
 
 # 3. Iniciar todos los servicios
