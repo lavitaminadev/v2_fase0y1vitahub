@@ -6,8 +6,6 @@ import { User } from './user.entity';
 import { UserRole } from '../organizations/user-role.enum';
 import { Client } from '../clients/client.entity';
 
-const BCRYPT_ROUNDS = 10;
-
 /**
  * Datos requeridos para crear un usuario.
  */
@@ -51,7 +49,7 @@ export class CreateUserUseCase {
     const existing = await this.repo.findOne({ where: { email: normalizedEmail } });
     if (existing) throw new ConflictException('Ya existe una cuenta con este email');
     const clientId = await this.resolveClientId(data.organizationId, normalizedRole, data.clientId);
-    const hashed = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+    const hashed = await bcrypt.hash(data.password, Number(process.env.BCRYPT_ROUNDS || 10));
     const user = this.repo.create({
       email: normalizedEmail,
       password: hashed,

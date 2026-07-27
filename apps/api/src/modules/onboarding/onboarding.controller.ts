@@ -8,10 +8,12 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { ClientIdDto } from './dto/client-id.dto';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @Controller('onboarding')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.OPERATIONS_DIRECTOR, UserRole.ADMIN)
+@RequiresFeature('onboarding')
 export class OnboardingController {
   constructor(private service: OnboardingService) {}
 

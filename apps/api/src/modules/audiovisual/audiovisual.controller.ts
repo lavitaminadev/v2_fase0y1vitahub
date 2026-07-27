@@ -9,10 +9,12 @@ import { PaginationDto } from '../../shared/dto/pagination.dto';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.ADMIN, UserRole.CREATIVE_DIRECTOR, UserRole.OPERATIONS_DIRECTOR, UserRole.AV_DIRECTOR, UserRole.AUDIOVISUAL)
+@RequiresFeature('audiovisual')
 export class AudiovisualController {
   constructor(private service: AudiovisualService) {}
 

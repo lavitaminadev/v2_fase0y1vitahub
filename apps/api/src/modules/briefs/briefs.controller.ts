@@ -8,12 +8,14 @@ import { PaginationDto } from '../../shared/dto/pagination.dto';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @ApiTags('Briefs')
 @Controller('briefs')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.OPERATIONS_DIRECTOR, UserRole.CREATIVE_DIRECTOR, UserRole.ADMIN)
+@RequiresFeature('briefs')
 export class BriefsController {
   constructor(private service: BriefsService) {}
 

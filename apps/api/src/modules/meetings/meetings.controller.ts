@@ -186,7 +186,12 @@ export class MeetingsController {
   }
 
   private async assertClientAccess(req: AuthenticatedRequest, clientId?: string): Promise<void> {
-    if (!clientId) return;
+    if (!clientId) {
+      if ([UserRole.CLIENT, UserRole.COMMUNITY_MANAGER].includes(req.user.role as UserRole)) {
+        throw new NotFoundException('Meeting not found');
+      }
+      return;
+    }
     const client = await this.clientRepo.findOne({ where: { id: clientId, organizationId: req.organizationId } });
     if (!client) throw new NotFoundException('Client not found');
     if (req.user.role === UserRole.CLIENT && req.user.clientId !== client.id) throw new NotFoundException('Client not found');

@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UDBudget } from './ud-budget.entity';
-import { UDMovementType } from './ud-movement-type.enum';
 import { Client } from '../clients/client.entity';
 
 @Injectable()

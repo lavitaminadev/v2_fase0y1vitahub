@@ -12,10 +12,12 @@ import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { QuotesService } from './quotes.service';
 import { CreateQuoteDto, UpdateQuoteDto } from './dto/quote.dto';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @Controller('catalog')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.ADMIN, UserRole.COMMERCIAL_DIRECTOR)
+@RequiresFeature('catalog')
 export class CatalogController {
   constructor(
     @InjectRepository(Service) private serviceRepo: Repository<Service>,

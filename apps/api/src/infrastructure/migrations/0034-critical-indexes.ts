@@ -1,48 +1,40 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { dropIndexes, ensureIndexes, IndexSpec } from './helpers/indexes';
+
+/**
+ * Índices de consulta frecuente en auditoría, reservas y cola de conversiones.
+ *
+ * Varias de estas columnas ya están indexadas por las migraciones que crean sus tablas
+ * (`0002`, `0004`, `0011`, `0014`, `0017`), por lo que `ensureIndexes` omite lo existente y
+ * solo agrega lo que falta.
+ */
+const INDEXES: IndexSpec[] = [
+  { table: 'audit_logs', name: 'IDX_audit_org', columns: ['organization_id'] },
+  { table: 'audit_logs', name: 'IDX_audit_actor', columns: ['actor_id'] },
+  { table: 'audit_logs', name: 'IDX_audit_entity', columns: ['entity_type', 'entity_id'] },
+  { table: 'audit_logs', name: 'IDX_audit_occurred', columns: ['occurred_at'] },
+
+  { table: 'reservations', name: 'IDX_reserv_status', columns: ['status'] },
+  { table: 'reservations', name: 'IDX_reserv_starts', columns: ['starts_at'] },
+  { table: 'reservations', name: 'IDX_reserv_form_starts', columns: ['form_id', 'starts_at'] },
+
+  { table: 'reservation_events', name: 'IDX_reserv_events_rid', columns: ['reservation_id'] },
+  { table: 'reservation_form_events', name: 'IDX_form_events_created', columns: ['created_at'] },
+
+  { table: 'meta_conversion_outbox', name: 'IDX_outbox_status_next', columns: ['status', 'next_attempt_at'] },
+
+  { table: 'clients', name: 'IDX_clients_org', columns: ['organization_id'] },
+  { table: 'users', name: 'IDX_users_org', columns: ['organization_id'] },
+];
 
 export class CriticalIndexes1710000000034 implements MigrationInterface {
   name = 'CriticalIndexes1710000000034';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // audit_logs — sin índices, full table scan en cada consulta
-    await queryRunner.query(`ALTER TABLE audit_logs ADD INDEX IDX_audit_org (organization_id)`);
-    await queryRunner.query(`ALTER TABLE audit_logs ADD INDEX IDX_audit_actor (actor_id)`);
-    await queryRunner.query(`ALTER TABLE audit_logs ADD INDEX IDX_audit_entity (entity_type, entity_id)`);
-    await queryRunner.query(`ALTER TABLE audit_logs ADD INDEX IDX_audit_occurred (occurred_at)`);
-
-    // reservations — consultas frecuentes por estado, rango de fecha, formulario
-    await queryRunner.query(`ALTER TABLE reservations ADD INDEX IDX_reserv_status (status)`);
-    await queryRunner.query(`ALTER TABLE reservations ADD INDEX IDX_reserv_starts (starts_at)`);
-    await queryRunner.query(`ALTER TABLE reservations ADD INDEX IDX_reserv_form_starts (form_id, starts_at)`);
-
-    // reservation_events — se hace join por reservation_id
-    await queryRunner.query(`ALTER TABLE reservation_events ADD INDEX IDX_reserv_events_rid (reservation_id)`);
-
-    // reservation_form_events — filtrado por created_at en métricas
-    await queryRunner.query(`ALTER TABLE reservation_form_events ADD INDEX IDX_form_events_created (created_at)`);
-
-    // meta_conversion_outbox — filtrado por status + next_attempt_at
-    await queryRunner.query(`ALTER TABLE meta_conversion_outbox ADD INDEX IDX_outbox_status_next (status, next_attempt_at)`);
-
-    // clients — organization_id es una FK sin índice en muchas consultas
-    await queryRunner.query(`ALTER TABLE clients ADD INDEX IDX_clients_org (organization_id)`);
-
-    // users — organization_id usado en consultas de login/búsqueda
-    await queryRunner.query(`ALTER TABLE users ADD INDEX IDX_users_org (organization_id)`);
+    await ensureIndexes(queryRunner, INDEXES);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE audit_logs DROP INDEX IDX_audit_org`);
-    await queryRunner.query(`ALTER TABLE audit_logs DROP INDEX IDX_audit_actor`);
-    await queryRunner.query(`ALTER TABLE audit_logs DROP INDEX IDX_audit_entity`);
-    await queryRunner.query(`ALTER TABLE audit_logs DROP INDEX IDX_audit_occurred`);
-    await queryRunner.query(`ALTER TABLE reservations DROP INDEX IDX_reserv_status`);
-    await queryRunner.query(`ALTER TABLE reservations DROP INDEX IDX_reserv_starts`);
-    await queryRunner.query(`ALTER TABLE reservations DROP INDEX IDX_reserv_form_starts`);
-    await queryRunner.query(`ALTER TABLE reservation_events DROP INDEX IDX_reserv_events_rid`);
-    await queryRunner.query(`ALTER TABLE reservation_form_events DROP INDEX IDX_form_events_created`);
-    await queryRunner.query(`ALTER TABLE meta_conversion_outbox DROP INDEX IDX_outbox_status_next`);
-    await queryRunner.query(`ALTER TABLE clients DROP INDEX IDX_clients_org`);
-    await queryRunner.query(`ALTER TABLE users DROP INDEX IDX_users_org`);
+    await dropIndexes(queryRunner, INDEXES);
   }
 }

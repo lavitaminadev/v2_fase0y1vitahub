@@ -24,7 +24,10 @@ export class ResetUserPasswordUseCase {
     const temporaryPassword = randomBytes(18).toString('base64url');
     user.password = await bcrypt.hash(temporaryPassword, Number(process.env.BCRYPT_ROUNDS || 10));
     user.mustChangePassword = true;
-    user.passwordChangedAt = undefined;
+    // `JwtStrategy` rechaza los tokens emitidos antes de esta marca. Actualizarla invalida
+    // los access tokens ya entregados, que de otro modo seguirían siendo válidos hasta
+    // expirar aunque se revoque el token de renovación.
+    user.passwordChangedAt = new Date();
     user.refreshToken = null;
     await this.users.save(user);
 

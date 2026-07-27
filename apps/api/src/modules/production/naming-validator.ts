@@ -9,7 +9,7 @@ export function validate(fileName: string, clientCode: string): NamingValidation
     errors.push('No se permiten espacios en el nombre');
   }
 
-  if (/[^A-Za-z0-9_.\-]/.test(fileName)) {
+  if (/[^A-Za-z0-9_.-]/.test(fileName)) {
     errors.push('Solo caracteres alfanuméricos, guiones, underscores y puntos');
   }
 

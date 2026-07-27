@@ -10,12 +10,14 @@ import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { XpDisputesService } from './xp-disputes.service';
 import { CreateXpDisputeDto, ResolveXpDisputeDto } from './dto/xp-dispute.dto';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @ApiTags('Gamificación')
 @Controller('gamification')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.ADMIN, UserRole.ART_DIRECTOR, UserRole.AV_DIRECTOR, UserRole.DESIGNER, UserRole.AUDIOVISUAL)
+@RequiresFeature('gamification')
 export class GamificationController {
   constructor(
     private registerXp: RegisterXpUseCase,

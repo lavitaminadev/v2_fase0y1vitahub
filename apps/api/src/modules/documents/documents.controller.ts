@@ -10,11 +10,13 @@ import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { GoogleDriveService } from './google-drive.service';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @ApiTags('Documentos')
 @Controller('documents')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@RequiresFeature('documents')
 export class DocumentsController {
   constructor(
     private service: DocumentsService,

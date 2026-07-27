@@ -42,8 +42,10 @@ export class ContentController {
     });
   }
 
+  // Operaciones supervisa el cumplimiento del ciclo mensual de cada cuenta, del que la
+  // grilla es parte, asi que necesita lectura. Crear y editar sigue siendo de CM y DC.
   @Get('content/grids')
-  @Roles(UserRole.COMMUNITY_MANAGER, UserRole.CREATIVE_DIRECTOR, UserRole.ADMIN, UserRole.CLIENT)
+  @Roles(UserRole.COMMUNITY_MANAGER, UserRole.CREATIVE_DIRECTOR, UserRole.OPERATIONS_DIRECTOR, UserRole.ADMIN, UserRole.CLIENT)
   @ApiOperation({ summary: 'Listar parrillas de contenido' })
   async list(@Query('clientId') clientId: string, @Query('month') month: string, @Req() req: AuthenticatedRequest) {
     const effectiveClientId = req.user?.role === UserRole.CLIENT ? req.user.clientId : clientId;

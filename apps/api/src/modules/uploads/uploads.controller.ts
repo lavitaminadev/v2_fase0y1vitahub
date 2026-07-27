@@ -53,7 +53,7 @@ export class UploadsController {
     const maxBytes = Math.min(Number(process.env.CLOUDINARY_MAX_IMAGE_BYTES || 5 * 1024 * 1024), 10 * 1024 * 1024);
     if (file.buffer.length > maxBytes) throw new BadRequestException(`La imagen no puede superar los ${Math.round(maxBytes / 1024 / 1024)} MB`);
 
-    const folder = clientId ? `vitahub/${req.organizationId}/${clientId}` : `vitahub/${req.organizationId}`;
+    const folder = CloudinaryService.folderFor(req.organizationId, clientId);
     const result = await this.cloudinary.uploadImage(file.buffer, req.organizationId, {
       folder,
       fileName: `${randomUUID()}-${file.originalname}`,

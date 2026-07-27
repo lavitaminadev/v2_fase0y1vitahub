@@ -58,7 +58,8 @@ export class UpdateUserUseCase {
     if (data.password) {
       user.password = await bcrypt.hash(data.password, Number(process.env.BCRYPT_ROUNDS || 10));
       user.mustChangePassword = true;
-      user.passwordChangedAt = undefined;
+      // Invalida los access tokens ya emitidos: `JwtStrategy` los compara contra esta marca.
+      user.passwordChangedAt = new Date();
       user.refreshToken = null;
     }
     if (data.workMode !== undefined) user.workMode = data.workMode;

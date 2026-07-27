@@ -25,12 +25,14 @@ import { Client } from '../clients/client.entity';
 import { User } from '../users/user.entity';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
 import { ParameterResolver } from '../../core/parameters/parameter-resolver.service';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @ApiTags('Produccion')
 @Controller('production/pieces')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.ADMIN, UserRole.ART_DIRECTOR, UserRole.OPERATIONS_DIRECTOR, UserRole.DESIGNER, UserRole.AUDIOVISUAL)
+@RequiresFeature('production')
 export class ProductionController {
   constructor(
     @InjectRepository(Piece) private pieceRepo: Repository<Piece>,

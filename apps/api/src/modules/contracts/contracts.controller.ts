@@ -7,10 +7,12 @@ import { PaginationDto } from '../../shared/dto/pagination.dto';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @Controller('contracts')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.ADMIN, UserRole.COMMERCIAL_DIRECTOR, UserRole.OPERATIONS_DIRECTOR)
+@RequiresFeature('contracts')
 export class ContractsController {
   constructor(private service: ContractsService) {}
 

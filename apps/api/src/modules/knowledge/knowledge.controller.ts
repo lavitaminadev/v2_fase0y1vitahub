@@ -6,12 +6,14 @@ import { RagService } from './rag.service';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @ApiTags('Knowledge')
 @Controller('knowledge')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.ADMIN, UserRole.AI_LEAD)
+@RequiresFeature('knowledge')
 export class KnowledgeController {
   constructor(
     private readonly store: KnowledgeStore,

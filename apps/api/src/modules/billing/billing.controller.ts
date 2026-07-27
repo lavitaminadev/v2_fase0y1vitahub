@@ -11,12 +11,14 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { PriceChargeNoteDto } from './dto/price-charge-note.dto';
 import { PaginationDto } from '../../shared/dto/pagination.dto';
+import { RequiresFeature } from '../../core/authorization/requires-feature.decorator';
 
 @ApiTags('Facturación')
 @Controller('billing/invoices')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.ADMIN, UserRole.COMMERCIAL_DIRECTOR, UserRole.OPERATIONS_DIRECTOR)
+@RequiresFeature('billing')
 export class BillingController {
   constructor(
     private createInvoice: CreateInvoiceUseCase,

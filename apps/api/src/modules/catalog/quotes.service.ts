@@ -61,7 +61,7 @@ export class QuotesService {
     return this.quotes.save(quote);
   }
 
-  async accept(id: string, organizationId: string, userId: string): Promise<{ quote: Quote; client: Client; contract: Contract }> {
+  async accept(id: string, organizationId: string, _userId: string): Promise<{ quote: Quote; client: Client; contract: Contract }> {
     const quote = await this.find(id, organizationId);
     if (![QuoteStatus.DRAFT, QuoteStatus.SENT].includes(quote.status)) throw new BadRequestException('La cotización no se puede aceptar en su estado actual');
     const result = await this.quotes.manager.transaction(async (manager) => {

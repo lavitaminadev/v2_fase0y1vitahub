@@ -12,6 +12,7 @@ export class AddGa4MeasurementId1724247400000 implements MigrationInterface {
   name = 'AddGa4MeasurementId1724247400000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    if (await queryRunner.hasColumn('reservation_forms', 'ga4_measurement_id')) return;
     await queryRunner.addColumn('reservation_forms', new TableColumn({
       name: 'ga4_measurement_id',
       type: 'varchar',
@@ -21,6 +22,7 @@ export class AddGa4MeasurementId1724247400000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    if (!(await queryRunner.hasColumn('reservation_forms', 'ga4_measurement_id'))) return;
     await queryRunner.dropColumn('reservation_forms', 'ga4_measurement_id');
   }
 }
