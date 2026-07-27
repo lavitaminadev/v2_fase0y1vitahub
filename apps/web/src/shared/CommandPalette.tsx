@@ -26,7 +26,7 @@ export function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [taskMode, setTaskMode] = useState(false);
   const [taskForm, setTaskForm] = useState({ meetingId: '', description: '' });
-  const navigation = useMemo(() => getNavigation(user?.role), [user?.role]);
+  const navigation = useMemo(() => getNavigation(user?.role, user?.features, user?.permissions), [user?.role, user?.features, user?.permissions]);
   const hasPath = useCallback((prefix: string) => navigation.some((item) => item.path.startsWith(prefix)), [navigation]);
 
   useEffect(() => {

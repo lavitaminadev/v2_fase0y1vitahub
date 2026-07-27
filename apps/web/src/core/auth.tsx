@@ -24,7 +24,22 @@ export interface User {
   organizationId?: string;
   clientId?: string;
   mustChangePassword?: boolean;
+  /**
+   * Módulos habilitados en la organización, tal como los resuelve el backend.
+   *
+   * El menú se construye a partir de esta respuesta y no de una lista propia del frontend,
+   * de modo que lo visible coincida con lo que el backend autoriza.
+   */
+  features?: Record<string, boolean>;
+  /**
+   * Nivel de acceso efectivo por módulo: combina el módulo habilitado, el nivel del cargo
+   * y las excepciones definidas para esta persona.
+   */
+  permissions?: Record<string, PermissionLevel>;
 }
+
+/** Niveles de acceso a un módulo, de menor a mayor. Espejo de `permission-level.ts`. */
+export type PermissionLevel = 'none' | 'view' | 'edit' | 'manage';
 
 /**
  * Payload requerido para registrar una nueva cuenta.
@@ -64,6 +79,23 @@ export interface AuthState {
 }
 
 /**
+ * Carga el perfil junto a los permisos efectivos por módulo.
+ *
+ * Se piden en paralelo y el fallo de los permisos no invalida la sesión: sin ellos la
+ * navegación cae al filtrado por rol, que es más permisivo pero mantiene la aplicación
+ * utilizable mientras el backend responde de nuevo.
+ */
+async function loadProfile(): Promise<User> {
+  const [user, permissions] = await Promise.all([
+    api.get<User>('/auth/me'),
+    api.get<{ permissions: Record<string, PermissionLevel> }>('/me/permissions')
+      .then((response) => response.permissions)
+      .catch(() => undefined),
+  ]);
+  return { ...user, permissions };
+}
+
+/**
  * Store de Zustand que gestiona el ciclo de vida de la autenticación.
  */
 export const useAuth = create<AuthState>((set) => ({
@@ -100,7 +132,7 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       const session = await api.post<{ accessToken: string }>('/auth/refresh', {});
       setApiToken(session.accessToken);
-      const user = await api.get<User>('/auth/me');
+      const user = await loadProfile();
       set({ user, token: session.accessToken, loading: false });
     } catch {
       setApiToken(null);
@@ -109,8 +141,7 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   refreshProfile: async (): Promise<void> => {
-    const user = await api.get<User>('/auth/me');
-    set({ user });
+    set({ user: await loadProfile() });
   },
 
   clearError: (): void => set({ error: null }),

@@ -6,7 +6,7 @@ import { Navigate } from 'react-router-dom';
 import type { JSX } from 'react';
 import { useAuth } from './auth';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
-import { getAllowedRolesForPath } from './navigation.registry';
+import { getAllowedRolesForPath, isPathEnabled } from './navigation.registry';
 import type { UserRole } from '@vitahub/shared';
 
 /**
@@ -34,6 +34,11 @@ export function ProtectedRoute({ children, path, allowedRoles }: ProtectedRouteP
   }
   if (user.role === 'client' && path && !path.startsWith('/portal')) {
     return <Navigate to="/portal" replace />;
+  }
+  // Las rutas de módulos sin acceso se bloquean también por URL directa, no solo se ocultan
+  // del menú.
+  if (path && !isPathEnabled(path, user.features, user.permissions)) {
+    return <Navigate to="/404" replace />;
   }
   const roles = allowedRoles ?? (path ? getAllowedRolesForPath(path) : undefined);
   if (roles?.length && !roles.includes(user.role)) {

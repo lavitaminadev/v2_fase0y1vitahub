@@ -23,5 +23,8 @@ export function ClientRoute({ children }: ClientRouteProps): JSX.Element {
   if (loading) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'client') return <Navigate to="/dashboard" replace />;
+  // El cambio de clave temporal es obligatorio antes de operar el portal, con el mismo
+  // criterio que `ProtectedRoute` aplica a las cuentas del equipo.
+  if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
   return <>{children}</>;
 }

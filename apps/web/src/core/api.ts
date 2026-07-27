@@ -254,8 +254,8 @@ export const api = {
    * @param path - Ruta relativa de la API.
    * @param body - Payload del request.
    */
-  post<T = unknown, B = unknown>(path: string, body?: B): Promise<T> {
-    return apiClient.post<T>(path, body).then((r) => r.data);
+  post<T = unknown, B = unknown>(path: string, body?: B, config?: AxiosRequestConfig): Promise<T> {
+    return apiClient.post<T>(path, body, config).then((r) => r.data);
   },
 
   /** Sube un archivo usando el endpoint multipart seguro. */

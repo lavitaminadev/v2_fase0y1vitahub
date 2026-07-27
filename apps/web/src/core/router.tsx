@@ -27,7 +27,6 @@ const ReportsPage = lazy(() => import('../features/reports/ReportsPage').then(m 
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
 const MetaOAuthCallbackPage = lazy(() => import('../features/integrations/OAuthCallbackPage').then(m => ({ default: () => <m.OAuthCallbackPage provider="meta" /> })));
-const GoogleOAuthCallbackPage = lazy(() => import('../features/integrations/OAuthCallbackPage').then(m => ({ default: () => <m.OAuthCallbackPage provider="google" /> })));
 const OperationsPage = lazy(() => import('../features/operations/OperationsPage').then(m => ({ default: m.OperationsPage })));
 const DirectionPage = lazy(() => import('../features/direction/DirectionPage').then(m => ({ default: m.DirectionPage })));
 const BillingPage = lazy(() => import('../features/billing/BillingPage').then(m => ({ default: m.BillingPage })));
@@ -97,7 +96,6 @@ export function AppRouter() {
           <Route path="/settings" element={<ProtectedRoute path="/settings"><SafeSuspense><SettingsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/integrations" element={<ProtectedRoute path="/integrations"><SafeSuspense><IntegrationsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/integrations/meta/callback" element={<ProtectedRoute path="/integrations"><SafeSuspense><MetaOAuthCallbackPage /></SafeSuspense></ProtectedRoute>} />
-          <Route path="/integrations/google/callback" element={<ProtectedRoute path="/integrations"><SafeSuspense><GoogleOAuthCallbackPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/operations" element={<ProtectedRoute path="/operations"><SafeSuspense><OperationsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/direction" element={<ProtectedRoute path="/direction"><SafeSuspense><DirectionPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute path="/billing"><SafeSuspense><BillingPage /></SafeSuspense></ProtectedRoute>} />
