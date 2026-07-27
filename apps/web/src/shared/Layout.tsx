@@ -1,0 +1,118 @@
+/**
+ * @fileoverview Layout de la aplicación con sidebar responsivo y navegación
+ * basada en roles.
+ */
+
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../core/auth';
+import { getNavigation } from '../core/navigation.registry';
+import { NavGlyph } from './NavGlyph';
+import { ToastContainer } from './Toast';
+import { NotificationCenter } from './NotificationCenter';
+import { BrandMark } from './Brand';
+import { CommandPalette } from './CommandPalette';
+import { PwaInstallButton } from './PwaInstallButton';
+import { NotificationBell } from '../features/notifications/NotificationBell';
+import { ContextHelpDrawer } from './help/ContextHelpDrawer';
+
+const NAV_GROUPS: { label: string; paths: string[] }[] = [
+  { label: 'Medir', paths: ['/dashboard'] },
+  { label: 'Operar', paths: ['/reservations', '/crm/contacts', '/crm/leads', '/crm/opportunities', '/crm/interactions', '/production', '/audiovisual', '/content', '/documents', '/briefs', '/approvals', '/catalog'] },
+  { label: 'Colaborar', paths: ['/meetings', '/reports', '/billing', '/contracts', '/gamification'] },
+  { label: 'Configurar', paths: ['/clients', '/users', '/integrations', '/knowledge', '/onboarding', '/direction', '/operations', '/governance', '/settings'] },
+];
+
+/**
+ * Shell de layout principal renderizado para usuarios autenticados.
+ *
+ * Responsabilidades:
+ * - Renderizar el sidebar responsivo.
+ * - Filtrar la navegación según el rol del usuario.
+ * - Proveer un outlet para las rutas anidadas.
+ */
+export function Layout(): JSX.Element {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => { const updateConnection = () => setOnline(navigator.onLine); window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection); return () => { window.removeEventListener('online', updateConnection); window.removeEventListener('offline', updateConnection); }; }, []);
+
+  // Calcula la navegación una vez por cambio de rol para evitar filtrar en cada render.
+  const navItems = useMemo(() => getNavigation(user?.role, user?.features, user?.permissions), [user?.role, user?.features, user?.permissions]);
+  const groupedNavItems = useMemo(
+    () => NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.paths.flatMap((path) => navItems.find((item) => item.path === path) ?? []),
+    })).filter((group) => group.items.length > 0),
+    [navItems],
+  );
+
+  const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const currentItem = navItems.find((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`));
+
+  return (
+    <div className="app-layout">
+      <ToastContainer />
+      <NotificationCenter />
+      <CommandPalette />
+      {!online && <div className="offline-banner" role="alert"><strong>Sin conexión</strong><span>Puedes revisar la pantalla actual, pero los cambios no se enviarán hasta recuperar internet.</span></div>}
+      <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Abrir navegación" aria-expanded={sidebarOpen}>
+        ☰
+      </button>
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <BrandMark decorative />
+          <div><h2>VITAHUB</h2><span>La Vitamina</span></div>
+        </div>
+        <nav className="sidebar-nav">
+          {groupedNavItems.map((group) => (
+            <section className="sidebar-nav-section" key={group.label} aria-label={group.label}>
+              <span className="sidebar-nav-section-title">{group.label}</span>
+              {group.items.map((item) => {
+                const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`nav-item ${active ? 'active' : ''}`}
+                    onClick={closeSidebar}
+                    aria-label={item.label}
+                  >
+                    <NavGlyph label={item.label} />
+                    <span className="nav-label">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </section>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-footer-actions">
+            <NotificationBell />
+          </div>
+          <PwaInstallButton />
+          <div className="user-info">
+            <div className="user-name">{user?.name}</div>
+            <div className="user-role">{user?.role}</div>
+          </div>
+          <Link className="sidebar-account-link" to="/change-password" onClick={closeSidebar}>Cambiar mi contraseña</Link>
+          <button className="btn btn-outline btn-sm" onClick={logout}>
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+      {sidebarOpen && <button className="sidebar-backdrop" onClick={closeSidebar} aria-label="Cerrar navegación" />}
+      <div className="app-workspace">
+        <header className="workspace-header">
+          <div className="workspace-heading"><span>Espacio de trabajo</span><strong>{currentItem?.label ?? 'VITAHUB'}</strong></div>
+          <div className="workspace-header-actions"><button className="workspace-command" onClick={() => setHelpOpen(true)} title="Ayuda"><span>? Ayuda</span></button><button className="workspace-command" onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}><span>Buscar o ejecutar</span><kbd>Ctrl K</kbd></button><div className="workspace-user"><span className="online-dot" />{user?.name}</div></div>
+        </header>
+        <main className="main-content"><Outlet /></main>
+        <ContextHelpDrawer open={helpOpen} onClose={() => setHelpOpen(false)} />
+      </div>
+    </div>
+  );
+}

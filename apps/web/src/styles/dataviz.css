@@ -1,0 +1,32 @@
+/* Panel de resultados de reservas: tarjetas de cifra, controles y capa de hover.
+   Los colores de serie viven en el componente; aca solo va la estructura y la
+   tinta de texto, que nunca toma el color de la serie. */
+
+.viz-root { --viz-ink: #173f35; --viz-ink-soft: #75857e; --viz-line: #e5eae5; }
+
+.viz-controls { display: flex; align-items: center; gap: 9px; }
+.viz-range { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--viz-line); border-radius: 10px; background: #f4f7f2; }
+.viz-range button { min-width: 62px; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: #66766f; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.viz-range button.active { background: #fff; color: var(--viz-ink); box-shadow: 0 2px 8px rgba(23,63,53,.1); }
+.viz-range button:focus-visible { outline: 2px solid #173f35; outline-offset: 1px; }
+
+.viz-stat-row { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 16px; }
+.viz-stat-row article { display: grid; gap: 3px; padding: 15px 17px; border: 1px solid var(--viz-line); border-radius: 14px; background: #fff; }
+.viz-stat-row span { color: var(--viz-ink-soft); font-size: 9px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.viz-stat-row strong { color: var(--viz-ink); font-family: Georgia,serif; font-size: 27px; font-weight: 500; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.viz-stat-row small { color: var(--viz-ink-soft); font-size: 10px; }
+
+.viz-note { margin: -8px 0 12px; color: var(--viz-ink-soft); font-size: 10px; line-height: 1.45; }
+.viz-full { margin-top: 20px; }
+.viz-caption { padding-bottom: 9px; color: var(--viz-ink-soft); font-size: 10px; text-align: left; }
+
+.viz-tooltip { display: grid; gap: 3px; padding: 9px 11px; border: 1px solid var(--viz-line); border-radius: 10px; background: #fff; box-shadow: 0 10px 26px rgba(23,63,53,.13); font-size: 11px; }
+.viz-tooltip strong { color: var(--viz-ink); font-size: 10px; font-weight: 800; }
+.viz-tooltip span { display: flex; align-items: center; gap: 6px; color: #52605b; }
+.viz-tooltip b { color: var(--viz-ink); font-variant-numeric: tabular-nums; }
+.viz-tooltip i { width: 8px; height: 8px; border-radius: 2px; }
+
+@media (max-width: 900px) {
+  .viz-stat-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .viz-controls { flex-wrap: wrap; }
+}

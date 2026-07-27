@@ -1,0 +1,253 @@
+/* Production kanban board (pieces by status column). */
+
+/* Kanban */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.kanban-column {
+  background: linear-gradient(180deg, #eef1f6 0%, #f8fafc 100%);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  border: 1px solid var(--border-light);
+}
+
+.kanban-column.is-drop-target {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(26, 26, 46, 0.08);
+}
+
+.kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.kanban-count {
+  background: var(--border);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-card {
+  background: var(--bg-white);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.kanban-card.is-dragging {
+  opacity: 0.55;
+  transform: rotate(1deg);
+}
+
+.kanban-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-dark);
+  margin-bottom: 4px;
+}
+
+.kanban-card-info {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.kanban-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.production-board { display: grid; grid-template-columns: repeat(8, minmax(230px, 1fr)); gap: 12px; margin-top: 16px; overflow-x: auto; padding-bottom: 14px; scroll-snap-type: x proximity; }
+.production-board .kanban-column { scroll-snap-align: start; min-height: 320px; }
+.kanban-card-client { color: var(--text-light); font-size: 12px; margin-bottom: 9px; }
+.kanban-card-metrics { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.kanban-card-metrics span { padding: 3px 7px; border-radius: 999px; background: #f0f4f3; color: #315a50; font-size: 11px; font-weight: 700; }
+.kanban-empty { padding: 24px 8px; text-align: center; color: var(--text-light); font-size: 12px; }
+.view-switch { display: flex; gap: 4px; }
+
+.lead-card {
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.lead-card[data-fit-status='qualified'] {
+  border-left: 4px solid var(--success);
+}
+
+.lead-card[data-fit-status='review'] {
+  border-left: 4px solid var(--info);
+}
+
+.lead-card[data-fit-status='discarded'] {
+  border-left: 4px solid var(--danger);
+}
+
+.lead-card-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(26, 26, 46, 0.08);
+}
+
+.lead-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.lead-score {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lead-score-good {
+  color: var(--success);
+}
+
+.lead-score-mid {
+  color: var(--warning);
+}
+
+.lead-score-bad {
+  color: var(--danger);
+}
+
+.lead-discard-reason {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: #fff4f2;
+  border: 1px solid #f5c6cb;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.lead-note-preview {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.status-diagram {
+  margin-top: 24px;
+}
+
+.status-flow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--text-light);
+}
+
+.status-flow .step {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  color: var(--text-dark);
+  font-size: 13px;
+}
+
+.status-flow .step.lost {
+  color: var(--danger);
+  border-color: #f2b8b5;
+}
+
+.status-flow .arrow {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.crm-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 16px 0 8px;
+}
+
+.crm-sync-card {
+  gap: 12px;
+}
+
+.crm-flow-steps {
+  margin-top: 4px;
+}
+
+.crm-flow-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.crm-board-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 14px 0 4px;
+}
+
+.crm-board-legend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.crm-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dark);
+}
+
+.crm-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.crm-legend-dot.is-qualified {
+  background: var(--success);
+}
+
+.crm-legend-dot.is-review {
+  background: var(--info);
+}
+
+.crm-legend-dot.is-discarded {
+  background: var(--danger);
+}
+
+.crm-related-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #fafbfc;
+  font-size: 13px;
+  color: var(--text);
+}
+

@@ -1,0 +1,82 @@
+/*
+ * Stylesheet entry point. Split into styles/*.css by domain for readability —
+ * import order matters (it preserves the original cascade), so don't reorder
+ * these without checking for cross-file selector overrides.
+ */
+@import './styles/tokens.css';
+@import './styles/layout.css';
+@import './styles/ui-kit.css';
+@import './styles/auth.css';
+@import './styles/production-kanban.css';
+@import './styles/content-meetings.css';
+@import './styles/integrations.css';
+@import './styles/direction.css';
+@import './styles/drawer.css';
+@import './styles/feedback-states.css';
+@import './styles/pulse-reservations-intro.css';
+@import './styles/notifications-users.css';
+@import './styles/reservation-brand.css';
+@import './styles/app-config.css';
+@import './styles/crm.css';
+@import './styles/workspace-details.css';
+@import './styles/operational-depth.css';
+@import './styles/reservation-builder.css';
+@import './styles/dataviz.css';
+
+.bar-chart{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-label{min-width:100px;font-size:12px;font-weight:600;color:var(--text-dark)}
+.bar-track{flex:1;height:24px;background:#eef2ef;border-radius:6px;position:relative;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;transition:width .4s ease;min-width:3px}
+.bar-value{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.donut-ring{display:flex;flex-direction:column;align-items:center;gap:8px}
+.donut-circle{width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.donut-circle::after{content:'';width:65px;height:65px;border-radius:50%;background:#fff;position:absolute}
+.donut-circle span{position:relative;z-index:1;font-size:20px;font-weight:800;color:var(--text-dark)}
+.dashboard-charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+.dashboard-chart-card{background:#fff;border:1px solid #e5eae5;border-radius:16px;padding:20px}
+.dashboard-chart-card h3{font-size:14px;margin:0 0 14px;color:var(--text-dark)}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.metric-grid div{display:flex;flex-direction:column;gap:3px;padding:10px;border-radius:10px;background:#f6f8f6}
+.metric-grid span{font-size:11px;color:var(--muted)}
+.metric-grid strong{font-size:18px;color:var(--text-dark)}
+@media(max-width:700px){.dashboard-charts-row{grid-template-columns:1fr}.bar-label{min-width:70px;font-size:11px}}
+
+.help-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:none;border-radius:50%;background:#e8ece8;color:#66766f;font-size:11px;cursor:pointer;line-height:1;flex-shrink:0}
+.help-icon-btn:hover{background:#d0d8d2;color:#294b40}
+.help-tooltip-wrapper{display:inline-flex;align-items:center;position:relative}
+.help-tooltip{position:absolute;z-index:1100;padding:6px 10px;border-radius:8px;background:#173f35;color:#fff;font-size:11px;line-height:1.4;max-width:220px;white-space:normal;pointer-events:none;animation:helpFadeIn .15s ease}
+.help-tooltip-top{bottom:calc(100% + 6px);left:50%;transform:translateX(-50%)}
+.help-tooltip-bottom{top:calc(100% + 6px);left:50%;transform:translateX(-50%)}
+.help-popover-wrapper{display:inline-flex;align-items:center;position:relative}
+.help-popover{position:absolute;z-index:1100;top:calc(100% + 8px);right:0;width:280px;padding:16px;border-radius:14px;background:#fff;box-shadow:0 12px 40px rgba(0,0,0,.18);border:1px solid #e5eae5;animation:helpFadeIn .15s ease}
+.help-popover-title{font-size:13px;color:#173f35}
+.help-popover p{font-size:12px;color:#66766f;margin:6px 0;line-height:1.5}
+.help-popover-formula{margin:8px 0;padding:8px 10px;border-radius:8px;background:#f3f5ef;font-size:11px}
+.help-popover-formula span{display:block;color:#889991;margin-bottom:3px}
+.help-popover-formula code{font-size:12px;color:#294b40}
+.help-popover-source{display:block;margin-top:6px;font-size:10px;color:#889991}
+.expandable-details{margin:4px 0}
+.expandable-trigger{display:flex;align-items:center;gap:4px;padding:6px 0;border:none;background:none;color:#66766f;font-size:12px;cursor:pointer;font-weight:600}
+.expandable-trigger:hover{color:#294b40}
+.expandable-arrow{font-size:10px;width:14px}
+.expandable-content{padding:8px 0 8px 18px}
+.help-drawer-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.35)}
+.help-drawer{position:fixed;top:0;right:0;z-index:2001;width:min(420px,92vw);height:100dvh;background:#fff;box-shadow:-8px 0 40px rgba(0,0,0,.12);overflow-y:auto;display:flex;flex-direction:column;animation:helpSlideIn .2s ease}
+.help-drawer-header{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 24px 0}
+.help-drawer-header h2{font-size:20px;margin:4px 0 0;color:#173f35}
+.help-drawer-header button{border:none;background:none;font-size:18px;cursor:pointer;padding:4px 8px;color:#889991}
+.help-drawer-desc{padding:8px 24px 16px;font-size:13px;color:#66766f;line-height:1.5}
+.help-drawer-body{flex:1;padding:0 24px 24px;display:flex;flex-direction:column;gap:4px}
+.help-section{border:1px solid #e5eae5;border-radius:10px;overflow:hidden}
+.help-section-trigger{width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:none;background:#fafbfc;font-size:13px;font-weight:700;color:#294b40;cursor:pointer;text-align:left}
+.help-section-trigger:hover{background:#f3f5ef}
+.help-section-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.help-section-body p{font-size:12px;color:#66766f;margin:0;line-height:1.5}
+.help-section-item{padding:8px 10px;border-radius:8px;background:#f6f8f6;display:flex;flex-direction:column;gap:4px}
+.help-section-item strong{font-size:12px;color:#294b40}
+.help-section-item small{font-size:11px;color:#889991;line-height:1.4}
+.help-section-item code{font-size:10px;padding:3px 6px;border-radius:4px;background:#e8ece8;color:#173f35}
+.help-item-source{font-size:10px;color:#aab5b0}
+@keyframes helpFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes helpSlideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}

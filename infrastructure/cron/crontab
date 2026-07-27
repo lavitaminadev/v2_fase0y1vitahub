@@ -1,0 +1,16 @@
+# VITAHUB — Cron (referencia historica de contenedor, NO USAR EN iHOSTING)
+#
+# Este archivo describia tareas para un despliegue en contenedor: rutas /app,
+# usuario root y binarios apps/api/dist/cron/*.js que el build actual no genera.
+# Instalarlo en cPanel no ejecuta nada y deja la cola de conversiones sin procesar.
+#
+# La configuracion vigente para cPanel es:
+#
+#   bash scripts/deploy/setup-crontab.sh <CRON_SECRET> https://api.midominio.cl
+#
+# Instala el procesamiento del outbox de Meta CAPI cada 5 minutos, el diagnostico
+# horario y el respaldo diario de la base. Ver docs/deployment/ihosting.md.
+#
+# Las tareas de XP, ciclos mensuales y piezas estancadas las ejecuta el
+# planificador interno de la API cuando ENABLE_INTERNAL_SCHEDULER=true
+# (apps/api/src/core/jobs/job-scheduler.service.ts).

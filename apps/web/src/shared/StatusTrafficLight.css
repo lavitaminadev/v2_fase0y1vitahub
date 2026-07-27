@@ -1,0 +1,129 @@
+.status-traffic-light {
+  position: relative;
+  display: inline-block;
+}
+
+.status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--txt);
+}
+
+.status-button:hover:not(:disabled) {
+  background: var(--gray);
+  transform: scale(1.02);
+}
+
+.status-button:focus-visible {
+  outline: 2px solid var(--cian);
+  outline-offset: 2px;
+}
+
+.status-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-button .icon {
+  font-size: 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.status-button .label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--blanco);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  margin-top: 4px;
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-left: 4px solid transparent;
+  background: transparent;
+  color: var(--txt);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-weight: 500;
+}
+
+.status-option:hover {
+  background: var(--gray);
+}
+
+.status-option:focus-visible {
+  outline: 2px solid var(--cian);
+  outline-offset: -2px;
+}
+
+.status-option.active {
+  background: rgba(14, 198, 184, 0.1);
+  color: var(--cian);
+  font-weight: 600;
+}
+
+.status-option .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blanco);
+  font-size: 9px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.status-option .option-label {
+  font-size: 13px;
+  flex-grow: 1;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .status-dropdown {
+    background: var(--dark-card, #1a1a1d);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .status-option:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .status-option.active {
+    background: rgba(14, 198, 184, 0.2);
+  }
+}
