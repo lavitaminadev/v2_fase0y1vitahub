@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
@@ -181,7 +181,21 @@ export class CloudinaryService {
     }
   }
 
+  /**
+   * Elimina una imagen de Cloudinary.
+   *
+   * Solo actúa sobre recursos dentro de la carpeta de la organización. Las credenciales
+   * pueden ser compartidas entre organizaciones, por lo que el aislamiento depende de la
+   * jerarquía de carpetas y debe verificarse aquí antes de llamar al proveedor.
+   *
+   * @param publicId - Identificador del recurso en Cloudinary.
+   * @param organizationId - Organización propietaria del recurso.
+   * @throws ForbiddenException si el recurso no pertenece a la organización.
+   */
   async destroy(publicId: string, organizationId: string): Promise<void> {
+    if (!this.belongsToOrganization(publicId, organizationId)) {
+      throw new ForbiddenException('La imagen no pertenece a esta organización');
+    }
     const credentials = await this.getCredentials(organizationId);
     if (!credentials?.cloudName || !credentials?.apiKey || !credentials?.apiSecret) return;
     const timestamp = Math.floor(Date.now() / 1000);
@@ -207,9 +221,33 @@ export class CloudinaryService {
     }
   }
 
+  /**
+   * Carpeta raíz de una organización, y de un cliente dentro de ella.
+   *
+   * Es el mecanismo de aislamiento: las credenciales de Cloudinary pueden ser comunes a
+   * varias organizaciones, así que la separación la da la jerarquía de carpetas.
+   */
+  static folderFor(organizationId: string, clientId?: string): string {
+    return clientId ? `vitahub/${organizationId}/${clientId}` : `vitahub/${organizationId}`;
+  }
+
+  /** Indica si un recurso está dentro de la carpeta de la organización. */
+  private belongsToOrganization(publicId: string, organizationId: string): boolean {
+    return publicId.startsWith(`${CloudinaryService.folderFor(organizationId)}/`);
+  }
+
+  /**
+   * Lista las imágenes de la organización, opcionalmente acotadas a un cliente.
+   *
+   * El prefijo de carpeta siempre incluye la organización: una consulta sin filtro
+   * devolvería los recursos de toda la cuenta de Cloudinary, que puede ser compartida.
+   *
+   * @param organizationId - Organización cuyas imágenes se listan.
+   * @param options.clientId - Restringe el listado a la carpeta de un cliente.
+   */
   async listResources(
     organizationId: string,
-    options: { maxResults?: number; nextCursor?: string; prefix?: string } = {},
+    options: { maxResults?: number; nextCursor?: string; clientId?: string } = {},
   ): Promise<{ resources: CloudinaryResource[]; nextCursor?: string }> {
     const credentials = await this.getCredentials(organizationId);
     if (!credentials?.cloudName || !credentials?.apiKey || !credentials?.apiSecret) {
@@ -219,9 +257,9 @@ export class CloudinaryService {
       const params: Record<string, string | number> = {
         max_results: options.maxResults || 30,
         type: 'upload',
+        prefix: `${CloudinaryService.folderFor(organizationId, options.clientId)}/`,
       };
       if (options.nextCursor) params.next_cursor = options.nextCursor;
-      if (options.prefix) params.prefix = options.prefix;
 
       const { data } = await firstValueFrom(
         this.http.get<CloudinaryListResponse>(

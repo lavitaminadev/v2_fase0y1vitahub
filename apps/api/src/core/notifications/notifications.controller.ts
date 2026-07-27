@@ -11,29 +11,33 @@ import { UserRole } from '../../modules/organizations/user-role.enum';
 export class NotificationsController {
   constructor(private readonly service: NotificationService) {}
 
+  private canReadSystemNotifications(req: AuthenticatedRequest) {
+    return req.user.role === UserRole.ADMIN;
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar notificaciones del usuario' })
   async findAll(@Req() req: AuthenticatedRequest) {
-    return this.service.findByUser(req.organizationId || req.user.organizationId, req.user.id);
+    return this.service.findByUser(req.organizationId || req.user.organizationId, req.user.id, this.canReadSystemNotifications(req));
   }
 
   @Get('unread-count')
   @ApiOperation({ summary: 'Obtener cantidad de notificaciones no leídas' })
   async unreadCount(@Req() req: AuthenticatedRequest) {
-    const count = await this.service.unreadCount(req.organizationId || req.user.organizationId, req.user.id);
+    const count = await this.service.unreadCount(req.organizationId || req.user.organizationId, req.user.id, this.canReadSystemNotifications(req));
     return { unread: count };
   }
 
   @Put('read-all')
   @ApiOperation({ summary: 'Marcar todas las notificaciones como leidas' })
   markAllAsRead(@Req() req: AuthenticatedRequest) {
-    return this.service.markAllAsRead(req.organizationId || req.user.organizationId, req.user.id);
+    return this.service.markAllAsRead(req.organizationId || req.user.organizationId, req.user.id, this.canReadSystemNotifications(req));
   }
 
   @Put(':id/read')
   @ApiOperation({ summary: 'Marcar notificación como leída' })
   async markAsRead(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const notif = await this.service.markAsRead(req.organizationId || req.user.organizationId, id, req.user.id);
+    const notif = await this.service.markAsRead(req.organizationId || req.user.organizationId, id, req.user.id, this.canReadSystemNotifications(req));
     if (!notif) throw new NotFoundException('Notification not found');
     return notif;
   }

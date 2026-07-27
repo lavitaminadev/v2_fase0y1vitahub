@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Headers, ForbiddenException, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Headers, ForbiddenException, Body } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { timingSafeEqual } from 'crypto';
 import { Public } from '../auth/decorators/public.decorator';

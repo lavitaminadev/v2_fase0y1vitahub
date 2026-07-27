@@ -7,6 +7,7 @@ import { createHash, randomBytes, randomUUID } from 'crypto';
 import type { AuthResponse, UserRole as SharedUserRole } from '@vitahub/shared';
 import { User } from '../../modules/users/user.entity';
 import { Organization } from '../../modules/organizations/organization.entity';
+import { OrganizationFeatures, normalizeOrganizationFeatures } from '../../modules/organizations/organization-features';
 import { UserRole } from '../../modules/organizations/user-role.enum';
 import { config } from '../../config';
 import { PasswordResetToken } from './password-reset-token.entity';
@@ -67,9 +68,9 @@ export class AuthService {
       where: { email: normalizedEmail, isActive: true },
       select: ['id', 'email', 'name', 'password', 'role', 'organizationId', 'avatarUrl', 'clientId', 'mustChangePassword'],
     });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Credenciales inválidas');
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) throw new UnauthorizedException('Invalid credentials');
+    if (!isValid) throw new UnauthorizedException('Credenciales inválidas');
     return user;
   }
 
@@ -136,7 +137,7 @@ export class AuthService {
       await this.userRepo.update(user.id, { refreshToken: hashRefreshToken(refreshToken) });
       return { accessToken, refreshToken };
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Token de actualización inválido');
     }
   }
 
@@ -153,7 +154,7 @@ export class AuthService {
     const email = data.email.trim().toLowerCase();
     const name = data.name.trim().replace(/\s+/g, ' ');
     const existing = await this.userRepo.findOne({ where: { email } });
-    if (existing) throw new ConflictException('Email already registered');
+    if (existing) throw new ConflictException('El correo ya está registrado');
 
     const code = `${email.split('@')[0]}-${Date.now().toString(36)}`;
     const org = await this.orgRepo.save(this.orgRepo.create({ name: `${name} - Organizacion`, code }));
@@ -204,8 +205,17 @@ export class AuthService {
    * @param userId - Identificador del usuario.
    * @returns Entidad del usuario o null.
    */
-  async me(userId: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { id: userId } });
+  /**
+   * Perfil del usuario mas los modulos habilitados en su organizacion.
+   *
+   * Los `features` viajan aca para que el frontend construya el menu con la misma verdad
+   * que aplica el backend, en vez de una lista paralela que puede divergir.
+   */
+  async me(userId: string): Promise<(User & { features: OrganizationFeatures }) | null> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return null;
+    const organization = await this.orgRepo.findOne({ where: { id: user.organizationId }, select: ['id', 'features'] });
+    return Object.assign(user, { features: normalizeOrganizationFeatures(organization?.features) });
   }
 
   /**

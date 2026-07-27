@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 import { User } from '../../modules/users/user.entity';
 
@@ -55,27 +55,27 @@ export class NotificationService {
     return this.repo.save(notifs);
   }
 
-  async findByUser(organizationId: string, userId: string): Promise<Notification[]> {
+  async findByUser(organizationId: string, userId: string, includeSystem = true): Promise<Notification[]> {
     return this.repo.find({
-      where: { organizationId, userId },
+      where: includeSystem ? { organizationId, userId } : { organizationId, userId, type: Not('system') },
       order: { createdAt: 'DESC' },
       take: 50,
     });
   }
 
-  async markAsRead(organizationId: string, id: string, userId: string): Promise<Notification | null> {
-    const notif = await this.repo.findOne({ where: { organizationId, id, userId } });
+  async markAsRead(organizationId: string, id: string, userId: string, includeSystem = true): Promise<Notification | null> {
+    const notif = await this.repo.findOne({ where: includeSystem ? { organizationId, id, userId } : { organizationId, id, userId, type: Not('system') } });
     if (!notif) return null;
     notif.read = true;
     return this.repo.save(notif);
   }
 
-  async unreadCount(organizationId: string, userId: string): Promise<number> {
-    return this.repo.count({ where: { organizationId, userId, read: false } });
+  async unreadCount(organizationId: string, userId: string, includeSystem = true): Promise<number> {
+    return this.repo.count({ where: includeSystem ? { organizationId, userId, read: false } : { organizationId, userId, read: false, type: Not('system') } });
   }
 
-  async markAllAsRead(organizationId: string, userId: string): Promise<{ updated: number }> {
-    const result = await this.repo.update({ organizationId, userId, read: false }, { read: true });
+  async markAllAsRead(organizationId: string, userId: string, includeSystem = true): Promise<{ updated: number }> {
+    const result = await this.repo.update(includeSystem ? { organizationId, userId, read: false } : { organizationId, userId, read: false, type: Not('system') }, { read: true });
     return { updated: result.affected ?? 0 };
   }
 }

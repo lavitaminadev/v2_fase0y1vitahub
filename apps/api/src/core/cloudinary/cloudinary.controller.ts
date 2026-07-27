@@ -103,11 +103,10 @@ export class CloudinaryController {
     @Query('limit') limit?: string,
     @Query('clientId') clientId?: string,
   ) {
-    const prefix = clientId ? `vitahub/${req.organizationId}/${clientId}/` : undefined;
     return this.cloudinary.listResources(req.organizationId, {
       maxResults: limit ? Math.min(Number(limit) || 30, 100) : 30,
       nextCursor: next,
-      prefix,
+      clientId,
     });
   }
 }

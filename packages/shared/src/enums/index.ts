@@ -7,7 +7,7 @@
  */
 
 import type { ClientStatus } from '../types/client'
-import type { LeadStatus } from '../types/lead'
+import { LEAD_STATUSES } from '../types/lead'
 import type { PieceStatus, PieceType } from '../types/production'
 import type { UdMovementType, UdBudgetStatus } from '../types/design-budget'
 import type { XpTier, XpEventType, XpPeriodStatus } from '../types/gamification'
@@ -22,8 +22,14 @@ import type { UserWorkMode, UserRole } from '../types/user'
 /** All allowed client lifecycle statuses. */
 export const ClientStatuses = ['onboarding', 'active', 'paused', 'at_risk', 'churned'] as const satisfies readonly ClientStatus[]
 
-/** All allowed lead funnel statuses. */
-export const LeadStatuses = ['new', 'contacted', 'meeting_scheduled', 'quote_sent', 'negotiation', 'won', 'lost'] as const satisfies readonly LeadStatus[]
+/**
+ * All allowed lead statuses.
+ *
+ * Re-exported from `types/lead` so there is a single catalogue. A literal list here would
+ * still satisfy `readonly LeadStatus[]` while missing entries — a subset satisfies the
+ * type — so the compiler would not catch a stale copy.
+ */
+export const LeadStatuses = LEAD_STATUSES
 
 /** All allowed piece statuses. */
 export const PieceStatuses = ['backlog', 'assigned', 'in_progress', 'internal_review', 'client_validation', 'correction', 'approved', 'delivered'] as const satisfies readonly PieceStatus[]

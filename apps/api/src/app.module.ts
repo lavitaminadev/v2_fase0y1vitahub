@@ -12,6 +12,7 @@ import { HealthModule } from './core/health/health.module';
 import { AuthModule } from './core/auth/auth.module';
 import { TenancyModule } from './core/tenancy/tenancy.module';
 import { AuditModule } from './core/audit/audit.module';
+import { AuthorizationModule } from './core/authorization/authorization.module';
 import { EventsModule } from './core/events/events.module';
 import { JobsModule } from './core/jobs/jobs.module';
 import { ParametersModule } from './core/parameters/parameters.module';
@@ -125,6 +126,7 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
     WorkflowsModule,
     PodsModule,
     CronModule,
+    AuthorizationModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

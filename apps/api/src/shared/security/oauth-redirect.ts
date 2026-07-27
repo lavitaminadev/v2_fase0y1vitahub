@@ -4,7 +4,7 @@ import { parseCorsOrigins } from '../../config/environment';
 type OAuthProvider = 'meta' | 'google';
 
 function configuredAppUrl(): string | undefined {
-  return process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL;
+  return process.env.APP_PUBLIC_URL;
 }
 
 export function resolveOAuthRedirect(provider: OAuthProvider, requested?: string): string {

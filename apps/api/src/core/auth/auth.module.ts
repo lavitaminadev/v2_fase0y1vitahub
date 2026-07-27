@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './auth.guard';
 import { RolesGuard } from '../authorization/roles.guard';
+import { FeatureGuard } from '../authorization/feature.guard';
 import { User } from '../../modules/users/user.entity';
 import { Organization } from '../../modules/organizations/organization.entity';
 import { config } from '../../config';
@@ -29,7 +30,11 @@ const ACCESS_TOKEN_EXPIRES_IN = config.jwt.expiresIn as JwtSignOptions['expiresI
     JwtStrategy,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // Va despues de RolesGuard a proposito: el orden de registro es el orden de ejecucion, y
+    // este necesita la organizacion ya resuelta en la peticion.
+    FeatureGuard,
+    { provide: APP_GUARD, useExisting: FeatureGuard },
   ],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, JwtModule, FeatureGuard],
 })
 export class AuthModule {}

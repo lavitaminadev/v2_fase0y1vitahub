@@ -1,6 +1,5 @@
 import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
-import { randomUUID } from 'crypto';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 import { AuditService } from './audit.service';
 
