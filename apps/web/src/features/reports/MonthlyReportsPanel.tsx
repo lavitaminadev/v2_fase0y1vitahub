@@ -8,6 +8,11 @@ import type { MonthlyReport } from './monthly-report.types';
 
 interface ClientOption { id: string; name: string }
 const now = new Date();
+const defaultPeriod = (() => {
+  const currentMonth = now.getMonth() + 1;
+  if (currentMonth === 1) return { year: String(now.getFullYear() - 1), month: '12' };
+  return { year: String(now.getFullYear()), month: String(currentMonth - 1) };
+})();
 
 export function MonthlyReportsPanel() {
   const qc = useQueryClient();
@@ -15,8 +20,8 @@ export function MonthlyReportsPanel() {
   const [editing, setEditing] = useState<MonthlyReport | null>(null);
   const [publishing, setPublishing] = useState<MonthlyReport | null>(null);
   const [clientId, setClientId] = useState('');
-  const [year, setYear] = useState(String(now.getFullYear()));
-  const [month, setMonth] = useState(String(now.getMonth() || 12));
+  const [year, setYear] = useState(defaultPeriod.year);
+  const [month, setMonth] = useState(defaultPeriod.month);
   const [summary, setSummary] = useState('');
   const [insights, setInsights] = useState('');
   const [recommendations, setRecommendations] = useState('');

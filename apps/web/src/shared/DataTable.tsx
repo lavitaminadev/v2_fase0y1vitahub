@@ -63,15 +63,27 @@ export function DataTable<T extends object>({
   const settingsKey = `vitahub:table:${storageKey || 'temporary'}`;
   const [sortKey, setSortKey] = useState<string | null>(() => storageKey ? readJson<{ sortKey?: string }>(settingsKey, {}).sortKey || null : null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() => storageKey ? readJson<{ sortDir?: 'asc' | 'desc' }>(settingsKey, {}).sortDir || 'asc' : 'asc');
-  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => storageKey ? readJson<{ hiddenKeys?: string[] }>(settingsKey, {}).hiddenKeys || [] : []);
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => {
+    if (!storageKey) return [];
+    const stored = readJson<{ hiddenKeys?: unknown }>(settingsKey, {});
+    return Array.isArray(stored.hiddenKeys) ? stored.hiddenKeys.filter((value): value is string => typeof value === 'string') : [];
+  });
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [viewName, setViewName] = useState('');
-  const [savedViews, setSavedViews] = useState<SavedView[]>(() => storageKey ? readJson<SavedView[]>(`${settingsKey}:views`, []) : []);
+  const [savedViews, setSavedViews] = useState<SavedView[]>(() => {
+    if (!storageKey) return [];
+    const stored = readJson<unknown>(`${settingsKey}:views`, []);
+    return Array.isArray(stored) ? stored.filter((item): item is SavedView => Boolean(item) && typeof item === 'object' && typeof (item as SavedView).name === 'string' && Array.isArray((item as SavedView).visibleKeys)) : [];
+  });
 
   const persist = (next: { sortKey?: string | null; sortDir?: 'asc' | 'desc'; hiddenKeys?: string[] }) => {
     if (!storageKey) return;
     const current = readJson<Record<string, unknown>>(settingsKey, {});
-    window.localStorage.setItem(settingsKey, JSON.stringify({ ...current, sortKey, sortDir, hiddenKeys, ...next }));
+    try {
+      window.localStorage.setItem(settingsKey, JSON.stringify({ ...current, sortKey, sortDir, hiddenKeys, ...next }));
+    } catch {
+      // Navegación privada o cuota agotada: la tabla sigue funcionando sin persistencia.
+    }
   };
 
   const handleSort = (key: keyof T | string) => {
@@ -121,7 +133,12 @@ export function DataTable<T extends object>({
     if (!name || !storageKey) return;
     const view: SavedView = { name, visibleKeys: visibleColumns.map((column) => String(column.key)), sortKey, sortDir };
     const next = [...savedViews.filter((item) => item.name !== name), view];
-    setSavedViews(next); setViewName(''); window.localStorage.setItem(`${settingsKey}:views`, JSON.stringify(next));
+    setSavedViews(next); setViewName('');
+    try {
+      window.localStorage.setItem(`${settingsKey}:views`, JSON.stringify(next));
+    } catch {
+      // Sin persistencia disponible: conservamos la vista sólo en memoria.
+    }
   };
 
   const applyView = (view: SavedView) => {

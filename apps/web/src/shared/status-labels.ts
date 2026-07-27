@@ -45,6 +45,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending_pricing: 'Pendiente de valorización',
   ready_to_invoice: 'Listo para facturar',
   confirmed: 'Confirmada',
+  reserved: 'Reservó',
   attended: 'Asistió',
   no_show: 'No asistió',
   rescheduled: 'Reagendada',

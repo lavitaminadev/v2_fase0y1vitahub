@@ -158,3 +158,10 @@
 .btn.is-loading::after { content:''; position:absolute; inset:calc(50% - 7px); width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .6s linear infinite; color:inherit; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
+
+/* Estado de conversiones a Meta por formulario. El color acompaña al texto, nunca lo reemplaza. */
+.meta-readiness { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 9px; border-radius: 999px; font-size: 9px; font-weight: 800; letter-spacing: .02em; }
+.meta-readiness::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.meta-readiness.is-ok { background: #e7f2e6; color: #1f7a46; }
+.meta-readiness.is-warn { background: #fff2df; color: #925d17; }
+.meta-readiness.is-off { background: #eef1ee; color: #6b7a73; }

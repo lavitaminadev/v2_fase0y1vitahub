@@ -16,11 +16,23 @@ import { PwaInstallButton } from './PwaInstallButton';
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { ContextHelpDrawer } from './help/ContextHelpDrawer';
 
+/**
+ * Secciones del menú lateral.
+ *
+ * Cada grupo responde a una pregunta distinta de quien lo usa, y el orden va de lo más
+ * frecuente a lo más ocasional. Una ruta que no figure en ningún grupo no se muestra, así
+ * que al registrar una feature nueva hay que agregarla acá.
+ *
+ * La separación entre los dos CRM es deliberada: «Contactos de campañas» pertenece a la
+ * operación de las cuentas de clientes, mientras el pipeline es de la propia agencia.
+ */
 const NAV_GROUPS: { label: string; paths: string[] }[] = [
-  { label: 'Medir', paths: ['/dashboard'] },
-  { label: 'Operar', paths: ['/reservations', '/crm/contacts', '/crm/leads', '/crm/opportunities', '/crm/interactions', '/production', '/audiovisual', '/content', '/documents', '/briefs', '/approvals', '/catalog'] },
-  { label: 'Colaborar', paths: ['/meetings', '/reports', '/billing', '/contracts', '/gamification'] },
-  { label: 'Configurar', paths: ['/clients', '/users', '/integrations', '/knowledge', '/onboarding', '/direction', '/operations', '/governance', '/settings'] },
+  { label: 'Día a día', paths: ['/dashboard', '/reservations', '/crm/contacts'] },
+  { label: 'Cuentas', paths: ['/clients', '/onboarding', '/meetings', '/documents', '/reports'] },
+  { label: 'Producción', paths: ['/production', '/audiovisual', '/content', '/briefs', '/approvals', '/gamification'] },
+  { label: 'Comercial', paths: ['/crm/leads', '/crm/opportunities', '/crm/interactions', '/catalog', '/contracts', '/billing'] },
+  { label: 'Dirección', paths: ['/direction', '/operations', '/governance', '/knowledge'] },
+  { label: 'Administración', paths: ['/users', '/integrations', '/settings'] },
 ];
 
 /**
@@ -40,7 +52,7 @@ export function Layout(): JSX.Element {
   useEffect(() => { const updateConnection = () => setOnline(navigator.onLine); window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection); return () => { window.removeEventListener('online', updateConnection); window.removeEventListener('offline', updateConnection); }; }, []);
 
   // Calcula la navegación una vez por cambio de rol para evitar filtrar en cada render.
-  const navItems = useMemo(() => getNavigation(user?.role), [user?.role]);
+  const navItems = useMemo(() => getNavigation(user?.role, user?.features, user?.permissions), [user?.role, user?.features, user?.permissions]);
   const groupedNavItems = useMemo(
     () => NAV_GROUPS.map((group) => ({
       ...group,

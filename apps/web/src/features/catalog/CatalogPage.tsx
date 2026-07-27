@@ -9,10 +9,14 @@ type Tab = 'services' | 'packs' | 'quotes';
 
 export function CatalogPage() {
   const [tab, setTab] = useState<Tab>('services');
-  const { data: services = [] } = useQuery<Array<{ category: string; unitPrice?: number }>>({ queryKey: ['catalog-services'], queryFn: () => api.get('/catalog/services') });
-  const { data: packs = [] } = useQuery<Array<{ status: string }>>({ queryKey: ['catalog-packs'], queryFn: () => api.get('/catalog/packs') });
-  const { data: quotes = [] } = useQuery<Array<{ status: string }>>({ queryKey: ['catalog-quotes'], queryFn: () => api.get('/catalog/quotes') });
+  const servicesQuery = useQuery<Array<{ category: string; unitPrice?: number }>>({ queryKey: ['catalog-services'], queryFn: () => api.get('/catalog/services') });
+  const packsQuery = useQuery<Array<{ status: string }>>({ queryKey: ['catalog-packs'], queryFn: () => api.get('/catalog/packs') });
+  const quotesQuery = useQuery<Array<{ status: string }>>({ queryKey: ['catalog-quotes'], queryFn: () => api.get('/catalog/quotes') });
+  const services = servicesQuery.data ?? [];
+  const packs = packsQuery.data ?? [];
+  const quotes = quotesQuery.data ?? [];
   const categories = new Set(services.map((service) => service.category)).size;
+  const summaryError = servicesQuery.error || packsQuery.error || quotesQuery.error;
 
   return (
     <div className="page catalog-page">
@@ -28,6 +32,7 @@ export function CatalogPage() {
           <span><small>Cotizaciones abiertas</small><strong>{quotes.filter((quote) => ['draft', 'sent'].includes(quote.status)).length}</strong></span>
         </div>
       </section>
+      {summaryError && <div className="alert alert-error">No fue posible cargar por completo el resumen del catálogo. Los totales pueden estar incompletos.</div>}
       <div className="workflow-note"><b>01</b><span><strong>Servicio</strong><small>Unidad vendible y costo base</small></span><i>→</i><b>02</b><span><strong>Pack</strong><small>Combinación comercial</small></span><i>→</i><b>03</b><span><strong>Cotización</strong><small>Propuesta versionada</small></span><i>→</i><b>04</b><span><strong>Contrato</strong><small>Activación automática</small></span></div>
       <div className="tabs catalog-tabs" role="tablist" aria-label="Tipo de catálogo">
         <button role="tab" aria-selected={tab === 'services'} className={`tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}>Servicios <span>{services.length}</span></button>

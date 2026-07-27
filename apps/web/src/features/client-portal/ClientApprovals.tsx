@@ -5,6 +5,7 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { EmptyState } from '../../shared/EmptyState';
 import { Modal } from '../../shared/Modal';
+import { safeUrl } from '../../core/safe-url';
 
 interface ClientApprovalItem {
   id: string;
@@ -78,8 +79,8 @@ export function ClientApprovals() {
                 </div>
               </div>
               <div className="portal-item-actions">
-                {approval.versionUrl && (
-                  <a className="btn btn-outline btn-sm" href={approval.versionUrl} target="_blank" rel="noreferrer">
+                {safeUrl(approval.versionUrl) && (
+                  <a className="btn btn-outline btn-sm" href={safeUrl(approval.versionUrl)} target="_blank" rel="noreferrer">
                     Ver pieza
                   </a>
                 )}
@@ -134,14 +135,14 @@ export function ClientApprovals() {
               rows={6}
               value={rejectionNotes}
               onChange={(event) => setRejectionNotes(event.target.value)}
-              placeholder="Ejemplo: cambiar el titular, mantener la fotografia y ajustar la fecha..."
+              placeholder="Ejemplo: cambiar el titular, mantener la fotografía y ajustar la fecha..."
               autoFocus
               required
             />
           </label>
           {rejectMutation.error && <div className="alert alert-error">No se pudo enviar la solicitud. Intenta nuevamente.</div>}
           <button className="btn btn-primary btn-block" type="submit" disabled={rejectMutation.isPending || !rejectionNotes.trim()}>
-            {rejectMutation.isPending ? 'Enviando solicitud...' : 'Enviar a correccion'}
+            {rejectMutation.isPending ? 'Enviando solicitud...' : 'Enviar a corrección'}
           </button>
         </form>
       </Modal>

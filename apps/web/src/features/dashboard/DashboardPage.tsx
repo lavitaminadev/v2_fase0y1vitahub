@@ -9,6 +9,8 @@ import { statusLabel } from '../../shared/status-labels';
 import { useAuth } from '../../core/auth';
 import { QueryErrorState } from '../../shared/QueryErrorState';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { ReservationResults } from './ReservationResults';
+import { ConversionQueue } from './ConversionQueue';
 
 interface DashboardData {
   activeClients: number;
@@ -25,19 +27,36 @@ interface PerformanceData {
   providers: Array<{ provider: string; spend: number; leads: number; conversions: number; lastDataAt?: string }>;
 }
 const PROVIDER_LABELS: Record<string, string> = { meta: 'Meta Ads', google_ads: 'Google Ads', google_analytics: 'Google Analytics' };
-type DashboardWidget = 'attention' | 'pulse' | 'kpis' | 'performance' | 'flow' | 'ud' | 'pieces';
-const WIDGET_LABELS: Record<DashboardWidget, string> = { attention: 'Atencion del dia', pulse: 'Pulso La Vitamina', kpis: 'Indicadores principales', performance: 'Meta y Google', flow: 'Ciclo Maestro', ud: 'Unidades de dedicacion', pieces: 'Estado de piezas' };
+type DashboardWidget = 'attention' | 'pulse' | 'kpis' | 'reservations' | 'conversions' | 'performance' | 'flow' | 'ud' | 'pieces';
+const WIDGET_LABELS: Record<DashboardWidget, string> = { attention: 'Atención del día', pulse: 'Pulso La Vitamina', kpis: 'Indicadores principales', reservations: 'Resultados de reservas', conversions: 'Cola de conversiones', performance: 'Meta y Google', flow: 'Ciclo Maestro', ud: 'Unidades de dedicación', pieces: 'Estado de piezas' };
 const ROLE_PRESETS: Record<string, DashboardWidget[]> = {
-  admin: ['attention', 'pulse', 'kpis', 'performance', 'flow', 'ud', 'pieces'],
-  operations_director: ['attention', 'pulse', 'kpis', 'flow', 'ud', 'pieces'],
-  commercial_director: ['attention', 'pulse', 'kpis', 'performance', 'flow'],
-  community_manager: ['attention', 'pulse', 'kpis', 'performance', 'flow', 'pieces'],
+  admin: ['attention', 'pulse', 'kpis', 'reservations', 'conversions', 'performance', 'flow', 'ud', 'pieces'],
+  operations_director: ['attention', 'pulse', 'kpis', 'reservations', 'conversions', 'flow', 'ud', 'pieces'],
+  commercial_director: ['attention', 'pulse', 'kpis', 'reservations', 'performance', 'flow'],
+  community_manager: ['attention', 'pulse', 'kpis', 'reservations', 'performance', 'flow', 'pieces'],
   creative_director: ['attention', 'pulse', 'kpis', 'flow', 'ud', 'pieces'],
   art_director: ['attention', 'kpis', 'flow', 'ud', 'pieces'],
   av_director: ['attention', 'kpis', 'flow', 'pieces'],
   designer: ['attention', 'kpis', 'pieces'],
   audiovisual: ['attention', 'kpis', 'pieces'],
 };
+/**
+ * Módulo que cada widget necesita para tener sentido.
+ *
+ * Un widget cuyo módulo está deshabilitado o al que el usuario no tiene acceso no se muestra
+ * ni se ofrece en el configurador: mostraría cifras de una fase congelada. Los widgets
+ * ausentes en este mapa no dependen de ningún módulo.
+ */
+const WIDGET_MODULE: Partial<Record<DashboardWidget, string>> = {
+  reservations: 'reservations',
+  conversions: 'integrations',
+  performance: 'integrations',
+  ud: 'udBudget',
+  pieces: 'production',
+  attention: 'production',
+  flow: 'production',
+};
+
 const PIECE_COLORS: Record<string, string> = {
   backlog: '#95a5a6', assigned: '#3498db', in_progress: '#f39c12', internal_review: '#9b59b6',
   client_validation: '#e67e22', corrections: '#e74c3c', approved: '#2ecc71', delivered: '#27ae60',
@@ -48,16 +67,44 @@ export function DashboardPage() {
   const { user } = useAuth();
   const personalView = ['designer', 'audiovisual'].includes(user?.role ?? '');
   const canViewPerformance = !personalView;
+  // La cola de conversiones la expone un endpoint restringido a estos tres roles.
+  const canManageConversions = ['admin', 'operations_director', 'commercial_director'].includes(user?.role ?? '');
   const role = user?.role || 'admin';
   const dashboardKey = `vitahub:dashboard:${role}`;
   const rolePreset = ROLE_PRESETS[role] || ROLE_PRESETS.admin;
   const [configureOpen, setConfigureOpen] = useState(false);
   const [visibleWidgets, setVisibleWidgets] = useState<DashboardWidget[]>(() => {
-    try { const stored = window.localStorage.getItem(dashboardKey); return stored ? JSON.parse(stored) as DashboardWidget[] : rolePreset; } catch { return rolePreset; }
+    try {
+      const stored = window.localStorage.getItem(dashboardKey);
+      if (!stored) return rolePreset;
+      const parsed: unknown = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed.filter((widget): widget is DashboardWidget => typeof widget === 'string' && widget in WIDGET_LABELS) : rolePreset;
+    } catch {
+      return rolePreset;
+    }
   });
   const setWidgets = (widgets: DashboardWidget[]) => { setVisibleWidgets(widgets); try { window.localStorage.setItem(dashboardKey, JSON.stringify(widgets)); } catch {} };
-  const widgetVisible = (widget: DashboardWidget) => visibleWidgets.includes(widget);
-  const availableWidgets = (Object.keys(WIDGET_LABELS) as DashboardWidget[]).filter((widget) => canViewPerformance || widget !== 'performance');
+  /**
+   * Indica si un módulo está habilitado y el usuario tiene acceso a él.
+   *
+   * Prioriza los permisos efectivos que resuelve el backend; si no están disponibles,
+   * recurre a los módulos habilitados de la organización.
+   */
+  const moduleAllowed = (module: string): boolean => {
+    if (user?.permissions) return (user.permissions[module] ?? 'none') !== 'none';
+    if (user?.features) return user.features[module] !== false;
+    return true;
+  };
+  /** Un widget sin módulo asociado siempre está disponible. */
+  const widgetAllowed = (widget: DashboardWidget): boolean => {
+    const required = WIDGET_MODULE[widget];
+    return !required || moduleAllowed(required);
+  };
+  const availableWidgets = (Object.keys(WIDGET_LABELS) as DashboardWidget[])
+    .filter((widget) => canViewPerformance || widget !== 'performance')
+    .filter((widget) => widget !== 'conversions' || canManageConversions)
+    .filter(widgetAllowed);
+  const widgetVisible = (widget: DashboardWidget) => visibleWidgets.includes(widget) && availableWidgets.includes(widget);
   const { data, isLoading, error, refetch, isFetching } = useQuery<DashboardData>({ queryKey: ['dashboard'], queryFn: () => api.get('/reporting/dashboard') });
   const { data: performance } = useQuery<PerformanceData>({ queryKey: ['performance'], queryFn: () => api.get('/reporting/performance'), enabled: canViewPerformance });
   if (isLoading) return <LoadingSpinner text="Cargando dashboard..." />;
@@ -68,16 +115,20 @@ export function DashboardPage() {
     <div className="page">
       <div className="page-header hero-header"><div><span className="page-eyebrow">CENTRO DE CONTROL</span><h1>Dashboard</h1><p className="page-subtitle">Visión general de la operación.</p></div><div className="dashboard-header-actions"><span className="date-chip">{new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</span><button className="btn btn-outline btn-sm" onClick={() => setConfigureOpen(true)}>Configurar widgets</button></div></div>
 
-      {widgetVisible('attention') && <div className="attention-strip"><div><span className="attention-kicker">Atencion de hoy</span><strong>{data.pendingPieces ?? 0} piezas esperan movimiento</strong><small>Revisa bloqueos y mantene el ciclo de entrega avanzando.</small></div><Link className="btn btn-primary btn-sm" to="/production">Ir a produccion</Link></div>}
+      {widgetVisible('attention') && <div className="attention-strip"><div><span className="attention-kicker">Atención de hoy</span><strong>{data.pendingPieces ?? 0} piezas esperan movimiento</strong><small>Revisa bloqueos y mantén el ciclo de entrega avanzando.</small></div><Link className="btn btn-primary btn-sm" to="/production">Ir a producción</Link></div>}
 
       {!personalView && widgetVisible('pulse') && <VitaminaPulse />}
 
       {widgetVisible('kpis') && <div className="card-grid">
-        {!personalView && <Card title="Clientes Activos" value={data.activeClients ?? 0} icon="👥" color="#1a1a2e" />}
-        <Card title="Piezas Pendientes" value={data.pendingPieces ?? 0} icon="⏳" color="#f39c12" />
-        <Card title="XP del Equipo" value={data.teamXp ?? 0} icon="⭐" color="#9b59b6" />
-        {!personalView && <Card title="UD este Mes" value={data.monthUd ?? 0} icon="📊" color="#27ae60" />}
+        {!personalView && moduleAllowed('clients') && <Card title="Clientes Activos" value={data.activeClients ?? 0} icon="👥" color="#1a1a2e" />}
+        {moduleAllowed('production') && <Card title="Piezas Pendientes" value={data.pendingPieces ?? 0} icon="⏳" color="#f39c12" />}
+        {moduleAllowed('gamification') && <Card title="XP del Equipo" value={data.teamXp ?? 0} icon="⭐" color="#9b59b6" />}
+        {!personalView && moduleAllowed('udBudget') && <Card title="UD este Mes" value={data.monthUd ?? 0} icon="📊" color="#27ae60" />}
       </div>}
+
+      {!personalView && widgetVisible('reservations') && <ReservationResults />}
+
+      {canManageConversions && widgetVisible('conversions') && <ConversionQueue />}
 
       {canViewPerformance && widgetVisible('performance') && <div className="section performance-section">
         <div className="section-title-row"><div><h2>Rendimiento digital</h2><p className="page-subtitle">Métricas de Meta y Google.</p></div><span className={`data-health ${performance?.hasData ? 'is-live' : ''}`}>{performance?.hasData ? 'Datos conectados' : 'Sin datos sincronizados'}</span></div>

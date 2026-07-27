@@ -21,6 +21,7 @@
 @import './styles/workspace-details.css';
 @import './styles/operational-depth.css';
 @import './styles/reservation-builder.css';
+@import './styles/dataviz.css';
 
 .bar-chart{display:flex;flex-direction:column;gap:10px}
 .bar-row{display:flex;align-items:center;gap:10px}

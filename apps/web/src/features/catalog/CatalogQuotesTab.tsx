@@ -32,11 +32,11 @@ export function CatalogQuotesTab() {
   const [form, setForm] = useState<QuoteForm>(emptyForm());
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const quotesQuery = useQuery<QuoteRow[]>({ queryKey: ['catalog-quotes'], queryFn: () => api.get('/catalog/quotes') });
-  const { data: leadsResp } = useQuery<{ data: Target[] }>({ queryKey: ['crm-leads'], queryFn: () => api.get('/crm/leads') });
+  const { data: leadsResp, error: leadsError } = useQuery<{ data: Target[] }>({ queryKey: ['crm-leads'], queryFn: () => api.get('/crm/leads') });
   const leads = (leadsResp as any)?.data ?? [];
-  const { data: clientsResp } = useQuery<{ data: Target[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
+  const { data: clientsResp, error: clientsError } = useQuery<{ data: Target[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
   const clients = (clientsResp as any)?.data ?? [];
-  const { data: services = [] } = useQuery<ServiceOption[]>({ queryKey: ['catalog-services'], queryFn: () => api.get('/catalog/services') });
+  const { data: services = [], error: servicesError } = useQuery<ServiceOption[]>({ queryKey: ['catalog-services'], queryFn: () => api.get('/catalog/services') });
   const rows = (quotesQuery.data ?? []).filter((quote) => (!status || quote.status === status) && matchesSearch(search, [quote.number, quote.title, quote.client?.name, quote.lead?.name]));
   const total = form.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0), 0);
   const close = () => { setOpen(false); setEditingId(null); setForm(emptyForm()); };
@@ -83,6 +83,7 @@ export function CatalogQuotesTab() {
   return <div className="catalog-panel quote-workspace">
     <div className="section-header catalog-section-header"><div><h2>Cotizaciones y propuestas</h2><p>De cotización a operación real.</p></div><button className="btn btn-primary" onClick={() => { setFeedback(null); setForm(emptyForm()); setOpen(true); }}>+ Nueva cotización</button></div>
     <div className="quote-flow"><span><b>1</b> Borrador editable</span><span><b>2</b> Envío controlado</span><span><b>3</b> Aceptación</span><span><b>4</b> Contrato + onboarding</span></div>
+    {(quotesQuery.error || leadsError || clientsError || servicesError) && <div className="alert alert-error">No fue posible cargar por completo cotizaciones, leads, clientes o servicios. La vista puede estar incompleta.</div>}
     {feedback && <div className={`alert alert-${feedback.tone}`} role="status">{feedback.text}</div>}
     <div className="filters"><input className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar número, propuesta o empresa..." /><select className="input" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option><option value="draft">Borrador</option><option value="sent">Enviada</option><option value="accepted">Aceptada</option><option value="rejected">Rechazada</option><option value="expired">Vencida</option></select></div>
     <DataTable<QuoteRow> loading={quotesQuery.isLoading} data={rows} keyExtractor={(row) => row.id} emptyMessage="Aún no hay cotizaciones. Crea una para iniciar el circuito comercial." columns={[

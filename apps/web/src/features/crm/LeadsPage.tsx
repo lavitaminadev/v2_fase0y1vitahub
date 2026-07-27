@@ -9,8 +9,8 @@ import { QueryErrorState } from '../../shared/QueryErrorState';
 import { LeadDetailDrawer } from './components/LeadDetailDrawer';
 import { matchesSearch } from '../../shared/search';
 import { Modal } from '../../shared/Modal';
-import { CrmNav } from './CrmNav';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { LEAD_PIPELINE_STAGES, LEAD_CLOSING_STAGES } from '@vitahub/shared';
 
 interface Lead {
   id: string;
@@ -18,9 +18,11 @@ interface Lead {
   email?: string;
   phone?: string;
   company?: string;
+  clientId?: string;
   status: string;
   source?: string;
   sourceDetail?: string;
+  externalLeadId?: string;
   notes?: string;
   campaignName?: string;
   qualityScore: number;
@@ -35,16 +37,37 @@ interface Lead {
   createdAt?: string;
 }
 
-const STATUSES = ['new', 'contacted', 'meeting_scheduled', 'quote_sent', 'negotiation', 'won', 'lost'];
-const ACTIVE_STATUSES = ['new', 'contacted', 'meeting_scheduled', 'quote_sent', 'negotiation'];
+// Etapas del pipeline comercial de la agencia, importadas de @vitahub/shared para compartir
+// la definición con el backend. Los contactos de reservas viven en /crm/contacts.
+const ACTIVE_STATUSES: string[] = [...LEAD_PIPELINE_STAGES];
+const CLOSING_STATUSES: string[] = [...LEAD_CLOSING_STAGES];
+const STATUSES: string[] = [...ACTIVE_STATUSES, ...CLOSING_STATUSES];
 const FIT_FILTERS = ['all', 'qualified', 'review', 'discarded'] as const;
 type PipelineView = 'board' | 'list';
 type LeadUpdate = { status?: string; fitStatus?: string; discardReason?: string };
 
 const SOURCE_LABELS: Record<string, string> = {
-  meta: 'Meta', meta_lead_ads: 'Meta Lead Ads', google_ads: 'Google Ads', reservation: 'Reservas',
+  meta: 'Meta', meta_lead_ads: 'Meta Lead Ads', google_ads: 'Google Ads',
+  reservation: 'Reservas', vitahub_reservations: 'Reservas',
   website: 'Sitio web', referral: 'Referido', manual: 'Ingreso manual',
 };
+
+/** `externalLeadId` llega como `reservation:<uuid>` cuando el contacto nacio de una reserva. */
+function cameFromReservation(lead: Lead): boolean {
+  return (lead.externalLeadId ?? '').startsWith('reservation:');
+}
+
+/**
+ * La bandeja de reservas filtra por `search` y `clientId`, no por id de reserva, asi que
+ * el enlace la abre buscando el contacto y acotada al cliente correspondiente.
+ */
+function reservationsLink(lead: Lead): string | null {
+  const term = lead.email || lead.phone;
+  if (!term) return null;
+  const params = new URLSearchParams({ search: term });
+  if (lead.clientId) params.set('clientId', lead.clientId);
+  return `/reservations?${params.toString()}`;
+}
 
 function leadInitials(name: string): string {
   return name
@@ -66,6 +89,7 @@ export function LeadsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
   const [pipelineView, setPipelineView] = useState<PipelineView>('board');
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(() => new Set());
   const [bulkStatus, setBulkStatus] = useState('contacted');
@@ -82,7 +106,18 @@ export function LeadsPage() {
     queryKey: ['leads'],
     queryFn: () => api.get('/crm/leads'),
   });
-  const leads = (leadsResp as { data: Lead[] } | undefined)?.data ?? [];
+  const leads = useMemo<Lead[]>(() => (leadsResp as { data: Lead[] } | undefined)?.data ?? [], [leadsResp]);
+
+  const { data: clientsResp } = useQuery<{ data: { id: string; name: string }[] }>({
+    queryKey: ['clients'],
+    queryFn: () => api.get('/clients'),
+  });
+  const clientNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const client of clientsResp?.data ?? []) map.set(client.id, client.name);
+    return map;
+  }, [clientsResp]);
+  const clientNameOf = (lead: Lead) => (lead.clientId ? clientNameById.get(lead.clientId) ?? 'Cliente no encontrado' : 'Sin cliente');
 
   const visibleLeads = useMemo(() => {
     if (!leads) return [];
@@ -90,9 +125,10 @@ export function LeadsPage() {
       (fitFilter === 'all' || lead.fitStatus === fitFilter) &&
       (!statusFilter || lead.status === statusFilter) &&
       (!sourceFilter || lead.source === sourceFilter) &&
+      (!clientFilter || lead.clientId === clientFilter) &&
       matchesSearch(search, [lead.name, lead.email, lead.phone, lead.company, lead.source, lead.sourceDetail, lead.campaignName]),
     );
-  }, [fitFilter, leads, search, sourceFilter, statusFilter]);
+  }, [clientFilter, fitFilter, leads, search, sourceFilter, statusFilter]);
 
   const sourceOptions = useMemo(
     () => [...new Set((leads ?? []).map((lead) => lead.source).filter((value): value is string => Boolean(value)))].sort(),
@@ -214,8 +250,7 @@ export function LeadsPage() {
 
   return (
     <div className="page">
-      <CrmNav />
-      <div className="page-header"><div><span className="page-eyebrow">CRM COMERCIAL</span><h1>Pipeline comercial</h1><p className="page-subtitle">Pipeline con trazabilidad y evidencia.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
+      <div className="page-header"><div><span className="page-eyebrow">PIPELINE DE LA VITAMINA</span><h1>Prospectos de la agencia</h1><p className="page-subtitle">Prospectos propios de La Vitamina, distintos de los contactos de campañas de los clientes.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
 
       <div className="card-grid">
         <div className="card">
@@ -250,11 +285,15 @@ export function LeadsPage() {
           <option value="">Todas las etapas</option>
           {STATUSES.map((status) => <option value={status} key={status}>{statusLabel(status)}</option>)}
         </select>
+        <select className="input" aria-label="Filtrar por cliente" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}>
+          <option value="">Todos los clientes</option>
+          {(clientsResp?.data ?? []).map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}
+        </select>
         <select className="input" aria-label="Filtrar por origen" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
           <option value="">Todos los orígenes</option>
           {sourceOptions.map((source) => <option value={source} key={source}>{SOURCE_LABELS[source] ?? statusLabel(source)}</option>)}
         </select>
-        <button type="button" className="btn btn-outline btn-sm" disabled={!search && fitFilter === 'all' && !statusFilter && !sourceFilter} onClick={() => { setSearch(''); setFitFilter('all'); setStatusFilter(''); setSourceFilter(''); }}>Limpiar</button>
+        <button type="button" className="btn btn-outline btn-sm" disabled={!search && fitFilter === 'all' && !statusFilter && !sourceFilter && !clientFilter} onClick={() => { setSearch(''); setFitFilter('all'); setStatusFilter(''); setSourceFilter(''); setClientFilter(''); }}>Limpiar</button>
         <span className="filter-result-count">{visibleLeads.length} resultado{visibleLeads.length === 1 ? '' : 's'}</span>
       </div>
 
@@ -422,6 +461,7 @@ export function LeadsPage() {
                         </span>
                       </div>
                       <div className="kanban-card-info">{lead.email || lead.phone || 'Sin canal de contacto'}</div>
+                      <div className="kanban-card-info">Cliente: {clientNameOf(lead)}</div>
                       <div className="kanban-card-info">{lead.sourceDetail || (lead.source ? SOURCE_LABELS[lead.source] ?? statusLabel(lead.source) : 'Origen no informado')}</div>
                       {lead.campaignName && <div className="kanban-card-info">Campana: {lead.campaignName}</div>}
                       <div className="kanban-card-info">Ingreso: {leadDate(lead.createdAt)}</div>
@@ -507,7 +547,8 @@ export function LeadsPage() {
               </div>
             ))}
           </div>
-          ) : (
+          ) : null}
+          {pipelineView === 'list' ? (
             <div className="table-wrapper crm-lead-table-wrap">
               <table className="data-table crm-lead-table">
                 <thead>
@@ -521,7 +562,7 @@ export function LeadsPage() {
                         aria-label="Seleccionar todos los leads visibles"
                       />
                     </th>
-                    <th>Lead</th><th>Origen</th><th>Etapa</th><th>Calidad</th><th>Ingreso</th><th>Accion</th>
+                    <th>Lead</th><th>Cliente</th><th>Origen</th><th>Etapa</th><th>Calidad</th><th>Ingreso</th><th>Accion</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -529,8 +570,9 @@ export function LeadsPage() {
                     <tr key={lead.id} className={selectedLeadIds.has(lead.id) ? 'is-selected' : ''}>
                       <td data-label="Seleccionar" className="crm-select-column"><input type="checkbox" checked={selectedLeadIds.has(lead.id)} onChange={() => toggleLeadSelection(lead.id)} aria-label={`Seleccionar a ${lead.name}`} /></td>
                       <td data-label="Lead"><div className="crm-lead-person"><span className="crm-lead-avatar" aria-hidden="true">{leadInitials(lead.name)}</span><span><strong>{lead.name}</strong><small>{lead.company || lead.email || lead.phone || 'Sin datos adicionales'}</small></span></div></td>
+                      <td data-label="Cliente">{clientNameOf(lead)}</td>
                       <td data-label="Origen"><div className="crm-table-stack"><strong>{lead.sourceDetail || (lead.source ? SOURCE_LABELS[lead.source] ?? statusLabel(lead.source) : 'Sin origen')}</strong><small>{lead.campaignName || 'Sin campana asociada'}</small></div></td>
-                      <td data-label="Etapa"><StatusBadge status={lead.status} /></td>
+                      <td data-label="Etapa"><div className="crm-table-stack"><StatusBadge status={lead.status} />{cameFromReservation(lead) && reservationsLink(lead) && <Link to={reservationsLink(lead)!}>Ver reserva</Link>}</div></td>
                       <td data-label="Calidad"><div className="crm-quality-cell"><StatusBadge status={lead.fitStatus} /><span className="crm-score-meter" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(0, lead.qualityScore))}%` }} /></span><small>{lead.qualityScore}/100</small></div></td>
                       <td data-label="Ingreso">{leadDate(lead.createdAt)}</td>
                       <td data-label="Accion"><button type="button" className="btn btn-sm btn-outline" onClick={() => setSelectedLeadId(lead.id)}>Ver ficha</button></td>
@@ -539,7 +581,7 @@ export function LeadsPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          ) : null}
           </section>
 
           {selectedVisibleIds.length > 0 && (

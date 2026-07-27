@@ -203,7 +203,7 @@ export function SettingsPage() {
   });
   const healthQuery = useQuery<SystemHealth>({
     queryKey: ['system-health'],
-    queryFn: () => api.get('/health'),
+    queryFn: () => api.get('/health/details'),
     refetchInterval: 60_000,
   });
 

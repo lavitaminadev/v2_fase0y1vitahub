@@ -9,6 +9,10 @@ import { PwaInstallButton } from '../../shared/PwaInstallButton';
 const CLIENT_NAV = [
   { label: 'Inicio', path: '/portal', icon: 'IN' },
   { label: 'Reservas', path: '/portal/reservations', icon: 'RS' },
+  { label: 'Grilla', path: '/portal/grid', icon: 'GR' },
+  { label: 'Aprobaciones', path: '/portal/approvals', icon: 'AP' },
+  { label: 'Reuniones', path: '/portal/meetings', icon: 'RE' },
+  { label: 'Informes', path: '/portal/reports', icon: 'RP' },
 ];
 
 export function ClientLayout() {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import { api } from '../../core/api';
 import './ExportModal.css';
 import { VitaIcons } from '../../shared/Icons';
 import { triggerToast } from '../../shared/Toast';
@@ -15,10 +15,25 @@ interface ExportOptions {
 interface ExportModalProps {
   open: boolean;
   onClose: () => void;
+  /** Formulario a exportar. Sin él no hay nada que descargar y el botón queda inhabilitado. */
   formId?: string;
+  /** Oculta los campos de uso interno cuando la vista corresponde al cliente. */
+  clientView?: boolean;
 }
 
-export function ExportModal({ open, onClose, formId }: ExportModalProps) {
+/** Campos exportables y si son de uso interno del equipo. */
+const AVAILABLE_FIELDS: Array<{ id: string; label: string; internal?: boolean }> = [
+  { id: 'name', label: 'Nombre' },
+  { id: 'phone', label: 'Teléfono' },
+  { id: 'email', label: 'Email' },
+  { id: 'date', label: 'Fecha' },
+  { id: 'status', label: 'Estado' },
+  { id: 'attendance', label: 'Asistencia' },
+  { id: 'notes', label: 'Notas internas', internal: true },
+  { id: 'campaign', label: 'Campaña' },
+];
+
+export function ExportModal({ open, onClose, formId, clientView = false }: ExportModalProps) {
   const [options, setOptions] = useState<ExportOptions>({
     format: 'csv',
     dateFrom: '',
@@ -26,14 +41,18 @@ export function ExportModal({ open, onClose, formId }: ExportModalProps) {
     fields: ['name', 'phone', 'email', 'date', 'status', 'attendance'],
   });
 
+  const availableFields = AVAILABLE_FIELDS.filter((field) => !field.internal || !clientView);
+
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const API_BASE = import.meta.env.VITE_API_URL || '/api';
-      const response = await axios.post(`${API_BASE}/reservations/${formId}/export`, options, {
-        responseType: 'blob',
-        withCredentials: true,
-      });
-      return response.data as Blob;
+      if (!formId) throw new Error('Selecciona un formulario antes de exportar');
+      // El cliente de API adjunta la sesión y renueva el token; una llamada directa a axios
+      // no lleva la cabecera de autorización.
+      return api.post<Blob>(
+        `/reservations/forms/${formId}/export`,
+        clientView ? { ...options, fields: options.fields.filter((field) => field !== 'notes') } : options,
+        { responseType: 'blob' },
+      );
     },
     onSuccess: (blob: Blob) => {
       const url = URL.createObjectURL(blob);
@@ -45,21 +64,10 @@ export function ExportModal({ open, onClose, formId }: ExportModalProps) {
       triggerToast('Archivo descargado exitosamente', 'success');
       onClose();
     },
-    onError: () => {
-      triggerToast('Error al descargar el archivo', 'error');
+    onError: (error: Error) => {
+      triggerToast(error.message || 'Error al descargar el archivo', 'error');
     }
   });
-
-  const availableFields = [
-    { id: 'name', label: 'Nombre' },
-    { id: 'phone', label: 'Teléfono' },
-    { id: 'email', label: 'Email' },
-    { id: 'date', label: 'Fecha' },
-    { id: 'status', label: 'Estado' },
-    { id: 'attendance', label: 'Asistencia' },
-    { id: 'notes', label: 'Notas internas' },
-    { id: 'campaign', label: 'Campaña' },
-  ];
 
   const handleFieldToggle = (fieldId: string, checked: boolean) => {
     if (checked) {
@@ -136,7 +144,8 @@ export function ExportModal({ open, onClose, formId }: ExportModalProps) {
           <button
             className="btn btn-primary"
             onClick={() => exportMutation.mutate()}
-            disabled={exportMutation.isPending}
+            disabled={exportMutation.isPending || !formId || options.fields.length === 0}
+            title={!formId ? 'Filtra por un formulario para poder exportar' : undefined}
           >
             {exportMutation.isPending ? 'Descargando...' : 'Descargar'}
           </button>

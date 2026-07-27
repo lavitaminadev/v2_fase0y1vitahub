@@ -109,7 +109,7 @@ export function UsersPage() {
     queryFn: () => api.get(`/users${query ? `?${query}` : ''}`),
   });
   const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients') });
-  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
+  const clients = useMemo<ClientOption[]>(() => (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [], [clientsResp]);
 
   const closeModal = () => {
     setModalOpen(false);

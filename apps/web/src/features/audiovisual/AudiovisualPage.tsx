@@ -55,7 +55,7 @@ export function AudiovisualPage() {
     queryFn: () => api.get('/clients'),
     enabled: canManageMoodboards || canManageSessions,
   });
-  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
+  const clients = useMemo<ClientOption[]>(() => (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [], [clientsResp]);
   const { data: assignees = [] } = useQuery<UserOption[]>({
     queryKey: ['production-assignees'],
     queryFn: () => api.get('/production/pieces/options/assignees'),
@@ -137,8 +137,8 @@ export function AudiovisualPage() {
         {canSeeMoodboards && <button className={`tab ${tab === 'moodboards' ? 'active' : ''}`} onClick={() => setTab('moodboards')} role="tab" aria-selected={tab === 'moodboards'}>Moodboards</button>}
       </div>
       <div className="filters">
-        <input className="input" type="search" placeholder={tab === 'sessions' ? 'Buscar sesión, cliente o lugar...' : 'Buscar moodboard o cliente...'} value={search} onChange={(event) => setSearch(event.target.value)} />
-        <select className="input" value={status} onChange={(event) => setStatus(event.target.value)}>
+        <input className="input" type="search" aria-label={tab === 'sessions' ? 'Buscar sesión audiovisual' : 'Buscar moodboard'} placeholder={tab === 'sessions' ? 'Buscar sesión, cliente o lugar...' : 'Buscar moodboard o cliente...'} value={search} onChange={(event) => setSearch(event.target.value)} />
+        <select className="input" aria-label="Filtrar audiovisual por estado" value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="">Todos los estados</option>
           {(tab === 'sessions'
             ? ['scheduled', 'confirmed', 'completed', 'rescheduled', 'cancelled']

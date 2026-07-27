@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { statusLabel } from '../../shared/status-labels';
 import { getAllowedRolesForPath } from '../../core/navigation.registry';
+import { safeUrl } from '../../core/safe-url';
 
 interface ClientOverview {
   client: {
@@ -100,7 +101,7 @@ export function ClientDetailPage() {
     const roles = getAllowedRolesForPath(item.to);
     return !roles?.length || Boolean(user && roles.includes(user.role));
   });
-  const driveUrl = driveMutation.data?.rootUrl || (client.driveFolderId ? `https://drive.google.com/drive/folders/${client.driveFolderId}` : '');
+  const driveUrl = safeUrl(driveMutation.data?.rootUrl || (client.driveFolderId ? `https://drive.google.com/drive/folders/${client.driveFolderId}` : ''));
   const readiness = [
     { label: 'Responsable operativo', ready: Boolean(client.communityManagerId), value: manager || (client.communityManagerId ? 'Asignado' : 'Pendiente') },
     { label: 'Estructura Google Drive', ready: Boolean(client.driveFolderId || driveMutation.data), value: driveUrl ? 'Carpeta preparada' : 'Pendiente' },

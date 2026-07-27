@@ -12,10 +12,14 @@ import { MetaPixel } from '../../shared/MetaPixel';
 import { Ga4Tag, trackGa4Event } from '../../shared/Ga4Tag';
 import { readMetaMatchData } from '../../shared/meta-match';
 import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible, slotDateKey } from './booking-utils';
+import { safeUrl } from '../../core/safe-url';
 
 interface Slot { startsAt: string; available: number }
 interface Created { id: string; referenceCode: string; status: string; startsAt: string }
 const DEFAULT_BACKGROUND_GRADIENT = 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)';
+
+/** Clave de `sessionStorage` donde vive la clave de idempotencia de la reserva en curso. */
+const BOOKING_KEY_STORAGE = 'vh-booking-key';
 
 export function PublicReservationPage() {
   const { slug = '' } = useParams();
@@ -42,11 +46,20 @@ export function PublicReservationPage() {
   const focusTimerRef = useRef<number>(0);
   const retryRef = useRef(false);
 
+  /**
+   * Clave de idempotencia de la reserva en curso.
+   *
+   * Persiste en `sessionStorage` para que un reintento tras un corte de red no genere una
+   * reserva duplicada: el backend reconoce la clave y devuelve la reserva ya creada.
+   *
+   * Se descarta al confirmarse la reserva, de modo que una segunda reserva en la misma
+   * pestaña use una clave nueva y no reciba de vuelta la anterior.
+   */
   const [idempotencyKey] = useState(() => {
-    const stored = sessionStorage.getItem('vh-booking-key');
+    const stored = sessionStorage.getItem(BOOKING_KEY_STORAGE);
     if (stored) return stored;
     const key = uuid();
-    sessionStorage.setItem('vh-booking-key', key);
+    sessionStorage.setItem(BOOKING_KEY_STORAGE, key);
     return key;
   });
   const [sessionId] = useState(() => uuid());
@@ -128,6 +141,12 @@ export function PublicReservationPage() {
     onError: (err: Error) => { setCouponValid(false); setCouponMsg(err.message); },
   });
 
+  // Confirmada la reserva, la clave cumplió su función. Liberarla evita que una segunda
+  // reserva en la misma pestaña reutilice la clave y reciba de vuelta la primera.
+  useEffect(() => {
+    if (submit.data?.id) sessionStorage.removeItem(BOOKING_KEY_STORAGE);
+  }, [submit.data?.id]);
+
   useEffect(() => {
     if (!submit.data?.id || !window.fbq) return;
     if (!form?.pixelId) return;
@@ -183,12 +202,16 @@ export function PublicReservationPage() {
     submit.reset();
   };
 
+  // `mutate` es estable en react-query, asi que se depende de el y no del objeto de la
+  // mutacion completo: incluir `submit` reejecutaria el efecto en cada cambio de estado.
+  // El reintento lo gobierna retryRef, que se limpia antes de disparar.
+  const submitMutate = submit.mutate;
   useEffect(() => {
     if (retryRef.current && !submit.isPending && !submit.error && !submit.data) {
       retryRef.current = false;
-      submit.mutate();
+      submitMutate();
     }
-  }, [submit.isPending, submit.error, submit.data]);
+  }, [submit.isPending, submit.error, submit.data, submitMutate]);
 
   useEffect(() => {
     if (submit.isError && submit.error?.message?.includes('acaba de ocuparse')) {
@@ -283,11 +306,11 @@ export function PublicReservationPage() {
     const endDate = new Date(startDate.getTime() + icsDuration);
     const formatIcsDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const icsBody = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${formatIcsDate(startDate)}\nDTEND:${formatIcsDate(endDate)}\nSUMMARY:${form.name}\nDESCRIPTION:Reserva ${submit.data.referenceCode}\nEND:VEVENT\nEND:VCALENDAR`;
-    const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(form.name)}&dates=${formatIcsDate(startDate)}/${formatIcsDate(endDate)}&details=${encodeURIComponent('Reserva ' + submit.data.referenceCode)}`;
+    const gcalUrl = safeUrl(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(form.name)}&dates=${formatIcsDate(startDate)}/${formatIcsDate(endDate)}&details=${encodeURIComponent('Reserva ' + submit.data.referenceCode)}`);
     const icsBlob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
     const icsUrl = URL.createObjectURL(icsBlob);
     return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div><small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions">
-      <a className="btn btn-outline" href={gcalUrl} target="_blank" rel="noopener noreferrer">📅 Google Calendar</a>
+      {gcalUrl ? <a className="btn btn-outline" href={gcalUrl} target="_blank" rel="noopener noreferrer">📅 Google Calendar</a> : null}
       <a className="btn btn-outline" href={icsUrl} download={`reserva-${submit.data.referenceCode}.ics`}>📥 Descargar .ics</a>
       {submit.data.status === 'pending' ? <small>Recibirás una confirmación pronto.</small> : <Link className="btn btn-outline" to={`/book/${slug}`}>Volver al inicio</Link>}
     </div></section></main>;

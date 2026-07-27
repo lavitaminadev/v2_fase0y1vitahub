@@ -22,7 +22,7 @@ const PORTAL_CARDS = [
     action: 'Ver reuniones',
   },
   {
-    title: 'Reportes',
+    title: 'Mis informes',
     description: 'Resultados y métricas de performance.',
     link: '/portal/reports',
     action: 'Ver reportes',

@@ -3,6 +3,7 @@ import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { EmptyState } from '../../shared/EmptyState';
 import { statusLabel } from '../../shared/status-labels';
+import { safeUrl } from '../../core/safe-url';
 
 interface ActionItem {
   id: string;
@@ -61,8 +62,8 @@ export function ClientMeetings() {
                 {meeting.minutes && <div className="meeting-notes"><strong>Acta y acuerdos</strong><p>{meeting.minutes}</p></div>}
               </div>
               <div className="portal-item-actions">
-                {meeting.meetingLink && (
-                  <a className="btn btn-outline btn-sm" href={meeting.meetingLink} target="_blank" rel="noreferrer">
+                {safeUrl(meeting.meetingLink) && (
+                  <a className="btn btn-outline btn-sm" href={safeUrl(meeting.meetingLink)} target="_blank" rel="noreferrer">
                     Unirse
                   </a>
                 )}

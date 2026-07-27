@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
 import { EmptyState } from '../../shared/EmptyState';
 import { useSearchParams } from 'react-router-dom';
+import { safeUrl } from '../../core/safe-url';
 
 interface ActionItem {
   id: string;
@@ -78,7 +79,7 @@ export function MeetingsPage() {
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
-  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
+  const clients = useMemo<ClientOption[]>(() => (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [], [clientsResp]);
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/meetings', body),
@@ -171,9 +172,9 @@ export function MeetingsPage() {
                     <div className="meeting-participants">Cliente: {clientMap.get(meeting.clientId) ?? meeting.clientId}</div>
                   )}
                   {meeting.location && <div className="meeting-meta">Lugar: {meeting.location}</div>}
-                  {meeting.meetingLink && (
+                  {safeUrl(meeting.meetingLink) && (
                     <div className="meeting-participants">
-                      <a href={meeting.meetingLink} target="_blank" rel="noreferrer">
+                      <a href={safeUrl(meeting.meetingLink)} target="_blank" rel="noreferrer">
                         Abrir enlace
                       </a>
                     </div>

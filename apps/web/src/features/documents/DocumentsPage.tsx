@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { matchesSearch } from '../../shared/search';
 import { useAuth } from '../../core/auth';
 import { useSearchParams } from 'react-router-dom';
+import { safeUrl } from '../../core/safe-url';
 
 interface DocumentRecord {
   [key: string]: unknown;
@@ -83,7 +84,7 @@ export function DocumentsPage() {
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
-  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
+  const clients = useMemo<ClientOption[]>(() => (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [], [clientsResp]);
 
   const createMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => api.post('/documents', payload),
@@ -281,8 +282,8 @@ export function DocumentsPage() {
             key: 'fileUrl',
             label: 'Archivo',
             render: (row) =>
-              row.fileUrl ? (
-                <a href={row.fileUrl} target="_blank" rel="noreferrer">
+              safeUrl(row.fileUrl) ? (
+                <a href={safeUrl(row.fileUrl)} target="_blank" rel="noreferrer">
                   Abrir
                 </a>
               ) : (
@@ -439,7 +440,7 @@ export function DocumentsPage() {
           <p>Se creará la carpeta principal del cliente y cinco subcarpetas estándar para brief, editables, revisión, aprobados y entregables finales. Si ya existen, se reutilizarán.</p>
           <label>Cliente<select className="input" value={driveClientId} onChange={(event) => { setDriveClientId(event.target.value); driveMutation.reset(); }}><option value="">Selecciona un cliente</option>{(clients ?? []).map((client) => <option value={client.id} key={client.id}>{client.name}{client.driveFolderId ? ' · Drive preparado' : ''}</option>)}</select></label>
           {driveMutation.error && <div className="alert alert-error">{driveMutation.error.message}</div>}
-          {driveMutation.data && <div className="drive-bootstrap-result"><span>✓</span><div><strong>Estructura lista</strong><small>{Object.keys(driveMutation.data.folders).length} carpetas operativas verificadas.</small></div><a className="btn btn-outline btn-sm" href={driveMutation.data.rootUrl} target="_blank" rel="noreferrer">Abrir Drive</a></div>}
+          {driveMutation.data && <div className="drive-bootstrap-result"><span>✓</span><div><strong>Estructura lista</strong><small>{Object.keys(driveMutation.data.folders).length} carpetas operativas verificadas.</small></div>{safeUrl(driveMutation.data.rootUrl) ? <a className="btn btn-outline btn-sm" href={safeUrl(driveMutation.data.rootUrl)} target="_blank" rel="noreferrer">Abrir Drive</a> : null}</div>}
           <div className="modal-actions"><button className="btn btn-outline" type="button" onClick={() => setDriveOpen(false)}>Cerrar</button><button className="btn btn-primary" type="button" disabled={!driveClientId || driveMutation.isPending} onClick={() => driveMutation.mutate(driveClientId)}>{driveMutation.isPending ? 'Preparando...' : 'Crear o verificar carpetas'}</button></div>
         </div>
       </Modal>

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 
 const ITEMS = [
-  { to: '/crm/contacts', label: 'Contactos', description: 'Personas de reservas' },
+  { to: '/crm/contacts', label: 'Contactos', description: 'Campañas y reservas' },
 ];
 
 export function CrmNav() {

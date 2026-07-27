@@ -44,7 +44,8 @@ export function ChangePasswordPage() {
   const navigate = useNavigate();
   const refreshProfile = useAuth((state) => state.refreshProfile);
   const user = useAuth((state) => state.user);
-  const { data: orgs } = useQuery<Array<{ id: string; name: string; logoUrl?: string; welcomeMessage?: string }>>({ queryKey: ['organizations'], queryFn: () => api.get('/organizations') });
+  const canReadOrganizations = ['admin', 'commercial_director', 'operations_director'].includes(user?.role ?? '');
+  const { data: orgs } = useQuery<Array<{ id: string; name: string; logoUrl?: string; welcomeMessage?: string }>>({ queryKey: ['organizations'], queryFn: () => api.get('/organizations'), enabled: canReadOrganizations });
   const org = orgs?.[0];
   const [step, setStep] = useState<'welcome' | 'terms' | 'password'>('welcome');
   const [accepted, setAccepted] = useState<Record<string, boolean>>({});
@@ -63,7 +64,7 @@ export function ChangePasswordPage() {
     try {
       await api.put('/auth/password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
       await refreshProfile();
-      navigate('/dashboard', { replace: true });
+      navigate(user?.role === 'client' ? '/portal' : '/dashboard', { replace: true });
     } catch (error) { setFeedback(error instanceof Error ? error.message : 'No se pudo actualizar la contraseña.'); }
     finally { setSaving(false); }
   };

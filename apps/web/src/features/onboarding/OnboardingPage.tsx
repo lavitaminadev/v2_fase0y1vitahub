@@ -74,7 +74,7 @@ export function OnboardingPage() {
     queryKey: ['clients'],
     queryFn: () => api.get('/clients'),
   });
-  const clients = (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [];
+  const clients = useMemo<ClientOption[]>(() => (clientsResp as { data: ClientOption[] } | undefined)?.data ?? [], [clientsResp]);
 
   const { data: users } = useQuery<UserOption[]>({
     queryKey: ['users'],

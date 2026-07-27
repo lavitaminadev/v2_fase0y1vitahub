@@ -37,6 +37,7 @@ interface ReservationContact {
   email?: string;
   phone?: string;
   company?: string;
+  clientId?: string;
   status: string;
   source?: string;
   sourceDetail?: string;
@@ -45,9 +46,21 @@ interface ReservationContact {
   createdAt?: string;
 }
 
+/**
+ * Estados del ciclo de reserva y su etiqueta visible.
+ *
+ * Cubren el recorrido de un contacto: ingresa, reserva y termina asistiendo o no. Las
+ * etapas del pipeline comercial de la agencia se administran en otra pantalla.
+ */
 const CONTACT_STATUSES: Record<string, string> = {
   new: 'Nuevo', reserved: 'Reservó', attended: 'Asistió', no_show: 'No asistió',
 };
+
+/** Orden de presentación de los estados, según el recorrido del contacto. */
+const CONTACT_STATUS_ORDER = ['new', 'reserved', 'attended', 'no_show'] as const;
+
+/** Contactos por página. `PaginationDto` acepta hasta 100. */
+const CONTACTS_PAGE_SIZE = 50;
 
 export function ContactsPage() {
   const user = useAuth((state) => state.user);
@@ -56,15 +69,19 @@ export function ContactsPage() {
   const [search, setSearch] = useState('');
   const [clientFilter, setClientFilter] = useState(searchParams.get('clientId') ?? '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '');
+  const [page, setPage] = useState(1);
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [tagging, setTagging] = useState<ReservationContact | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [historyContact, setHistoryContact] = useState<ReservationContact | null>(null);
   const { data: clientsResp } = useQuery<{ data: ClientOption[] }>({ queryKey: ['clients'], queryFn: () => api.get('/clients'), enabled: user?.role !== 'client' });
-  const clients = (clientsResp as any)?.data ?? [];
-  const contactsQuery = useQuery<{ data: ReservationContact[] }>({
-    queryKey: ['crm-reservation-contacts', clientFilter, statusFilter],
-    queryFn: () => api.get(`/crm/leads?source=vitahub_reservations${clientFilter ? `&clientId=${encodeURIComponent(clientFilter)}` : ''}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ''}`),
+  // Memorizada para conservar la identidad del arreglo entre renders.
+  const clients = useMemo<ClientOption[]>(() => clientsResp?.data ?? [], [clientsResp]);
+  // `/crm/leads` pagina de a 20 por defecto, por lo que límite y desplazamiento son explícitos.
+  const contactsQuery = useQuery<PageResult<ReservationContact>>({
+    queryKey: ['crm-reservation-contacts', clientFilter, statusFilter, page],
+    queryFn: () => api.get(`/crm/leads?source=vitahub_reservations&limit=${CONTACTS_PAGE_SIZE}&offset=${(page - 1) * CONTACTS_PAGE_SIZE}${clientFilter ? `&clientId=${encodeURIComponent(clientFilter)}` : ''}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ''}`),
+    placeholderData: (previous) => previous,
   });
   const { data: historyReservations = [], isLoading: historyLoading } = useQuery<Array<{ id: string; referenceCode: string; status: string; startsAt: string; partySize: number }>>({
     queryKey: ['lead-reservations', historyContact?.id],
@@ -76,12 +93,45 @@ export function ContactsPage() {
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['crm-reservation-contacts'] }); setFeedback({ tone: 'success', text: 'Etiquetas actualizadas.' }); },
     onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }),
   });
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => api.put(`/crm/leads/${id}`, { status }),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['crm-reservation-contacts'] }); setFeedback({ tone: 'success', text: 'Estado actualizado.' }); },
+    onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }),
+  });
 
-  const contacts = (contactsQuery.data?.data ?? []).filter((contact) => matchesSearch(search, [contact.name, contact.email, contact.phone, contact.company, contact.sourceDetail, contact.campaignName, ...(contact.tags || [])]));
+  const allContacts = contactsQuery.data?.data ?? [];
+  const loadedTotal = contactsQuery.data?.total ?? allContacts.length;
+  const totalPages = Math.max(1, Math.ceil(loadedTotal / CONTACTS_PAGE_SIZE));
+  const contacts = allContacts.filter((contact) => matchesSearch(search, [contact.name, contact.email, contact.phone, contact.company, contact.sourceDetail, contact.campaignName, ...(contact.tags || [])]));
+  const clientNameById = useMemo(
+    () => new Map<string, string>(clients.map((client) => [client.id, client.name])),
+    [clients],
+  );
+
+  // Totales por estado: una consulta con `limit=1` por estado, leyendo el campo `total`.
+  // Son exactos sobre el conjunto completo y no dependen de la página cargada ni del filtro activo.
+  const countsQuery = useQuery<Record<string, number>>({
+    queryKey: ['crm-reservation-contact-counts', clientFilter],
+    queryFn: async () => {
+      const scope = clientFilter ? `&clientId=${encodeURIComponent(clientFilter)}` : '';
+      const pages = await Promise.all(CONTACT_STATUS_ORDER.map((status) =>
+        api.get(`/crm/leads?source=vitahub_reservations&limit=1&status=${status}${scope}`) as Promise<PageResult<ReservationContact>>,
+      ));
+      return Object.fromEntries(CONTACT_STATUS_ORDER.map((status, index) => [status, pages[index]?.total ?? 0]));
+    },
+  });
+  const statusCounts = useMemo(
+    () => ({ new: 0, reserved: 0, attended: 0, no_show: 0, ...(countsQuery.data ?? {}) }),
+    [countsQuery.data],
+  );
+  const attendanceRate = statusCounts.attended + statusCounts.no_show > 0
+    ? Math.round((statusCounts.attended / (statusCounts.attended + statusCounts.no_show)) * 100)
+    : null;
   const updateFilter = (key: 'clientId' | 'status', value: string) => {
     setSearchParams((current) => { const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); return next; });
     if (key === 'clientId') setClientFilter(value);
     if (key === 'status') setStatusFilter(value);
+    setPage(1); // El filtro redefine el conjunto, por lo que la paginación vuelve al inicio.
   };
   if (contactsQuery.isLoading) return <LoadingSpinner text="Cargando contactos..." />;
 
@@ -91,16 +141,41 @@ export function ContactsPage() {
     setTagging(null);
   };
 
-  return <div className="page"><CrmNav /><div className="page-header"><div><span className="page-eyebrow">CRM FASE 1</span><h1>Contactos de reservas</h1><p className="page-subtitle">Contactos por reserva y asistencia.</p></div></div>{feedback && <div className={`alert alert-${feedback.tone}`} role={feedback.tone === 'error' ? 'alert' : 'status'}>{feedback.text}</div>}{contactsQuery.error && <div className="alert alert-error">{contactsQuery.error.message}</div>}<div className="filters crm-filter-bar"><input className="input" type="search" placeholder="Buscar persona, email, teléfono o campaña" value={search} onChange={(event) => setSearch(event.target.value)} />{user?.role !== 'client' && <select className="input" aria-label="Filtrar por cliente" value={clientFilter} onChange={(event) => updateFilter('clientId', event.target.value)}><option value="">Todos los clientes</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select>}<select className="input" aria-label="Filtrar por estado" value={statusFilter} onChange={(event) => updateFilter('status', event.target.value)}><option value="">Todos los estados</option>{Object.entries(CONTACT_STATUSES).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select><button type="button" className="btn btn-outline btn-sm" disabled={!search && !clientFilter && !statusFilter} onClick={() => { setSearch(''); updateFilter('clientId', ''); updateFilter('status', ''); }}>Limpiar</button><span className="filter-result-count">{contacts.length} contactos</span></div><DataTable<ReservationContact> storageKey="reservation-contacts" exportFileName="contactos-reservas" keyExtractor={(contact) => contact.id} data={contacts} emptyMessage="Aún no hay contactos de reservas" columns={[
-    { key: 'name', label: 'Persona', sortable: true, render: (contact) => <div className="user-cell"><strong>{contact.name}</strong><small>{contact.company || 'Sin empresa'}</small></div> },
-    { key: 'email', label: 'Email', render: (contact) => contact.email || '-' },
+  return <div className="page"><CrmNav />
+  <div className="page-header"><div><span className="page-eyebrow">CONTACTOS DE CAMPAÑAS</span><h1>Contactos</h1><p className="page-subtitle">Personas que llegaron desde las campañas de cada cliente, incluidas las que reservaron.</p></div></div>
+
+  <div className="contact-status-tiles" role="group" aria-label="Filtrar por estado del ciclo de reserva">
+    {CONTACT_STATUS_ORDER.map((status) => (
+      <button
+        key={status}
+        type="button"
+        className={`contact-status-tile is-${status} ${statusFilter === status ? 'is-active' : ''}`}
+        aria-pressed={statusFilter === status}
+        onClick={() => updateFilter('status', statusFilter === status ? '' : status)}
+      >
+        <span className="contact-status-tile-label">{CONTACT_STATUSES[status]}</span>
+        <strong>{countsQuery.isLoading ? '—' : statusCounts[status]}</strong>
+        {status === 'attended' && attendanceRate !== null && <small>{attendanceRate}% de asistencia</small>}
+        {status !== 'attended' && <small>{statusFilter === status ? 'Filtro activo' : 'Ver solo estos'}</small>}
+      </button>
+    ))}
+  </div>
+
+  {feedback && <div className={`alert alert-${feedback.tone}`} role={feedback.tone === 'error' ? 'alert' : 'status'}>{feedback.text}</div>}{contactsQuery.error && <div className="alert alert-error">{contactsQuery.error.message}</div>}<div className="filters crm-filter-bar"><input className="input" type="search" placeholder="Buscar persona, email, teléfono o campaña" value={search} onChange={(event) => setSearch(event.target.value)} />{user?.role !== 'client' && <select className="input" aria-label="Filtrar por cliente" value={clientFilter} onChange={(event) => updateFilter('clientId', event.target.value)}><option value="">Todos los clientes</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select>}<select className="input" aria-label="Filtrar por estado" value={statusFilter} onChange={(event) => updateFilter('status', event.target.value)}><option value="">Todos los estados</option>{CONTACT_STATUS_ORDER.map((status) => <option key={status} value={status}>{CONTACT_STATUSES[status]}</option>)}</select><button type="button" className="btn btn-outline btn-sm" disabled={!search && !clientFilter && !statusFilter} onClick={() => { setSearch(''); updateFilter('clientId', ''); updateFilter('status', ''); }}>Limpiar</button><span className="filter-result-count">{loadedTotal} contacto{loadedTotal === 1 ? '' : 's'}</span></div><DataTable<ReservationContact> storageKey="reservation-contacts" exportFileName="contactos-reservas" keyExtractor={(contact) => contact.id} data={contacts} emptyMessage="Aún no hay contactos de reservas" columns={[
+    { key: 'name', label: 'Persona', sortable: true, render: (contact) => <div className="user-cell"><strong>{contact.name}</strong><small>{contact.email || contact.phone || 'Sin canal de contacto'}</small></div> },
+    { key: 'clientId', label: 'Cliente', sortable: true, render: (contact) => contact.clientId ? (clientNameById.get(contact.clientId) ?? 'Cliente no encontrado') : 'Sin cliente' },
     { key: 'phone', label: 'Teléfono', render: (contact) => contact.phone || '-' },
-    { key: 'status', label: 'Estado', render: (contact) => <span className={`crm-stage is-${contact.status}`}>{CONTACT_STATUSES[contact.status] || contact.status}</span> },
-    { key: 'tags', label: 'Etiquetas', render: (contact) => <div className="contact-tags">{contact.tags?.map((tag) => <span key={tag} className="tag-chip">{tag}</span>) || <small>Sin etiquetas</small>}<button type="button" className="btn btn-outline btn-xs" onClick={() => { setTagging(contact); setTagInput((contact.tags || []).join(', ')); }}>Editar</button></div> },
+    { key: 'status', label: 'Estado', sortable: true, render: (contact) => <div className="contact-status-cell"><span className={`crm-stage is-${contact.status}`}>{CONTACT_STATUSES[contact.status] || contact.status}</span><select className="input input-sm" aria-label={`Cambiar estado de ${contact.name}`} value={contact.status} disabled={statusMutation.isPending} onChange={(event) => statusMutation.mutate({ id: contact.id, status: event.target.value })}>{CONTACT_STATUS_ORDER.map((status) => <option key={status} value={status}>{CONTACT_STATUSES[status]}</option>)}</select></div> },
     { key: 'source', label: 'Origen', render: (contact) => <div className="crm-table-stack"><strong>{contact.sourceDetail || 'Reserva'}</strong><small>{contact.campaignName || 'Sin campaña'}</small></div> },
-    { key: 'createdAt', label: 'Creado', render: (contact) => contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('es-CL') : '-' },
+    { key: 'tags', label: 'Etiquetas', render: (contact) => <div className="contact-tags">{contact.tags?.map((tag) => <span key={tag} className="tag-chip">{tag}</span>) || <small>Sin etiquetas</small>}<button type="button" className="btn btn-outline btn-xs" onClick={() => { setTagging(contact); setTagInput((contact.tags || []).join(', ')); }}>Editar</button></div> },
+    { key: 'createdAt', label: 'Creado', sortable: true, render: (contact) => contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('es-CL') : '-' },
     { key: 'id', label: 'Acciones', render: (contact) => <div className="actions-cell"><button type="button" className="btn btn-outline btn-sm" onClick={() => { setHistoryContact(contact); }}>Historial</button></div> },
   ]} />
+  {totalPages > 1 && <nav className="contact-pager" aria-label="Paginación de contactos">
+    <button type="button" className="btn btn-outline btn-sm" disabled={page <= 1 || contactsQuery.isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Anteriores</button>
+    <span aria-live="polite">Página {page} de {totalPages}{contactsQuery.isFetching ? ' · cargando...' : ''}</span>
+    <button type="button" className="btn btn-outline btn-sm" disabled={page >= totalPages || contactsQuery.isFetching} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Siguientes →</button>
+  </nav>}
   <Modal open={Boolean(tagging)} onClose={() => setTagging(null)} title={tagging ? `Etiquetas de ${tagging.name}` : 'Etiquetas'}>{tagging && <div className="modal-form"><label>Etiquetas (separadas por coma)<input className="input" autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="VIP, alergia, cumpleaños..." /></label><div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setTagging(null)}>Cancelar</button><button type="button" className="btn btn-primary" disabled={tagMutation.isPending} onClick={() => saveTags(tagging)}>{tagMutation.isPending ? 'Guardando...' : 'Guardar etiquetas'}</button></div></div>}</Modal>
   <Modal open={Boolean(historyContact)} onClose={() => setHistoryContact(null)} title={historyContact ? `Historial de ${historyContact.name}` : 'Historial'}>{historyContact && <div className="modal-form"><h4>Reservas vinculadas</h4>{historyLoading ? <p>Cargando...</p> : historyReservations.length === 0 ? <p>Sin reservas previas registradas.</p> : <div className="reservation-history">{historyReservations.map((reservation) => <div key={reservation.id}><span>Reserva #{reservation.referenceCode}</span><small>{new Date(reservation.startsAt).toLocaleString('es-CL')} · {CONTACT_STATUSES[reservation.status] || reservation.status}</small><em>{reservation.partySize} persona(s)</em></div>)}</div>}</div>}</Modal>
   </div>;
@@ -143,7 +218,7 @@ export function OpportunitiesPage() {
   const ageInDays = (createdAt: string) => Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000));
   if (opportunitiesQuery.isLoading) return <LoadingSpinner text="Cargando oportunidades..." />;
 
-  return <div className="page"><CrmNav /><WorkspaceHeader eyebrow="PRIORIDAD COMERCIAL" title="Oportunidades y forecast" description="Controla etapa, monto, probabilidad, cierre, antigüedad y la próxima acción que mueve cada negocio." action={() => openEdit()} />
+  return <div className="page"><WorkspaceHeader eyebrow="PIPELINE DE LA VITAMINA" title="Oportunidades y proyección" description="Controla etapa, monto, probabilidad, cierre, antigüedad y la próxima acción que mueve cada negocio." action={() => openEdit()} />
   <div className="crm-summary-grid crm-summary-grid-four"><article><span>Pipeline abierto</span><strong>CLP {Math.round(total).toLocaleString('es-CL')}</strong></article><article><span>Forecast ponderado</span><strong>CLP {Math.round(weighted).toLocaleString('es-CL')}</strong></article><article className={overdue.length ? 'is-warning' : ''}><span>Seguimientos vencidos</span><strong>{overdue.length}</strong></article><article><span>Oportunidades</span><strong>{allOpportunities.length}</strong></article></div>
   {forecast.length > 0 && <section className="commercial-forecast"><header><div><span className="page-eyebrow">FORECAST MENSUAL</span><h3>Cierre esperado ponderado</h3></div><small>Valor x probabilidad</small></header><div>{forecast.map((month) => <article key={month.key}><span>{month.label}</span><strong>CLP {Math.round(month.weighted).toLocaleString('es-CL')}</strong><small>{month.count} negocio(s) · bruto CLP {Math.round(month.amount).toLocaleString('es-CL')}</small><i style={{ width: `${month.amount ? Math.max(4, month.weighted / month.amount * 100) : 0}%` }} /></article>)}</div></section>}
   {feedback && <div className="alert alert-success">{feedback}</div>}{opportunitiesQuery.error && <div className="alert alert-error">{opportunitiesQuery.error.message}</div>}
@@ -175,7 +250,7 @@ export function InteractionsPage() {
   const interactionsQuery = useQuery<PageResult<Interaction>>({ queryKey: ['crm-interactions'], queryFn: () => api.get('/crm/interactions?limit=100') });
   const contactsQuery = useQuery<PageResult<Contact>>({ queryKey: ['crm-contacts'], queryFn: () => api.get('/crm/contacts?limit=100') });
   const leadsQuery = useQuery<{ data: LeadOption[] }>({ queryKey: ['leads'], queryFn: () => api.get('/crm/leads') });
-  const intLeads = (leadsQuery.data as any)?.data ?? [];
+  const intLeads = useMemo<LeadOption[]>(() => (leadsQuery.data as { data?: LeadOption[] } | undefined)?.data ?? [], [leadsQuery.data]);
   const opportunitiesQuery = useQuery<PageResult<Opportunity>>({ queryKey: ['crm-opportunities'], queryFn: () => api.get('/crm/opportunities?limit=100') });
   const save = useMutation({
     mutationFn: () => {
@@ -197,7 +272,7 @@ export function InteractionsPage() {
   const contactedLeadIds = new Set((interactionsQuery.data?.data ?? []).map((item) => item.leadId).filter(Boolean));
   const untouchedLeads = intLeads.filter((lead) => !contactedLeadIds.has(lead.id) && !['won', 'lost', 'converted'].includes(lead.status || '')).slice(0, 8);
 
-  return <div className="page"><CrmNav /><WorkspaceHeader eyebrow="BANDEJA DIARIA" title="Centro de actividad comercial" description="Prioriza seguimientos, reuniones y leads sin contacto antes de revisar el historial completo." action={() => openEdit()} />
+  return <div className="page"><WorkspaceHeader eyebrow="PIPELINE DE LA VITAMINA" title="Actividad comercial" description="Prioriza seguimientos, reuniones y leads sin contacto antes de revisar el historial completo." action={() => openEdit()} />
   <section className="commercial-inbox"><article className={dueFollowUps.length ? 'is-urgent' : ''}><header><span>Seguimientos para hoy o vencidos</span><strong>{dueFollowUps.length}</strong></header><div>{dueFollowUps.slice(0, 5).map((item) => <button key={item.id} onClick={() => navigate('/crm/opportunities')}><strong>{item.nextAction || item.name}</strong><small>{item.name} · {(item.nextActionAt ? new Date(item.nextActionAt).toLocaleString('es-CL') : 'Sin fecha')}</small></button>)}{dueFollowUps.length === 0 && <p>Bandeja al día. No hay seguimientos vencidos.</p>}</div></article><article><header><span>Reuniones próximas</span><strong>{upcomingMeetings.length}</strong></header><div>{upcomingMeetings.slice(0, 5).map((item) => <button key={item.id} onClick={() => setTypeFilter('meeting')}><strong>{item.description || 'Reunión comercial'}</strong><small>{new Date(item.date).toLocaleString('es-CL')}</small></button>)}{upcomingMeetings.length === 0 && <p>No hay reuniones futuras registradas.</p>}</div></article><article><header><span>Leads sin contacto</span><strong>{untouchedLeads.length}</strong></header><div>{untouchedLeads.slice(0, 5).map((lead) => <button key={lead.id} onClick={() => { setForm({ ...EMPTY_INTERACTION, leadId: lead.id }); setOpen(true); }}><strong>{lead.name}</strong><small>{lead.company || 'Sin empresa'} · registrar actividad</small></button>)}{untouchedLeads.length === 0 && <p>Todos los leads visibles tienen actividad.</p>}</div></article></section>
   {feedback && <div className="alert alert-success">{feedback}</div>}{interactionsQuery.error && <div className="alert alert-error">{interactionsQuery.error.message}</div>}<div className="filters"><input className="input" type="search" placeholder="Buscar detalle, persona o lead" value={search} onChange={(event) => setSearch(event.target.value)} /><select className="input" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="">Todos los tipos</option><option value="call">Llamadas</option><option value="email">Correos</option><option value="meeting">Reuniones</option><option value="whatsapp">WhatsApp</option><option value="note">Notas</option></select><span className="filter-result-count">{interactions.length} actividades</span></div>{interactions.length === 0 ? <EmptyState icon="HC" title="Sin actividad registrada" description="Crea la primera interacción y vincúlala a un lead o contacto." /> : <div className="crm-timeline">{interactions.map((item) => <article key={item.id}><i /><div className="crm-timeline-content"><div><strong>{statusLabel(item.type)}</strong><time>{new Date(item.date).toLocaleString('es-CL')}</time></div><p>{item.description || 'Sin observaciones adicionales.'}</p><small>{item.contactId ? `Contacto: ${contactMap.get(item.contactId) ?? 'No disponible'}` : item.leadId ? `Lead: ${leadMap.get(item.leadId) ?? 'No disponible'}` : 'Actividad general'}</small></div><div className="crm-timeline-actions"><button className="btn btn-outline btn-sm" onClick={() => openEdit(item)}>Editar</button>{user?.role === 'admin' && <button className="btn btn-outline btn-danger btn-sm" onClick={() => setDeleteTarget(item)}>Eliminar</button>}</div></article>)}</div>}
   <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar actividad' : 'Registrar actividad'}><form className="modal-form" onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>{save.error && <div className="alert alert-error">{save.error.message}</div>}<div className="form-row"><label>Tipo<select className="input" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}><option value="call">Llamada</option><option value="email">Correo</option><option value="meeting">Reunión</option><option value="whatsapp">WhatsApp</option><option value="note">Nota</option></select></label><label>Fecha y hora<input className="input" type="datetime-local" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label></div><div className="form-row"><label>Lead<select className="input" value={form.leadId} onChange={(event) => setForm({ ...form, leadId: event.target.value })}><option value="">Sin lead</option>{intLeads.map((lead) => <option key={lead.id} value={lead.id}>{lead.name}</option>)}</select></label><label>Contacto<select className="input" value={form.contactId} onChange={(event) => setForm({ ...form, contactId: event.target.value })}><option value="">Sin contacto</option>{(contactsQuery.data?.data ?? []).map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}</select></label></div><label>Descripción<textarea className="input" rows={5} required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setOpen(false)}>Cancelar</button><button className="btn btn-primary" disabled={save.isPending || !form.description.trim()}>{save.isPending ? 'Guardando...' : 'Guardar actividad'}</button></div></form></Modal>
