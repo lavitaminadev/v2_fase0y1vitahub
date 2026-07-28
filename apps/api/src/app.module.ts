@@ -72,7 +72,7 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
       database: DB_DATABASE,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       migrations: [__dirname + '/infrastructure/migrations/*{.ts,.js}'],
-      synchronize: true,
+      synchronize: false,
       logging: process.env.DB_LOGGING === 'true',
       extra: {
         charset: 'utf8mb4_unicode_ci',
