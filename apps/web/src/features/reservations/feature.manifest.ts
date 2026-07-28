@@ -6,7 +6,7 @@ registerFeature({
   navigation: [{
     label: 'Reservas y formularios',
     path: '/reservations',
-    icon: 'RF',
+    icon: '🗓️',
     roles: ['admin', 'operations_director', 'commercial_director', 'community_manager'],
   }],
   routes: [],

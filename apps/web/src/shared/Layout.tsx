@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../core/auth';
-import { getNavigation } from '../core/navigation.registry';
+import { getNavigation, getNavigationSections } from '../core/navigation.registry';
 import { NavGlyph } from './NavGlyph';
 import { ToastContainer } from './Toast';
 import { NotificationCenter } from './NotificationCenter';
@@ -26,15 +26,6 @@ import { ContextHelpDrawer } from './help/ContextHelpDrawer';
  * La separación entre los dos CRM es deliberada: «Contactos de campañas» pertenece a la
  * operación de las cuentas de clientes, mientras el pipeline es de la propia agencia.
  */
-const NAV_GROUPS: { label: string; paths: string[] }[] = [
-  { label: 'Día a día', paths: ['/dashboard', '/reservations', '/crm/contacts'] },
-  { label: 'Cuentas', paths: ['/clients', '/onboarding', '/meetings', '/documents', '/reports'] },
-  { label: 'Producción', paths: ['/production', '/audiovisual', '/content', '/briefs', '/approvals', '/gamification'] },
-  { label: 'Comercial', paths: ['/crm/leads', '/crm/opportunities', '/crm/interactions', '/catalog', '/contracts', '/billing'] },
-  { label: 'Dirección', paths: ['/direction', '/operations', '/governance', '/knowledge'] },
-  { label: 'Administración', paths: ['/users', '/integrations', '/settings'] },
-];
-
 /**
  * Shell de layout principal renderizado para usuarios autenticados.
  *
@@ -53,12 +44,11 @@ export function Layout(): JSX.Element {
 
   // Calcula la navegación una vez por cambio de rol para evitar filtrar en cada render.
   const navItems = useMemo(() => getNavigation(user?.role, user?.features, user?.permissions), [user?.role, user?.features, user?.permissions]);
+  // Las secciones viven en el registro junto al orden del sidebar: mantenerlas acá hacía
+  // que una ruta no listada desapareciera del menú sin aviso.
   const groupedNavItems = useMemo(
-    () => NAV_GROUPS.map((group) => ({
-      ...group,
-      items: group.paths.flatMap((path) => navItems.find((item) => item.path === path) ?? []),
-    })).filter((group) => group.items.length > 0),
-    [navItems],
+    () => getNavigationSections(user?.role, user?.features, user?.permissions),
+    [user?.role, user?.features, user?.permissions],
   );
 
   const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);

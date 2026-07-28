@@ -11,7 +11,7 @@ import { QueryErrorState } from '../../shared/QueryErrorState';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { EmptyState } from '../../shared/EmptyState';
 import { triggerToast } from '../../shared/Toast';
-import type { Reservation, ReservationForm } from './types';
+import type { MetaConversionStatus, Reservation, ReservationForm } from './types';
 import { localInputToUtc } from './local-time';
 import { publicReservationUrl } from '../../core/public-url';
 import { useAuth } from '../../core/auth';
@@ -57,6 +57,35 @@ const MODE_LABELS: Record<string, string> = { appointment: 'Reserva', group: 'Re
 /** Estados que resumen el dia operativo: lo pendiente, lo confirmado y como cerro el ciclo. */
 const BOOKING_TILE_STATUSES = ['pending', 'confirmed', 'attended', 'no_show'];
 
+/** Estados en los que la asistencia aun no se registra y los botones directos tienen sentido. */
+const ATTENDANCE_PENDING = ['pending', 'confirmed', 'rescheduled', 'waitlist'];
+
+/**
+ * Traduce el estado del envio a Meta a algo accionable para el equipo.
+ *
+ * Lo que importa del brief es doble: que el evento haya llegado y que lleve datos de
+ * coincidencia. Una reserva enviada sin identificadores cuenta como conversion perdida,
+ * asi que se marca en ambar aunque el envio haya sido correcto.
+ */
+function metaConversionChip(conversion?: MetaConversionStatus): { tone: 'ok' | 'warn' | 'off' | 'error'; label: string; title: string } | null {
+  if (!conversion) return null;
+  const { schedule, attended, matchFields } = conversion;
+  if (!schedule && !attended) return { tone: 'off', label: 'Meta —', title: 'Esta reserva todavía no generó eventos de conversión.' };
+  if (schedule === 'expired' || attended === 'expired') {
+    return { tone: 'error', label: 'Fuera de ventana', title: 'El evento superó los 7 días que acepta Meta: esta conversión ya no puede atribuirse a la campaña.' };
+  }
+  if (schedule === 'failed' || attended === 'failed') {
+    return { tone: 'error', label: 'Meta falló', title: 'El envío a Meta falló. Revisa Integraciones para reintentar.' };
+  }
+  const pending = [schedule, attended].some((status) => status && status !== 'processed');
+  const sent = [schedule, attended].filter((status) => status === 'processed').length;
+  if (matchFields === 0) {
+    return { tone: 'warn', label: 'Sin coincidencia', title: 'El evento salió sin teléfono, correo ni identificadores de clic: Meta no puede atribuirlo a la campaña.' };
+  }
+  if (pending) return { tone: 'warn', label: 'Meta en cola', title: `Envío pendiente. ${matchFields} datos de coincidencia.` };
+  return { tone: 'ok', label: attended ? 'Meta ✓ asistió' : 'Meta ✓', title: `${sent} evento(s) confirmados con ${matchFields} datos de coincidencia.` };
+}
+
 export function ReservationsPage({ clientView = false }: { clientView?: boolean }) {
   const user = useAuth((state) => state.user);
   const [searchParams] = useSearchParams();
@@ -72,7 +101,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const [manualOpen, setManualOpen] = useState(false);
   const [manualForm, setManualForm] = useState({ formId: '', startsAt: '', guestName: '', guestEmail: '', guestPhone: '', partySize: 1, serviceId: '', resourceId: '', internalNotes: '', skipAvailability: false });
   const [couponCreateOpen, setCouponCreateOpen] = useState(false);
-  const [couponForm, setCouponForm] = useState({ code: '', discountType: 'percentage', value: 0, maxUses: 0, validFrom: '', validUntil: '', formIds: '', validDaysOfWeek: [] as number[] });
+  const [couponForm, setCouponForm] = useState({ code: '', discountType: 'percentage', value: 0, maxUses: 0, validFrom: '', validUntil: '', formIds: '', validDaysOfWeek: [] as number[], validFromTime: '', validUntilTime: '' });
   const [couponSearch, setCouponSearch] = useState('');
   const [viewingCouponCode, setViewingCouponCode] = useState('');
   const [confirmCoupon, setConfirmCoupon] = useState<{ id: string; active: boolean } | null>(null);
@@ -82,7 +111,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const [clientFilter, setClientFilter] = useState(initialClientId);
   const [formData, setFormData] = useState({ clientId: initialClientId, name: '', mode: 'appointment' });
   const [formFilters, setFormFilters] = useState({ search: '', status: '' });
-  const [filters, setFilters] = useState({ search: searchParams.get('search') ?? '', status: '', formId: '' });
+  const [filters, setFilters] = useState({ search: searchParams.get('search') ?? '', status: '', formId: '', from: '', to: '' });
   const search = useDeferredValue(filters.search.trim());
 
   const clientQuery = clientFilter ? `?clientId=${encodeURIComponent(clientFilter)}` : '';
@@ -95,18 +124,21 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const canReadPixels = !clientView && ['admin', 'operations_director', 'commercial_director'].includes(user?.role ?? '');
   const { data: pixelCatalog } = useQuery<{ bindings: PixelBinding[] }>({ queryKey: ['meta-client-pixels'], queryFn: () => api.get('/integrations/meta/client-pixels/catalog'), enabled: canReadPixels });
   const pixelByClient = new Map((pixelCatalog?.bindings ?? []).map((binding) => [binding.clientId, binding]));
-  const query = new URLSearchParams({ page: String(page), pageSize: '20', ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.status ? { status: filters.status } : {}), ...(filters.formId ? { formId: filters.formId } : {}) });
-  const { data: bookingPage, isFetching: loadingBookings } = useQuery<ReservationPage>({ queryKey: ['reservations', page, clientFilter, search, filters.status, filters.formId], queryFn: () => api.get(`/reservations?${query}`), enabled: tab === 'bookings', placeholderData: (previous) => previous });
+  // `to` se envía al final del día para que el rango incluya la fecha elegida: el backend
+  // compara contra `starts_at`, y una fecha suelta se interpreta como su medianoche.
+  const dateRange = { ...(filters.from ? { from: filters.from } : {}), ...(filters.to ? { to: `${filters.to}T23:59:59` } : {}) };
+  const query = new URLSearchParams({ page: String(page), pageSize: '20', ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.status ? { status: filters.status } : {}), ...(filters.formId ? { formId: filters.formId } : {}), ...dateRange });
+  const { data: bookingPage, isFetching: loadingBookings } = useQuery<ReservationPage>({ queryKey: ['reservations', page, clientFilter, search, filters.status, filters.formId, filters.from, filters.to], queryFn: () => api.get(`/reservations?${query}`), enabled: tab === 'bookings', placeholderData: (previous) => previous });
   const bookingsData = bookingPage?.items || [];
   const bookings = Array.isArray(bookingsData) ? bookingsData : [];
   // Los contadores ignoran el filtro de estado a proposito: son el resumen del dia sobre
   // el que se filtra, no el resultado del filtro.
   const { data: statusCounts = {}, isLoading: loadingCounts } = useQuery<Record<string, number>>({
-    queryKey: ['reservation-status-counts', clientFilter, search, filters.formId],
+    queryKey: ['reservation-status-counts', clientFilter, search, filters.formId, filters.from, filters.to],
     enabled: tab === 'bookings',
     queryFn: async () => {
       const totals = await Promise.all(BOOKING_TILE_STATUSES.map(async (status) => {
-        const params = new URLSearchParams({ page: '1', pageSize: '1', status, ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.formId ? { formId: filters.formId } : {}) });
+        const params = new URLSearchParams({ page: '1', pageSize: '1', status, ...(clientFilter ? { clientId: clientFilter } : {}), ...(search ? { search } : {}), ...(filters.formId ? { formId: filters.formId } : {}), ...dateRange });
         const result = await api.get(`/reservations?${params}`) as ReservationPage;
         return result?.total ?? 0;
       }));
@@ -170,9 +202,11 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
       if (couponForm.validUntil) body.validUntil = new Date(couponForm.validUntil).toISOString();
       if (couponForm.formIds.trim()) body.formIds = couponForm.formIds.split(',').map((s) => s.trim()).filter(Boolean);
       if (couponForm.validDaysOfWeek.length > 0) body.validDaysOfWeek = couponForm.validDaysOfWeek;
+      if (couponForm.validFromTime) body.validFromTime = couponForm.validFromTime;
+      if (couponForm.validUntilTime) body.validUntilTime = couponForm.validUntilTime;
       return api.post('/reservations/coupons', body);
     },
-    onSuccess: () => { setCouponForm({ code: '', discountType: 'percentage', value: 0, maxUses: 0, validFrom: '', validUntil: '', formIds: '', validDaysOfWeek: [] }); setCouponCreateOpen(false); qc.invalidateQueries({ queryKey: ['coupons'] }); triggerToast('Cupón creado'); },
+    onSuccess: () => { setCouponForm({ code: '', discountType: 'percentage', value: 0, maxUses: 0, validFrom: '', validUntil: '', formIds: '', validDaysOfWeek: [], validFromTime: '', validUntilTime: '' }); setCouponCreateOpen(false); qc.invalidateQueries({ queryKey: ['coupons'] }); triggerToast('Cupón creado'); },
   });
   const couponToggle = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => api.patch(`/reservations/coupons/${id}`, { active }),
@@ -249,19 +283,38 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
             : <small>{filters.status === status ? 'Filtro activo' : 'Ver solo estos'}</small>}
         </button>; })}
       </div>
-      <div className="reservation-filters"><input className="input" aria-label="Buscar reservas" placeholder="Buscar nombre, teléfono, correo o código" value={filters.search} onChange={(event) => resetFilters({ search: event.target.value })} /><select className="input" aria-label="Filtrar por formulario" value={filters.formId} onChange={(event) => resetFilters({ formId: event.target.value })}><option value="">Todos los formularios</option>{forms.map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</select><select className="input" aria-label="Filtrar por estado" value={filters.status} onChange={(event) => resetFilters({ status: event.target.value })}><option value="">Todos los estados</option>{Object.entries(STATUS_LABELS).map(([status, label]) => <option value={status} key={status}>{label}</option>)}</select><button type="button" className="btn btn-outline btn-sm" disabled={!filters.search && !filters.formId && !filters.status} onClick={() => resetFilters({ search: '', formId: '', status: '' })}>Limpiar</button><span className="filter-result-count">{bookingPage?.total ?? 0} reserva{bookingPage?.total === 1 ? '' : 's'}</span></div>
+      <div className="reservation-filters"><input className="input" aria-label="Buscar reservas" placeholder="Buscar nombre, teléfono, correo o código" value={filters.search} onChange={(event) => resetFilters({ search: event.target.value })} /><select className="input" aria-label="Filtrar por formulario" value={filters.formId} onChange={(event) => resetFilters({ formId: event.target.value })}><option value="">Todos los formularios</option>{forms.map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</select><select className="input" aria-label="Filtrar por estado" value={filters.status} onChange={(event) => resetFilters({ status: event.target.value })}><option value="">Todos los estados</option>{Object.entries(STATUS_LABELS).map(([status, label]) => <option value={status} key={status}>{label}</option>)}</select>{!clientView && <select className="input" aria-label="Filtrar reservas por cliente" value={clientFilter} onChange={(event) => { setClientFilter(event.target.value); setPage(1); }}><option value="">Todos los clientes</option>{clients.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select>}<label className="filter-date">Desde<input className="input" type="date" aria-label="Reservas desde" value={filters.from} max={filters.to || undefined} onChange={(event) => resetFilters({ from: event.target.value })} /></label><label className="filter-date">Hasta<input className="input" type="date" aria-label="Reservas hasta" value={filters.to} min={filters.from || undefined} onChange={(event) => resetFilters({ to: event.target.value })} /></label><button type="button" className="btn btn-outline btn-sm" onClick={() => { const today = new Date(); const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; resetFilters({ from: key, to: key }); }}>Hoy</button><button type="button" className="btn btn-outline btn-sm" disabled={!filters.search && !filters.formId && !filters.status && !filters.from && !filters.to && !clientFilter} onClick={() => { resetFilters({ search: '', formId: '', status: '', from: '', to: '' }); setClientFilter(''); }}>Limpiar</button><span className="filter-result-count">{bookingPage?.total ?? 0} reserva{bookingPage?.total === 1 ? '' : 's'}</span></div>
       {loadingBookings && !bookingPage ? <LoadingSpinner text="Buscando reservas..." /> : bookings.length === 0 ? <div className="reservation-empty"><strong>Sin reservas para estos filtros</strong><p>Las nuevas solicitudes aparecerán aquí en tiempo real.</p></div> : <div className="booking-list">
         {bookings.map((item) => {
           return <article className="booking-row" key={item.id}>
           <div className="booking-date"><strong>{new Date(item.startsAt).getDate()}</strong><span>{new Date(item.startsAt).toLocaleDateString('es-CL', { month: 'short' })}</span><small>{new Date(item.startsAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</small></div>
           <button className="booking-guest booking-guest-button" onClick={() => { setSelectedBooking(item); setBookingNotes(item.internalNotes || ''); }}><strong>{item.guestName}</strong><span>{item.guestPhone || item.guestEmail || 'Sin contacto'}</span><small>#{item.referenceCode} · {item.utmCampaign || item.utmSource || 'Origen directo'}{item.couponCode ? <em className="booking-coupon">🎫 {item.couponCode}</em> : null}</small></button>
           <div className="booking-status-cell">
+            {/* El gesto del dia es marcar asistencia: dos botones directos, sin desplegable.
+                El resto del ciclo queda en el semaforo, que se usa mucho menos. */}
+            {!clientView && ATTENDANCE_PENDING.includes(item.status) && <div className="attendance-quick">
+              <button
+                type="button"
+                className="btn btn-attended btn-sm"
+                disabled={updateMutation.isPending}
+                aria-label={`Marcar que ${item.guestName} asistió`}
+                onClick={() => updateMutation.mutate({ id: item.id, body: { status: 'attended' } })}
+              >✓ Asistió</button>
+              <button
+                type="button"
+                className="btn btn-no-show btn-sm"
+                disabled={updateMutation.isPending}
+                aria-label={`Marcar que ${item.guestName} no asistió`}
+                onClick={() => updateMutation.mutate({ id: item.id, body: { status: 'no_show' } })}
+              >✕ No</button>
+            </div>}
             <StatusTrafficLight
               status={item.status}
               label={item.guestName}
               onChange={(newStatus) => updateMutation.mutate({ id: item.id, body: { status: newStatus } })}
               disabled={updateMutation.isPending || clientView}
             />
+            {!clientView && (() => { const chip = metaConversionChip(item.metaConversion); return chip ? <span className={`meta-conversion is-${chip.tone}`} title={chip.title}>{chip.label}</span> : null; })()}
           </div>
         </article>; })}
       </div>}
@@ -279,7 +332,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
 
     <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo formulario o encuesta"><form className="modal-form" onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}><p className="page-subtitle">Constructor visual con enlace público y respuestas.</p><label>Empresa o cliente<select className="input" required value={formData.clientId} onChange={(event) => setFormData({ ...formData, clientId: event.target.value })}><option value="">Selecciona un cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Nombre del formulario<input className="input" required value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} placeholder="Ej. Evaluación inicial" /></label><label>Tipo de captura<select className="input" value={formData.mode} onChange={(event) => setFormData({ ...formData, mode: event.target.value })}><option value="appointment">Reserva con hora individual</option><option value="group">Inscripción con cupos grupales</option><option value="request">Formulario o encuesta sin confirmación automática</option></select></label>{createMutation.error && <div className="alert alert-error">{createMutation.error.message}</div>}<button className="btn btn-primary btn-block" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creando...' : 'Crear y abrir constructor'}</button></form></Modal>
 
-    <Modal open={couponCreateOpen} onClose={() => setCouponCreateOpen(false)} title="Nuevo cupón"><form className="modal-form" onSubmit={(event) => { event.preventDefault(); couponCreate.mutate(); }}><label>Código<input className="input" required value={couponForm.code} onChange={(event) => setCouponForm({ ...couponForm, code: event.target.value })} placeholder="Ej. BIENVENIDA20" /></label><div className="form-row"><label>Tipo<select className="input" value={couponForm.discountType} onChange={(event) => setCouponForm({ ...couponForm, discountType: event.target.value })}><option value="percentage">Porcentaje</option><option value="fixed">Fijo</option></select></label><label>Valor<input className="input" type="number" min="0" value={couponForm.value} onChange={(event) => setCouponForm({ ...couponForm, value: Number(event.target.value) })} /></label></div><label>Usos máximos (0 = ilimitado)<input className="input" type="number" min="0" value={couponForm.maxUses} onChange={(event) => setCouponForm({ ...couponForm, maxUses: Number(event.target.value) })} /></label><div className="form-row"><label>Válido desde<input className="input" type="date" value={couponForm.validFrom} onChange={(event) => setCouponForm({ ...couponForm, validFrom: event.target.value })} /></label><label>Válido hasta<input className="input" type="date" value={couponForm.validUntil} onChange={(event) => setCouponForm({ ...couponForm, validUntil: event.target.value })} /></label></div><label>Formularios donde aplica<small>Sin marcar ninguno, el cupón vale para todos.</small><div className="coupon-form-picker">{forms.length === 0 ? <em>Aún no hay formularios.</em> : forms.map((form) => { const selected = couponForm.formIds.split(',').map((id) => id.trim()).filter(Boolean); const checked = selected.includes(form.id); return <label key={form.id} className="coupon-form-option"><input type="checkbox" checked={checked} onChange={(event) => { const next = event.target.checked ? [...selected, form.id] : selected.filter((id) => id !== form.id); setCouponForm({ ...couponForm, formIds: next.join(',') }); }} /><span>{form.name}</span></label>; })}</div></label><label>Días de la semana válidos (opcional, ninguno = todos)<div className="day-checkboxes">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((label, index) => { const jsDay = [1,2,3,4,5,6,0][index]; return <label key={index} className="day-checkbox"><input type="checkbox" checked={couponForm.validDaysOfWeek.includes(jsDay)} onChange={(event) => setCouponForm({ ...couponForm, validDaysOfWeek: event.target.checked ? [...couponForm.validDaysOfWeek, jsDay] : couponForm.validDaysOfWeek.filter((d) => d !== jsDay) })} />{label}</label>; })}</div></label>{couponCreate.error && <div className="alert alert-error">{couponCreate.error.message}</div>}<div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setCouponCreateOpen(false)}>Cancelar</button><button className="btn btn-primary" disabled={couponCreate.isPending}>{couponCreate.isPending ? 'Guardando...' : 'Crear cupón'}</button></div></form></Modal>
+    <Modal open={couponCreateOpen} onClose={() => setCouponCreateOpen(false)} title="Nuevo cupón"><form className="modal-form" onSubmit={(event) => { event.preventDefault(); couponCreate.mutate(); }}><label>Código<input className="input" required value={couponForm.code} onChange={(event) => setCouponForm({ ...couponForm, code: event.target.value })} placeholder="Ej. BIENVENIDA20" /></label><div className="form-row"><label>Tipo<select className="input" value={couponForm.discountType} onChange={(event) => setCouponForm({ ...couponForm, discountType: event.target.value })}><option value="percentage">Porcentaje</option><option value="fixed">Fijo</option></select></label><label>Valor<input className="input" type="number" min="0" value={couponForm.value} onChange={(event) => setCouponForm({ ...couponForm, value: Number(event.target.value) })} /></label></div><label>Usos máximos (0 = ilimitado)<input className="input" type="number" min="0" value={couponForm.maxUses} onChange={(event) => setCouponForm({ ...couponForm, maxUses: Number(event.target.value) })} /></label><div className="form-row"><label>Válido desde<input className="input" type="date" value={couponForm.validFrom} onChange={(event) => setCouponForm({ ...couponForm, validFrom: event.target.value })} /></label><label>Válido hasta<input className="input" type="date" value={couponForm.validUntil} onChange={(event) => setCouponForm({ ...couponForm, validUntil: event.target.value })} /></label></div><label>Formularios donde aplica<small>Sin marcar ninguno, el cupón vale para todos.</small><div className="coupon-form-picker">{forms.length === 0 ? <em>Aún no hay formularios.</em> : forms.map((form) => { const selected = couponForm.formIds.split(',').map((id) => id.trim()).filter(Boolean); const checked = selected.includes(form.id); return <label key={form.id} className="coupon-form-option"><input type="checkbox" checked={checked} onChange={(event) => { const next = event.target.checked ? [...selected, form.id] : selected.filter((id) => id !== form.id); setCouponForm({ ...couponForm, formIds: next.join(',') }); }} /><span>{form.name}</span></label>; })}</div></label><div className="form-row"><label>Válido desde la hora<small>De la reserva, no de cuándo se pide. Vacío = cualquier hora.</small><input className="input" type="time" value={couponForm.validFromTime} onChange={(event) => setCouponForm({ ...couponForm, validFromTime: event.target.value })} /></label><label>Válido hasta la hora<input className="input" type="time" value={couponForm.validUntilTime} onChange={(event) => setCouponForm({ ...couponForm, validUntilTime: event.target.value })} /></label></div><label>Días de la semana válidos (opcional, ninguno = todos)<div className="day-checkboxes">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((label, index) => { const jsDay = [1,2,3,4,5,6,0][index]; return <label key={index} className="day-checkbox"><input type="checkbox" checked={couponForm.validDaysOfWeek.includes(jsDay)} onChange={(event) => setCouponForm({ ...couponForm, validDaysOfWeek: event.target.checked ? [...couponForm.validDaysOfWeek, jsDay] : couponForm.validDaysOfWeek.filter((d) => d !== jsDay) })} />{label}</label>; })}</div></label>{couponCreate.error && <div className="alert alert-error">{couponCreate.error.message}</div>}<div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setCouponCreateOpen(false)}>Cancelar</button><button className="btn btn-primary" disabled={couponCreate.isPending}>{couponCreate.isPending ? 'Guardando...' : 'Crear cupón'}</button></div></form></Modal>
 
     <Modal open={manualOpen} onClose={() => setManualOpen(false)} title="Agregar reserva manual"><form className="modal-form" onSubmit={(event) => { event.preventDefault(); manualMutation.mutate(); }}><p className="page-subtitle">Registra una reserva manual con control de horario.</p><label>Formulario<select className="input" required value={manualForm.formId} onChange={(event) => setManualForm({ ...manualForm, formId: event.target.value })}><option value="">Selecciona formulario</option>{forms.map((form) => <option key={form.id} value={form.id}>{form.name}</option>)}</select></label><label>Fecha y hora (local del formulario)<input className="input" type="datetime-local" required value={manualForm.startsAt} onChange={(event) => setManualForm({ ...manualForm, startsAt: event.target.value })} /></label><label>Nombre del visitante<input className="input" required value={manualForm.guestName} onChange={(event) => setManualForm({ ...manualForm, guestName: event.target.value })} /></label><div className="form-row"><label>Teléfono<input className="input" value={manualForm.guestPhone} onChange={(event) => setManualForm({ ...manualForm, guestPhone: event.target.value })} /></label><label>Correo<input className="input" type="email" value={manualForm.guestEmail} onChange={(event) => setManualForm({ ...manualForm, guestEmail: event.target.value })} /></label></div><label>Número de personas<input className="input" type="number" min="1" value={manualForm.partySize} onChange={(event) => setManualForm({ ...manualForm, partySize: Number(event.target.value) })} /></label><label>Notas internas<textarea className="input" rows={3} value={manualForm.internalNotes} onChange={(event) => setManualForm({ ...manualForm, internalNotes: event.target.value })} /></label><label className="toggle-row"><input type="checkbox" checked={manualForm.skipAvailability} onChange={(event) => setManualForm({ ...manualForm, skipAvailability: event.target.checked })} /> Permitir superposición manual (ignorar disponibilidad)</label>{manualMutation.error && <div className="alert alert-error">{manualMutation.error.message}</div>}<div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setManualOpen(false)}>Cancelar</button><button className="btn btn-primary" disabled={manualMutation.isPending}>{manualMutation.isPending ? 'Guardando...' : 'Crear reserva'}</button></div></form></Modal>
 

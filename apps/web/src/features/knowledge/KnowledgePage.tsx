@@ -5,6 +5,8 @@ import { DataTable } from '../../shared/DataTable';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { Modal } from '../../shared/Modal';
 import { matchesSearch } from '../../shared/search';
+import { PageHero } from '../../shared/PageHero';
+import { QueryErrorState } from '../../shared/QueryErrorState';
 
 interface KnowledgeChunk {
   [key: string]: unknown;
@@ -23,7 +25,7 @@ export function KnowledgePage() {
   const [selected, setSelected] = useState<KnowledgeChunk | null>(null);
   const knowledgeQuery = useQuery<KnowledgeChunk[]>({ queryKey: ['knowledge'], queryFn: () => api.get('/knowledge') });
   if (knowledgeQuery.isLoading) return <LoadingSpinner text="Organizando conocimiento interno..." />;
-  if (knowledgeQuery.error) return <div className="page"><div className="page-load-error"><span>!</span><h1>No pudimos abrir la base interna</h1><p>{knowledgeQuery.error.message}</p><button className="btn btn-primary" onClick={() => knowledgeQuery.refetch()}>Reintentar</button></div></div>;
+  if (knowledgeQuery.error) return <QueryErrorState title="No pudimos abrir la base interna" message={knowledgeQuery.error.message} onRetry={() => knowledgeQuery.refetch()} />;
 
   const chunks = Array.isArray(knowledgeQuery.data) ? knowledgeQuery.data : [];
   const sources = [...new Set(chunks.map((chunk) => chunk.sourceName))].sort();
@@ -31,7 +33,13 @@ export function KnowledgePage() {
   const filtered = chunks.filter((chunk) => (!source || chunk.sourceName === source) && matchesSearch(deferredSearch, [chunk.sourceName, chunk.content]));
 
   return <div className="page knowledge-page">
-    <section className="knowledge-hero"><div><span className="page-eyebrow">MEMORIA OPERATIVA</span><h1>Base de conocimiento</h1><p>Documentos y políticas del equipo.</p></div><div className="knowledge-stats"><span><small>Fuentes</small><strong>{sources.length}</strong></span><span><small>Fragmentos</small><strong>{chunks.length}</strong></span><span><small>Volumen</small><strong>{totalTokens.toLocaleString('es-CL')} <i>tokens</i></strong></span></div></section>
+    <PageHero
+      variant="feature"
+      eyebrow="MEMORIA OPERATIVA"
+      title="Base de conocimiento"
+      subtitle="Documentos y políticas del equipo."
+      aside={<div className="page-hero-stats"><span><small>Fuentes</small><strong>{sources.length}</strong></span><span><small>Fragmentos</small><strong>{chunks.length}</strong></span><span><small>Volumen</small><strong>{totalTokens.toLocaleString('es-CL')} <i>tokens</i></strong></span></div>}
+    />
     <div className="knowledge-explainer"><span>i</span><p><strong>¿Qué estás viendo?</strong> Cada documento se divide en fragmentos pequeños para conservar trazabilidad y facilitar búsquedas internas. La fuente original siempre permanece identificada.</p></div>
     <section className="knowledge-panel"><header><div><span className="page-eyebrow">EXPLORADOR</span><h2>Contenido indexado</h2></div><span>{filtered.length} resultados</span></header><div className="filters knowledge-filters"><input className="input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar dentro de fuentes y contenido..." aria-label="Buscar conocimiento" /><select className="input" value={source} onChange={(event) => setSource(event.target.value)} aria-label="Filtrar por fuente"><option value="">Todas las fuentes</option>{sources.map((item) => <option value={item} key={item}>{item}</option>)}</select>{(search || source) && <button className="btn btn-outline" onClick={() => { setSearch(''); setSource(''); }}>Limpiar</button>}</div>
       <DataTable<KnowledgeChunk> keyExtractor={(row) => row.id} emptyMessage={chunks.length ? 'No hay coincidencias con los filtros actuales.' : 'Aún no hay documentos procesados en la memoria operativa.'} columns={[

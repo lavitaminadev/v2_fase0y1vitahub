@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
 import { VitaminaPulse } from '../pulse/VitaminaPulse';
+import { PageHero } from '../../shared/PageHero';
 
 const PORTAL_CARDS = [
   {
@@ -34,7 +35,13 @@ export function ClientDashboard() {
 
   return (
     <div className="page">
-      <section className="portal-welcome"><span className="page-eyebrow">TU ESPACIO DE MARCA</span><h1>Bienvenido, {user?.name}</h1><p>Tu panel de avances y decisiones.</p><div className="portal-pulse"><span><i className="online-dot" />Cuenta activa</span><span>Actualizado hoy</span></div></section>
+      <PageHero
+        tone="portal"
+        eyebrow="TU ESPACIO DE MARCA"
+        title={`Bienvenido, ${user?.name ?? ''}`}
+        subtitle="Tu panel de avances y decisiones."
+        footer={<div className="portal-pulse"><span><i className="online-dot" />Cuenta activa</span><span>Actualizado hoy</span></div>}
+      />
       <VitaminaPulse compact />
 
       <div className="card-grid">

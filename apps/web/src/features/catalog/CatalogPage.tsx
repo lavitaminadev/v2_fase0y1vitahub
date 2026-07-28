@@ -4,6 +4,7 @@ import { api } from '../../core/api';
 import { CatalogServicesTab } from './CatalogServicesTab';
 import { CatalogPacksTab } from './CatalogPacksTab';
 import { CatalogQuotesTab } from './CatalogQuotesTab';
+import { PageHero } from '../../shared/PageHero';
 
 type Tab = 'services' | 'packs' | 'quotes';
 
@@ -20,18 +21,17 @@ export function CatalogPage() {
 
   return (
     <div className="page catalog-page">
-      <section className="module-hero catalog-hero">
-        <div>
-          <span className="page-eyebrow">ARQUITECTURA COMERCIAL</span>
-          <h1>Catálogo de servicios</h1>
-          <p>Servicios, precios y capacidad UD.</p>
-        </div>
-        <div className="module-hero-stats" aria-label="Resumen del catálogo">
+      <PageHero
+        variant="feature"
+        eyebrow="ARQUITECTURA COMERCIAL"
+        title="Catálogo de servicios"
+        subtitle="Servicios, precios y capacidad UD."
+        aside={<div className="page-hero-stats" aria-label="Resumen del catálogo">
           <span><small>Servicios activos</small><strong>{services.length}</strong></span>
           <span><small>Categorías</small><strong>{categories}</strong></span>
           <span><small>Cotizaciones abiertas</small><strong>{quotes.filter((quote) => ['draft', 'sent'].includes(quote.status)).length}</strong></span>
-        </div>
-      </section>
+        </div>}
+      />
       {summaryError && <div className="alert alert-error">No fue posible cargar por completo el resumen del catálogo. Los totales pueden estar incompletos.</div>}
       <div className="workflow-note"><b>01</b><span><strong>Servicio</strong><small>Unidad vendible y costo base</small></span><i>→</i><b>02</b><span><strong>Pack</strong><small>Combinación comercial</small></span><i>→</i><b>03</b><span><strong>Cotización</strong><small>Propuesta versionada</small></span><i>→</i><b>04</b><span><strong>Contrato</strong><small>Activación automática</small></span></div>
       <div className="tabs catalog-tabs" role="tablist" aria-label="Tipo de catálogo">

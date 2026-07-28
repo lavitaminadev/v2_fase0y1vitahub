@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { MonthlyReportsPanel } from './MonthlyReportsPanel';
+import { PageHero } from '../../shared/PageHero';
+import { QueryErrorState } from '../../shared/QueryErrorState';
 
 interface ReportData {
   totalRevenue: number;
@@ -17,7 +19,7 @@ const monthLabel = (value: string) => new Date(`${value}-01T12:00:00`).toLocaleD
 export function ReportsPage() {
   const reportQuery = useQuery<ReportData>({ queryKey: ['reports'], queryFn: () => api.get('/reporting/reports') });
   if (reportQuery.isLoading) return <LoadingSpinner text="Construyendo reporte operativo..." />;
-  if (reportQuery.error) return <div className="page"><div className="page-load-error"><span>!</span><h1>No pudimos construir el reporte</h1><p>{reportQuery.error.message}</p><button className="btn btn-primary" onClick={() => reportQuery.refetch()}>Reintentar</button></div></div>;
+  if (reportQuery.error) return <QueryErrorState title="No pudimos construir el reporte" message={reportQuery.error.message} onRetry={() => reportQuery.refetch()} />;
   if (!reportQuery.data) return null;
 
   const data = reportQuery.data;
@@ -32,7 +34,12 @@ export function ReportsPage() {
 
   return (
     <div className="page reports-page">
-      <section className="module-hero reports-hero"><div><span className="page-eyebrow">LECTURA EJECUTIVA</span><h1>Reportes</h1><p>Ingresos, carga y distribución real.</p></div><div className="report-period"><small>Ventana analítica</small><strong>Últimos 12 meses</strong><span>{monthly.length ? `${monthLabel(monthly[0].month)} - ${monthLabel(monthly.at(-1)!.month)}` : 'Sin movimientos registrados'}</span></div></section>
+      <PageHero
+        eyebrow="LECTURA EJECUTIVA"
+        title="Reportes"
+        subtitle="Ingresos, carga y distribución real."
+        aside={<div className="report-period"><small>Ventana analítica</small><strong>Últimos 12 meses</strong><span>{monthly.length ? `${monthLabel(monthly[0].month)} - ${monthLabel(monthly.at(-1)!.month)}` : 'Sin movimientos registrados'}</span></div>}
+      />
 
       <section className="report-kpis" aria-label="Indicadores principales">
         <article className="report-kpi-primary"><span>Ingresos pagados</span><strong>{money(data.totalRevenue)}</strong><small>{revenueChange == null ? 'Sin base mensual para comparar' : `${revenueChange >= 0 ? '+' : ''}${revenueChange}% respecto al mes anterior`}</small></article>

@@ -61,7 +61,11 @@ export class CreateUserUseCase {
       workMode: data.workMode,
       weeklyCapacityUd: data.weeklyCapacityUd ?? 20,
       invitedAt: new Date(),
+      // La invitación deja la cuenta a medias a propósito: cada persona pone su propia
+      // contraseña, acepta las condiciones y completa sus datos al entrar. Administración
+      // solo aporta lo que le consta —nombre, correo y cargo—, no datos personales.
       mustChangePassword: true,
+      mustCompleteProfile: true,
     });
     return this.repo.save(user);
   }

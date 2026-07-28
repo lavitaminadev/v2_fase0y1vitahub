@@ -11,6 +11,7 @@ import { QueryErrorState } from '../../shared/QueryErrorState';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { ReservationResults } from './ReservationResults';
 import { ConversionQueue } from './ConversionQueue';
+import { PageHero } from '../../shared/PageHero';
 
 interface DashboardData {
   activeClients: number;
@@ -113,7 +114,13 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      <div className="page-header hero-header"><div><span className="page-eyebrow">CENTRO DE CONTROL</span><h1>Dashboard</h1><p className="page-subtitle">Visión general de la operación.</p></div><div className="dashboard-header-actions"><span className="date-chip">{new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</span><button className="btn btn-outline btn-sm" onClick={() => setConfigureOpen(true)}>Configurar widgets</button></div></div>
+      <PageHero
+        variant="compact"
+        eyebrow="CENTRO DE CONTROL"
+        title="Dashboard"
+        subtitle="Visión general de la operación."
+        actions={<><span className="date-chip">{new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</span><button className="btn btn-outline btn-sm" onClick={() => setConfigureOpen(true)}>Configurar widgets</button></>}
+      />
 
       {widgetVisible('attention') && <div className="attention-strip"><div><span className="attention-kicker">Atención de hoy</span><strong>{data.pendingPieces ?? 0} piezas esperan movimiento</strong><small>Revisa bloqueos y mantén el ciclo de entrega avanzando.</small></div><Link className="btn btn-primary btn-sm" to="/production">Ir a producción</Link></div>}
 

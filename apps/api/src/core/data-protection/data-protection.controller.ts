@@ -48,4 +48,18 @@ export class DataProtectionController {
   async anonymizeLead(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.anonymizeLead(id, req.organizationId, 'Solicitud manual de anonimizacion');
   }
+
+  @Delete('contacts/:id/anonymize')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+  @ApiOperation({ summary: 'Anonimizar un contacto de campana a peticion del titular' })
+  async anonymizeContact(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.service.anonymizeContact(id, req.organizationId, 'Solicitud manual de anonimizacion');
+  }
+
+  @Delete('reservations/:id/anonymize')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+  @ApiOperation({ summary: 'Anonimizar los datos del comensal de una reserva' })
+  async anonymizeReservation(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.service.anonymizeReservation(id, req.organizationId, 'Solicitud manual de anonimizacion');
+  }
 }

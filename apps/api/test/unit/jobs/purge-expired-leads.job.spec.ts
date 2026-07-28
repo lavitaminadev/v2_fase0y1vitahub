@@ -7,6 +7,7 @@ const leadRepo = {
 
 const dataProtection = {
   anonymizeLead: vi.fn(),
+  anonymizeExpiredReservations: vi.fn().mockResolvedValue({ reviewed: 0, anonymized: 0 }),
 };
 
 describe('PurgeExpiredLeadsJob', () => {

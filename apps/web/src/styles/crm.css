@@ -2,7 +2,10 @@
 
 /* CRM workspace navigation */
 /* Marca de origen del CRM: distingue el pipeline de La Vitamina del CRM de sus clientes. */
-.crm-scope { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; padding: 5px 11px; border: 1px solid var(--scope-color); border-radius: 999px; background: color-mix(in srgb, var(--scope-color) 8%, #fff); color: var(--scope-color); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.crm-scope { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; padding: 5px 11px; border: 1px solid var(--scope-color); border-radius: 999px; background: #fff; color: var(--scope-color); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+@supports (background: color-mix(in srgb, red 8%, white)) {
+  .crm-scope { background: color-mix(in srgb, var(--scope-color) 8%, #fff); }
+}
 .crm-scope::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--scope-color); }
 .crm-scope.is-agency { --scope-color: #7040a0; }
 .crm-scope.is-client { --scope-color: #176f63; }
@@ -130,7 +133,7 @@
 .lead-detail-panel { max-width: 590px; }
 .lead-detail-panel .drawer-header { min-height: 128px; padding: 27px 29px; background: radial-gradient(circle at 82% -10%,rgba(215,235,121,.22),transparent 35%),linear-gradient(125deg,#173f35,#245c4a); }
 .lead-detail-panel .drawer-title-group h3 { margin: 5px 0 10px; color: #fff; font-family: Georgia,serif; font-size: 28px; font-weight: 500; letter-spacing: -.035em; }
-.drawer-eyebrow { color: #d7eb79; font-size: 10px; font-weight: 900; letter-spacing: .13em; }
+.drawer-title-group { --eyebrow-color: #d7eb79; }
 .lead-detail-panel .drawer-close { color: rgba(255,255,255,.68); }
 .lead-detail-panel .drawer-close:hover { color: #fff; }
 .lead-detail-panel .drawer-content { padding: 20px; background: #f0f4ef; }
@@ -217,5 +220,3 @@
   .status-tiles { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
-.contact-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 16px 0 4px; }
-.contact-pager span { color: #75857e; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -4,7 +4,8 @@ export type OrganizationSettingCategory =
   | 'design_budget'
   | 'meetings'
   | 'alerts'
-  | 'documents';
+  | 'documents'
+  | 'compliance';
 
 export type OrganizationSettingValueType = 'boolean' | 'number' | 'select' | 'text';
 export type MasterSettingStatus = 'master_defined' | 'direction_required';
@@ -30,6 +31,36 @@ export interface OrganizationSettingDefinition {
 }
 
 export const ORGANIZATION_SETTINGS: readonly OrganizationSettingDefinition[] = [
+  {
+    key: 'compliance.terms_enforced',
+    category: 'compliance',
+    label: 'Exigir aceptación de condiciones',
+    description: 'Cuando está activo, nadie puede operar sin haber aceptado las condiciones vigentes. Al desactivarlo dejan de pedirse, pero las aceptaciones ya registradas se conservan.',
+    valueType: 'boolean',
+    defaultValue: true,
+    masterStatus: 'direction_required',
+  },
+  {
+    key: 'compliance.terms_version',
+    category: 'compliance',
+    label: 'Versión vigente de las condiciones',
+    description: 'Identificador del texto en vigor. Al cambiarlo, todo el equipo debe volver a aceptar la próxima vez que entre. Es la forma de publicar una actualización.',
+    valueType: 'text',
+    defaultValue: 'v1',
+    masterStatus: 'direction_required',
+  },
+  {
+    key: 'compliance.terms_renewal_months',
+    category: 'compliance',
+    label: 'Renovar aceptación cada',
+    description: 'Meses tras los cuales se vuelve a pedir la aceptación aunque el texto no haya cambiado. 0 la pide solo cuando cambia la versión.',
+    valueType: 'number',
+    defaultValue: 0,
+    masterStatus: 'direction_required',
+    min: 0,
+    max: 36,
+    unit: 'meses',
+  },
   {
     key: 'operation.assignment_mode',
     category: 'operation',

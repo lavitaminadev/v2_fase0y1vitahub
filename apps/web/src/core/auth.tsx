@@ -24,6 +24,10 @@ export interface User {
   organizationId?: string;
   clientId?: string;
   mustChangePassword?: boolean;
+  /** Queda en `true` hasta que la persona completa sus propios datos en el primer ingreso. */
+  mustCompleteProfile?: boolean;
+  /** `true` cuando dirección publicó una versión nueva o venció el plazo de renovación. */
+  mustAcceptTerms?: boolean;
   /**
    * Módulos habilitados en la organización, tal como los resuelve el backend.
    *

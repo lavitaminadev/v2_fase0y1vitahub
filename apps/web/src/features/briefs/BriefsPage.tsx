@@ -9,6 +9,7 @@ import { StatusBadge } from '../../shared/StatusBadge';
 import { Modal } from '../../shared/Modal';
 import { matchesSearch } from '../../shared/search';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
+import { PageHero } from '../../shared/PageHero';
 
 interface BriefRow {
   [key: string]: unknown;
@@ -66,7 +67,13 @@ export function BriefsPage() {
   if (briefsQuery.isLoading) return <LoadingSpinner text="Cargando briefs..." />;
   if (briefsQuery.error) return <div className="alert alert-error">Error al cargar briefs: {briefsQuery.error.message}</div>;
   return <div className="page">
-    <section className="governance-header brief-header"><div><span className="page-eyebrow">CONTROL DE REQUERIMIENTOS</span><h1>Briefs</h1><p>Briefs claros antes de producir.</p>{contextClient && <span className="context-chip">Vista filtrada: {contextClient.name}<button type="button" aria-label="Quitar filtro de cliente" onClick={() => { searchParams.delete('clientId'); setSearchParams(searchParams); }}>×</button></span>}</div><button className="btn btn-primary" onClick={openCreate}>+ Nuevo brief</button></section>
+    <PageHero
+      eyebrow="CONTROL DE REQUERIMIENTOS"
+      title="Briefs"
+      subtitle="Briefs claros antes de producir."
+      footer={contextClient ? <span className="context-chip">Vista filtrada: {contextClient.name}<button type="button" aria-label="Quitar filtro de cliente" onClick={() => { searchParams.delete('clientId'); setSearchParams(searchParams); }}>×</button></span> : undefined}
+      actions={<button className="btn btn-primary" onClick={openCreate}>+ Nuevo brief</button>}
+    />
     <div className="governance-stats"><article><span>Total en alcance</span><strong>{scopedRows.length}</strong><small>{clientScope ? 'para este cliente' : 'en toda la organización'}</small></article><article><span>Aprobados</span><strong>{approved}</strong><small>{scopedRows.length ? `${Math.round(approved * 100 / scopedRows.length)}% del total` : 'sin registros todavía'}</small></article><article className={overdue ? 'attention' : ''}><span>Requieren atención</span><strong>{overdue}</strong><small>briefs vencidos sin aprobar</small></article></div>
     <div className="filters"><input className="input" aria-label="Buscar briefs" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por título o cliente..." /><select className="input" aria-label="Filtrar briefs por estado" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option><option value="draft">Borrador</option><option value="sent">Enviado</option><option value="received">Recibido</option><option value="approved">Aprobado</option><option value="archived">Archivado</option></select></div>
     {feedback && <div className={`alert alert-${feedback.tone}`} role="alert">{feedback.text}</div>}

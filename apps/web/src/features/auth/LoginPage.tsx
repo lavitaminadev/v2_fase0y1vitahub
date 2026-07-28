@@ -68,7 +68,7 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <section className="login-story" aria-label="VITAHUB">
-        <span className="login-eyebrow">NUESTRO NEGOCIO ES HACER CRECER EL TUYO</span>
+        <span className="page-eyebrow">NUESTRO NEGOCIO ES HACER CRECER EL TUYO</span>
         <h2>Todo el pulso de La Vitamina, en un solo lugar.</h2>
         <p>Gestión conectada de punta a punta.</p>
         <div className="login-flow"><span>CRM</span><span>Producción</span><span>Resultados</span></div>

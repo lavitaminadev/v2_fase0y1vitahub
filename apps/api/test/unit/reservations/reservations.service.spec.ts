@@ -188,6 +188,22 @@ describe('ReservationsService', () => {
       expect(result.fullDays).toEqual([]);
     });
 
+    it('marca el día completo cuando el tope del cliente se alcanzó, aunque el del formulario no', async () => {
+      const day = nextMonday();
+      const startsAt = new Date(`${day}T13:00:00.000Z`);
+      // El formulario admite 10 al día y solo lleva 2, pero el cliente topó en 2.
+      slotsScenario(
+        { ...publishedForm(), dailyCapacity: 10 },
+        [{ startsAt, endsAt: startsAt, partySize: 1 }, { startsAt, endsAt: startsAt, partySize: 1 }],
+      );
+      dataSource.query.mockResolvedValue([{ daily_reservation_cap: 2 }]);
+
+      const result = await service.slots('evaluacion', day, 1);
+
+      expect(result.slots).toEqual([]);
+      expect(result.fullDays).toEqual([day]);
+    });
+
     it('deja el día sin horarios y lo marca completo cuando se alcanzó el tope diario', async () => {
       const day = nextMonday();
       const startsAt = new Date(`${day}T13:00:00.000Z`);
@@ -240,5 +256,75 @@ describe('ReservationsService', () => {
   it('hides a published form with invalid stored configuration instead of leaking the validation error', async () => {
     formQuery.getOne.mockResolvedValue({ ...publishedForm(), designConfig: { primaryColor: 'rojo' } });
     await expect(service.publicForm('evaluacion')).rejects.toThrow('Este formulario no está disponible');
+  });
+
+  /**
+   * Defensas del formulario público contra envíos automáticos.
+   *
+   * Ambas actúan antes de tocar la base de datos: una reserva falsa no solo ensucia la
+   * agenda, dispara un evento de conversión a Meta y degrada la señal de la campaña.
+   */
+  describe('protección del formulario público', () => {
+    const validPayload = {
+      startsAt: new Date(Date.now() + 86_400_000).toISOString(),
+      guestName: 'Ana Pérez', answers: {}, idempotencyKey: 'key-1',
+    } as never;
+
+    it('descarta el envío que rellenó el campo trampa', async () => {
+      await expect(service.createPublic('evaluacion', { ...(validPayload as object), website: 'http://spam.example' } as never))
+        .rejects.toThrow('Solicitud inválida');
+    });
+
+    it('descarta el envío completado en menos de 800 ms', async () => {
+      await expect(service.createPublic('evaluacion', { ...(validPayload as object), renderedAt: new Date().toISOString() } as never))
+        .rejects.toThrow('Completa el formulario antes de enviarlo');
+    });
+
+    it('deja pasar un envío humano: campo trampa vacío y tiempo razonable', async () => {
+      // No llega a crear la reserva —el escenario no está montado— pero supera las guardas.
+      await expect(service.createPublic('evaluacion', { ...(validPayload as object), website: '', renderedAt: new Date(Date.now() - 30_000).toISOString() } as never))
+        .rejects.not.toThrow('Solicitud inválida');
+    });
+  });
+
+  /**
+   * El dia y la hora de un cupon describen cuando se consume el beneficio, no cuando se
+   * pide la reserva. Validarlos contra el reloj del servidor hacia que un cupon de martes
+   * fallara al reservarse un lunes, y que uno vencido se aceptara si se reservaba a tiempo.
+   */
+  describe('vigencia de cupones', () => {
+    function couponScenario(coupon: Record<string, unknown>) {
+      const manager = { getRepository: () => ({ findOne: async () => ({ code: 'PROMO', active: true, maxUses: 0, usageCount: 0, ...coupon }) }) };
+      return manager as never;
+    }
+    // Martes 20:00 en America/Santiago (UTC-3 en enero).
+    const martes20 = new Date('2026-01-20T23:00:00.000Z');
+    const form = { id: 'form-1', organizationId: 'org-1', timezone: 'America/Santiago' } as never;
+
+    it('acepta el cupon segun el dia de la reserva, no el dia en que se reserva', async () => {
+      // 2 = martes. La reserva cae en martes aunque hoy sea cualquier otro dia.
+      const coupon = await service['validateCoupon']('PROMO', form, couponScenario({ validDaysOfWeek: [2] }), martes20);
+      expect(coupon?.code).toBe('PROMO');
+    });
+
+    it('rechaza el cupon cuando la reserva cae en un dia no permitido', async () => {
+      await expect(service['validateCoupon']('PROMO', form, couponScenario({ validDaysOfWeek: [1] }), martes20))
+        .rejects.toThrow('El cupón no es válido para el día de la reserva');
+    });
+
+    it('acepta la reserva dentro de la franja horaria del cupon', async () => {
+      const coupon = await service['validateCoupon']('PROMO', form, couponScenario({ validFromTime: '19:00', validUntilTime: '23:00' }), martes20);
+      expect(coupon?.code).toBe('PROMO');
+    });
+
+    it('rechaza la reserva fuera de la franja horaria del cupon', async () => {
+      await expect(service['validateCoupon']('PROMO', form, couponScenario({ validFromTime: '12:00', validUntilTime: '16:00' }), martes20))
+        .rejects.toThrow('El cupón solo aplica entre 12:00 y 16:00');
+    });
+
+    it('sin franja declarada el cupon vale a cualquier hora', async () => {
+      const coupon = await service['validateCoupon']('PROMO', form, couponScenario({}), martes20);
+      expect(coupon?.code).toBe('PROMO');
+    });
   });
 });

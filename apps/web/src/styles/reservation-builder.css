@@ -15,7 +15,7 @@
 .schedule-card:nth-child(2) > .page-subtitle { margin:0 0 18px; padding:12px 14px; border-radius:12px; background:#f4f8f1; color:#526c63; font-size:13px; line-height:1.45; }
 /* Capacidad: lo que el brief exige decidir primero. El tope diario ocupa la fila completa
    porque gobierna cuando un dia se muestra completo en la pagina publica. */
-.schedule-capacity { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:18px 0 20px; }
+.schedule-capacity { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin:18px 0 20px; }
 .schedule-capacity label { display:flex; flex-direction:column; gap:7px; padding:12px; border:1px solid #edf2ed; border-radius:13px; background:#fff; color:#40584f; font-size:12px; font-weight:900; line-height:1.25; }
 .schedule-capacity label small { color:#708079; font-size:11px; font-weight:600; line-height:1.35; }
 .schedule-capacity .input { min-height:44px; font-size:14px; font-weight:800; color:#173f35; }
@@ -85,6 +85,11 @@
 .block-range > summary::after { content:'▾'; float:right; }
 .block-range > summary::-webkit-details-marker { display:none; }
 .block-range .block-form { padding:0 14px 14px; }
+
+/* Aviso de alcance del formulario público: informa, no bloquea. */
+.canvas-scope-hint { display:grid; gap:4px; margin:0 0 16px; padding:12px 14px; border:1px solid #e8d9a8; border-left:3px solid #9a5a00; border-radius:12px; background:#fdfaf1; }
+.canvas-scope-hint strong { color:#7d4900; font-size:12px; }
+.canvas-scope-hint span { color:#6d6250; font-size:11px; line-height:1.5; }
 .block-list { margin-top:20px; }
 .block-list .page-subtitle { padding:13px; border-radius:12px; background:#f7f8f6; color:#697870; font-size:13px; }
 
@@ -116,7 +121,7 @@
 .preview-public-intro h2 { font-size:clamp(28px,4vw,var(--booking-title-size,54px)); }
 .public-booking-intro>p,.preview-public-intro p { font-size:var(--booking-welcome-size,16px); }
 .reservation-logo-preview,.public-booking-logo { width:auto; max-width:min(100%,260px); max-height:var(--booking-logo-size,64px); }
-@media(max-width:700px){.design-mini-grid{grid-template-columns:1fr}.public-booking-intro h1{font-size:clamp(32px,12vw,var(--booking-title-size,72px))}.public-booking-facts,.preview-public-facts{gap:12px;justify-content:flex-start}.reservation-logo-preview,.public-booking-logo{max-width:min(100%,220px)}}
+@media(max-width:700px){.design-mini-grid{grid-template-columns:1fr}.public-booking-intro h1{font-size:clamp(26px,7.5vw,var(--booking-title-size,72px))}.public-booking-facts,.preview-public-facts{gap:12px;justify-content:flex-start}.reservation-logo-preview,.public-booking-logo{max-width:min(100%,220px)}}
 
 /* Reservation builder usability pass: whole canvas drop zone + clearer weekly agenda */
 .builder-canvas { position:relative; overflow:hidden; border:2px dashed #bfd0c3; background:linear-gradient(180deg,#fff 0%,#fbfdf8 100%); }
@@ -184,10 +189,20 @@
 .booking-step-dot small { font-size:11px; color:var(--booking-text,#3f4e49); }
 
 /* Calendar grid */
-.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin:16px 0; }
+/* El calendario se arma por semanas: la rejilla de 7 columnas va en la fila, no en el
+   contenedor, que solo apila las semanas. La cabecera repite la misma rejilla para que los
+   nombres de día queden sobre su columna. */
+.calendar-grid { display:grid; gap:4px; margin:16px 0; }
+.calendar-weekdays,
+.calendar-week { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; align-items:stretch; grid-auto-rows:minmax(58px,auto); }
+.calendar-weekdays { margin-bottom:2px; }
+.calendar-weekdays span { padding:2px 0; color:#8a9691; font-size:10px; font-weight:800; text-align:center; text-transform:uppercase; }
 .calendar-day { display:flex; flex-direction:column; align-items:center; padding:8px 4px; border-radius:var(--booking-field-radius,10px); border:1px solid var(--border); background:transparent; cursor:pointer; transition:.15s; }
 .calendar-day.has-slots { border-color:var(--booking-primary,#173f35); }
 .calendar-day.no-slots { opacity:.35; cursor:default; }
+/* Alto uniforme para que la etiqueta «Completo» no descuadre la fila. */
+.calendar-day { min-height:58px; height:100%; justify-content:center; }
+.calendar-day.is-empty { border:0; background:transparent; cursor:default; }
 /* Dia que agoto su tope diario: se muestra presente pero sin cupo, no apagado como un cierre. */
 .calendar-day.is-full { position:relative; border-style:dashed; border-color:#b5332d; background:rgba(181,51,45,.06); color:#8f2b25; cursor:default; }
 .calendar-day-tag { margin-top:2px; font-size:8px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }

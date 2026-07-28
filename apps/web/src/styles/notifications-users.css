@@ -64,14 +64,6 @@
 .password-rules .passed { color:#2d7a4f; }
 .password-rules .pending { color:#889991; }
 .governance-page { display:grid; gap:22px; }
-.governance-hero { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(320px,.8fr); gap:28px; padding:38px; overflow:hidden; border-radius:25px; background:radial-gradient(circle at 88% 0,rgba(215,235,121,.28),transparent 38%),linear-gradient(135deg,#173f35,#24584a); color:#fff; }
-.governance-hero h1 { max-width:760px; margin:7px 0 12px; color:#fff; font-family:Georgia,serif; font-size:clamp(34px,4vw,55px); font-weight:500; line-height:1.02; }
-.governance-hero p { max-width:720px; margin:0; color:#c8dad4; line-height:1.65; }
-.governance-summary { display:grid; grid-template-columns:repeat(3,1fr); align-self:end; overflow:hidden; border:1px solid rgba(255,255,255,.15); border-radius:18px; background:rgba(255,255,255,.08); backdrop-filter:blur(12px); }
-.governance-summary span { display:grid; gap:4px; padding:20px 16px; border-right:1px solid rgba(255,255,255,.12); }
-.governance-summary span:last-child { border:0; }
-.governance-summary small { color:#bcd0c9; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
-.governance-summary strong { color:#d7eb79; font-family:Georgia,serif; font-size:28px; }
 .governance-tabs { display:grid; grid-template-columns:repeat(2,1fr); padding:6px; border:1px solid #dfe7e3; border-radius:18px; background:#fff; }
 .governance-tabs button { display:grid; grid-template-columns:auto 1fr; column-gap:12px; padding:16px 18px; border:0; border-radius:13px; background:transparent; color:#60726c; text-align:left; cursor:pointer; }
 .governance-tabs button.active { background:#eef5e4; color:#173f35; }
@@ -108,7 +100,8 @@
 .pod-governance-grid header > strong { color:#9a6c53; font-family:Georgia,serif; font-size:22px; }
 .pod-capacity { height:7px; overflow:hidden; border-radius:20px; background:#edf1ef; }
 .pod-capacity i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#c4df67,#8cb24b); }
-.pod-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+/* `auto-fit` en vez de tres columnas fijas: en pantalla angosta se reparten solas. */
+.pod-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
 .pod-facts span { display:grid; gap:3px; padding:10px; border-radius:11px; background:#f5f8f6; }
 .pod-facts small { color:#83918c; font-size:9px; text-transform:uppercase; }
 .pod-facts strong { color:#294b40; font-size:13px; }
@@ -133,8 +126,8 @@
 .check-list label > span { display:grid; gap:1px; }
 .check-list strong { color:#294b40; font-size:12px; }
 .check-list small { color:#82908a; font-size:9px; }
-@media(max-width:1000px){.governance-hero{grid-template-columns:1fr}.workflow-grid{grid-template-columns:1fr}.pod-governance-grid{grid-template-columns:repeat(2,1fr)}.workflow-step-fields{grid-template-columns:1fr 1fr}.workflow-step-fields input:last-child{grid-column:1/3}}
-@media(max-width:700px){.governance-hero{padding:28px 22px}.governance-summary{grid-template-columns:1fr}.governance-summary span{border-right:0;border-bottom:1px solid rgba(255,255,255,.12)}.governance-tabs{grid-template-columns:1fr}.pod-governance-grid{grid-template-columns:1fr}.pod-assignment-grid{grid-template-columns:1fr}.workflow-step-editor article{grid-template-columns:24px 1fr}.workflow-step-actions{grid-column:2}.workflow-step-fields{grid-template-columns:1fr}.workflow-step-fields input:last-child{grid-column:auto}.section-toolbar{align-items:start;flex-direction:column}}
+@media(max-width:1000px){.workflow-grid{grid-template-columns:1fr}.pod-governance-grid{grid-template-columns:repeat(2,1fr)}.workflow-step-fields{grid-template-columns:1fr 1fr}.workflow-step-fields input:last-child{grid-column:1/3}}
+@media(max-width:700px){.governance-tabs{grid-template-columns:1fr}.pod-governance-grid{grid-template-columns:1fr}.pod-assignment-grid{grid-template-columns:1fr}.workflow-step-editor article{grid-template-columns:24px 1fr}.workflow-step-actions{grid-column:2}.workflow-step-fields{grid-template-columns:1fr}.workflow-step-fields input:last-child{grid-column:auto}.section-toolbar{align-items:start;flex-direction:column}}
 .crm-filter-bar { align-items: center; }
 .crm-filter-bar .input:first-child { flex: 1 1 320px; }
 .filter-result-count { margin-left: auto; color: var(--text-light); font-family: var(--font-mono); font-size: 10px; }

@@ -29,7 +29,7 @@ export function ProtectedRoute({ children, path, allowedRoles }: ProtectedRouteP
   const loading = useAuth((s) => s.loading);
   if (loading) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.mustChangePassword && path !== '/change-password') {
+  if ((user.mustChangePassword || user.mustCompleteProfile || user.mustAcceptTerms) && path !== '/change-password') {
     return <Navigate to="/change-password" replace />;
   }
   if (user.role === 'client' && path && !path.startsWith('/portal')) {

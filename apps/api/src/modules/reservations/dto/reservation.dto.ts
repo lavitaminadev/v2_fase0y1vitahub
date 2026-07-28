@@ -66,6 +66,9 @@ export class CreateCouponDto {
   @IsOptional() @IsDateString() validUntil?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) formIds?: string[];
   @IsOptional() @IsArray() validDaysOfWeek?: number[];
+  /** Franja horaria de la reserva, `HH:MM` en la zona del formulario. */
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) validFromTime?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) validUntilTime?: string;
 }
 export class CreateManualReservationDto {
   @IsUUID() formId: string;
@@ -110,6 +113,8 @@ export class UpdateCouponDto {
   @IsOptional() @IsDateString() validUntil?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) formIds?: string[];
   @IsOptional() @IsArray() validDaysOfWeek?: number[];
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) validFromTime?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) validUntilTime?: string;
 }
 
 export class ExportFormReservationsDto {

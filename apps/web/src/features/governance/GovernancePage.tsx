@@ -6,6 +6,8 @@ import { Modal } from '../../shared/Modal';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { AuditPanel } from './AuditPanel';
 import { Tooltip } from '../../shared/Tooltip';
+import { PageHero } from '../../shared/PageHero';
+import { QueryErrorState } from '../../shared/QueryErrorState';
 
 interface WorkflowStep { key: string; label: string; responsibleRole?: string; slaHours?: number; required: boolean }
 interface Workflow { id: string; code: string; name: string; description?: string; steps: WorkflowStep[]; isActive: boolean; version: number }
@@ -77,10 +79,15 @@ export function GovernancePage() {
 
   if (workflowsQuery.isLoading || podsQuery.isLoading || usersQuery.isLoading || clientsQuery.isLoading) return <LoadingSpinner text="Preparando gobernanza operativa..." />;
   const loadError = workflowsQuery.error || podsQuery.error || usersQuery.error || clientsQuery.error;
-  if (loadError) return <div className="page"><div className="page-load-error"><span>!</span><h1>No pudimos abrir la gobernanza</h1><p>{loadError.message}</p></div></div>;
+  if (loadError) return <QueryErrorState title="No pudimos abrir la gobernanza" message={loadError.message} />
 
   return <div className="page governance-page">
-    <section className="governance-hero"><div><span className="page-eyebrow">CONTROL ADMINISTRATIVO</span><h1>La operación se adapta sin perder estructura.</h1><p>Reglas y estructura del equipo.</p></div><div className="governance-summary"><span><small>Flujos</small><strong>{workflowsQuery.data?.length ?? 0}</strong></span><span><small>Pods activos</small><strong>{podsQuery.data?.filter((pod) => pod.status === 'active').length ?? 0}</strong></span><span><small>Cuentas asignadas</small><strong>{podsQuery.data?.reduce((sum, pod) => sum + pod.clients.length, 0) ?? 0}</strong></span></div></section>
+    <PageHero
+      eyebrow="CONTROL ADMINISTRATIVO"
+      title="La operación se adapta sin perder estructura."
+      subtitle="Reglas y estructura del equipo."
+      aside={<div className="page-hero-stats"><span><small>Flujos</small><strong>{workflowsQuery.data?.length ?? 0}</strong></span><span><small>Pods activos</small><strong>{podsQuery.data?.filter((pod) => pod.status === 'active').length ?? 0}</strong></span><span><small>Cuentas asignadas</small><strong>{podsQuery.data?.reduce((sum, pod) => sum + pod.clients.length, 0) ?? 0}</strong></span></div>}
+    />
     <nav className="governance-tabs"><button className={tab === 'workflows' ? 'active' : ''} onClick={() => setTab('workflows')}><span>01</span><strong>Flujos operativos</strong><small>Etapas, responsables y SLA</small></button><button className={tab === 'pods' ? 'active' : ''} onClick={() => setTab('pods')}><span>02</span><strong>Pods y capacidad</strong><small>Equipo y cartera de cuentas</small></button><button className={tab === 'audit' ? 'active' : ''} onClick={() => setTab('audit')}><span>03</span><strong>Auditoría</strong><small>Cambios, actores y evidencia</small></button></nav>
     {feedback && <div className={`alert alert-${feedback.tone}`}>{feedback.text}</div>}
 

@@ -9,6 +9,8 @@ import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './auth.guard';
 import { RolesGuard } from '../authorization/roles.guard';
 import { FeatureGuard } from '../authorization/feature.guard';
+import { DataConsent } from '../data-protection/consent.entity';
+import { ParametersModule } from '../parameters/parameters.module';
 import { User } from '../../modules/users/user.entity';
 import { Organization } from '../../modules/organizations/organization.entity';
 import { config } from '../../config';
@@ -19,7 +21,8 @@ const ACCESS_TOKEN_EXPIRES_IN = config.jwt.expiresIn as JwtSignOptions['expiresI
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Organization, PasswordResetToken]),
+    TypeOrmModule.forFeature([User, Organization, PasswordResetToken, DataConsent]),
+    ParametersModule,
     EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({ secret: config.jwt.secret, signOptions: { expiresIn: ACCESS_TOKEN_EXPIRES_IN } }),

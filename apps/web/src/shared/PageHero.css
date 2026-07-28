@@ -1,0 +1,128 @@
+/*
+ * Encabezado de página unificado.
+ *
+ * Una sola escala tipográfica, un solo radio y tres alturas con significado, en lugar de
+ * las nueve clases que existían con valores distintos y sin criterio detrás.
+ */
+
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 28px;
+  margin-bottom: 18px;
+  border-radius: 24px;
+}
+
+.page-hero > * { position: relative; z-index: 1; }
+
+/* El título usa una única familia y escala en todas las pantallas. */
+.page-hero-title { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.page-hero-title h1,
+.page-hero-title h2 {
+  margin: 8px 0 0;
+  font-family: Georgia, serif;
+  font-size: clamp(30px, 4vw, 52px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+.page-hero-subtitle { max-width: 660px; margin: 10px 0 0; font-size: 13px; line-height: 1.65; }
+.page-hero-actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.page-hero-aside { justify-self: end; }
+.page-hero-footer { grid-column: 1 / -1; align-self: end; }
+
+/* ── Pesos ──────────────────────────────────────────────────────────────── */
+
+/* Sin fondo: el contenido de la pantalla empieza de inmediato. */
+.page-hero.is-compact { align-items: flex-end; padding: 0; border-radius: 0; background: none; }
+.page-hero.is-compact .page-hero-title h1,
+.page-hero.is-compact .page-hero-title h2 { font-size: clamp(28px, 3.4vw, 40px); }
+.page-hero.is-compact .page-hero-subtitle { color: var(--text-light); }
+
+.page-hero.is-standard { min-height: 200px; padding: clamp(26px, 3.5vw, 42px); color: #fff; }
+.page-hero.is-feature { min-height: 260px; padding: clamp(28px, 4vw, 48px); color: #fff; }
+
+.page-hero.is-standard .page-hero-subtitle,
+.page-hero.is-feature .page-hero-subtitle { color: rgba(255, 255, 255, .7); }
+.page-hero.is-standard .page-eyebrow,
+.page-hero.is-feature .page-eyebrow { color: #d7eb79; }
+.page-hero.is-standard .page-hero-title h1,
+.page-hero.is-standard .page-hero-title h2,
+.page-hero.is-feature .page-hero-title h1,
+.page-hero.is-feature .page-hero-title h2 { color: #fff; }
+
+/* Pegado a las pestañas que lo siguen. */
+.page-hero.is-attached { margin-bottom: 0; border-radius: 24px 24px 0 0; }
+
+/* ── Tonos ──────────────────────────────────────────────────────────────── */
+
+.page-hero.tone-brand {
+  background: radial-gradient(circle at 86% 10%, rgba(215,235,121,.24), transparent 28%),
+              linear-gradient(122deg, #143c32, #205944 72%, #2f7259);
+  box-shadow: 0 22px 55px rgba(22,57,47,.18);
+}
+.page-hero.tone-portal {
+  background: radial-gradient(circle at 84% 12%, rgba(246,186,85,.2), transparent 26%),
+              linear-gradient(120deg, #153c33, #286652);
+  box-shadow: 0 20px 45px rgba(23,63,53,.16);
+}
+.page-hero.tone-entity {
+  background: radial-gradient(circle at 82% 16%, rgba(229,165,99,.22), transparent 25%),
+              linear-gradient(122deg, #133a31, #205846 68%, #2c6a55);
+  box-shadow: 0 24px 64px rgba(17,52,43,.21);
+}
+
+/* Anillo decorativo, común a los pesos con fondo. */
+.page-hero.is-standard::after,
+.page-hero.is-feature::after {
+  content: '';
+  position: absolute;
+  right: -85px;
+  bottom: -200px;
+  width: 400px;
+  height: 400px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 50%;
+}
+
+/* Botones sobre fondo oscuro. */
+.page-hero.is-standard .btn-outline,
+.page-hero.is-feature .btn-outline {
+  border-color: rgba(255,255,255,.24);
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  backdrop-filter: blur(9px);
+}
+
+/* ── Bloque de cifras del costado ───────────────────────────────────────── */
+
+.page-hero-stats {
+  display: grid;
+  grid-auto-flow: column;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 15px;
+  background: rgba(6,30,24,.16);
+  backdrop-filter: blur(8px);
+}
+.page-hero-stats > span {
+  min-width: 110px;
+  display: grid;
+  gap: 5px;
+  padding: 17px;
+  border-right: 1px solid rgba(255,255,255,.11);
+}
+.page-hero-stats > span:last-child { border-right: 0; }
+.page-hero-stats small { color: rgba(255,255,255,.55); font-size: 9px; font-weight: 800; line-height: 1.25; }
+.page-hero-stats strong { color: #fff; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+
+@media (max-width: 860px) {
+  .page-hero { grid-template-columns: minmax(0, 1fr); }
+  .page-hero-aside { justify-self: stretch; }
+  .page-hero-stats { grid-auto-flow: row; }
+  .page-hero-stats > span { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.11); }
+  .page-hero-stats > span:last-child { border-bottom: 0; }
+}

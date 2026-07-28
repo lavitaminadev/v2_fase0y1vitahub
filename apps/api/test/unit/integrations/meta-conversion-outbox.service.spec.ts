@@ -89,6 +89,31 @@ describe('MetaConversionOutboxService.processPending', () => {
     expect(outbox.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
   });
 
+  it('descarta el evento que supera los 7 días sin gastar reintentos ni llamar a Meta', async () => {
+    const hace8Dias = Math.floor((Date.now() - 8 * 86_400_000) / 1000);
+    const { service, outbox, conversions } = makeService([
+      row({ eventData: { eventName: 'Reserva_Asistida', eventId: 'reserva_asistida:res-1', eventTime: hace8Dias } }),
+    ]);
+
+    const result = await service.processPending(5);
+
+    expect(conversions.sendServerEvent).not.toHaveBeenCalled();
+    expect(outbox.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'expired', attempts: 0 }));
+    expect(result.failed).toBe(1);
+  });
+
+  it('envía normalmente un evento dentro de la ventana de 7 días', async () => {
+    const ayer = Math.floor((Date.now() - 86_400_000) / 1000);
+    const { service, conversions } = makeService([
+      row({ eventData: { eventName: 'Reserva_Asistida', eventId: 'reserva_asistida:res-1', eventTime: ayer } }),
+    ]);
+
+    const result = await service.processPending(5);
+
+    expect(conversions.sendServerEvent).toHaveBeenCalledTimes(1);
+    expect(result.processed).toBe(1);
+  });
+
   it('enqueue exige un eventId estable para poder deduplicar en Meta', async () => {
     const { service } = makeService();
     await expect(service.enqueue('org-1', 'pixel-1', { eventName: 'Schedule' } as never))

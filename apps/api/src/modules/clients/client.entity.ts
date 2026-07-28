@@ -27,6 +27,13 @@ export class Client {
   @Column({ type: 'json', nullable: true }) capabilities?: ClientCapabilities;
   @Column({ name: 'logo_url', type: 'varchar', length: 500, nullable: true }) logoUrl?: string;
   @Column({ name: 'logo_public_id', type: 'varchar', length: 255, nullable: true }) logoPublicId?: string;
+  /**
+   * Máximo de reservas que el cliente acepta por día, sumando todos sus formularios.
+   *
+   * El tope por formulario sigue existiendo y se aplica además de este; el del cliente es
+   * el techo real de lo que su operación puede atender en una jornada. 0 = sin límite.
+   */
+  @Column({ name: 'daily_reservation_cap', type: 'smallint', default: 0 }) dailyReservationCap: number;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
 

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Put, HttpCode, HttpStatus, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, HttpCode, HttpStatus, Ip, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -15,6 +15,7 @@ import { UserRole } from '../../modules/organizations/user-role.enum';
 import type { Request, Response } from 'express';
 import { config } from '../../config';
 import { ChangePasswordDto, CompletePasswordResetDto, RequestPasswordResetDto } from './dto/password-reset.dto';
+import { AcceptTermsDto, CompleteOnboardingDto } from './dto/onboarding.dto';
 
 const REFRESH_COOKIE = 'vitahub_refresh';
 const REFRESH_COOKIE_PATH = '/api/auth';
@@ -190,5 +191,26 @@ export class AuthController {
   @ApiOperation({ summary: 'Cambiar contraseña autenticada' })
   changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
     return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  @Post('onboarding')
+  @UseGuards(JwtAuthGuard)
+  @Roles(...Object.values(UserRole))
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Completar el primer ingreso: datos, condiciones y contraseña' })
+  completeOnboarding(@CurrentUser() user: AuthUser, @Body() dto: CompleteOnboardingDto, @Ip() ipAddress: string) {
+    return this.auth.completeOnboarding(user.id, dto, ipAddress);
+  }
+
+  /** Renovación: la cuenta ya está activa y solo debe aceptar el texto vigente. */
+  @Post('terms/accept')
+  @UseGuards(JwtAuthGuard)
+  @Roles(...Object.values(UserRole))
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Aceptar la versión vigente de las condiciones' })
+  acceptTerms(@CurrentUser() user: AuthUser, @Body() dto: AcceptTermsDto, @Ip() ipAddress: string) {
+    return this.auth.acceptCurrentTerms(user.id, dto.acceptedConsents, ipAddress);
   }
 }

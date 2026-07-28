@@ -110,6 +110,50 @@
   margin-bottom: 4px;
 }
 
+/*
+ * Cabecera de sección: título a la izquierda, contadores o acciones a la derecha.
+ *
+ * Los tres nombres conviven por historia; la regla es una sola para que rindan igual.
+ * Unificar también los nombres implicaría tocar una veintena de vistas sin ganancia visual.
+ */
+.section-heading,
+.reservation-section-head,
+.client-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 15px;
+}
+
+/* Paginación de listados. Antes había dos estilos idénticos con distinto nombre. */
+.pager,
+.contact-pager,
+.reservation-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 16px 0 4px;
+}
+.pager span,
+.contact-pager span,
+.reservation-pagination span {
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aclaración bajo un campo: explica el efecto del valor, no repite la etiqueta. */
+.form-hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-light);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .input {
   width: 100%;
   padding: 10px 12px;

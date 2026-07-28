@@ -164,7 +164,7 @@ legend {
   flex-shrink: 0;
 }
 
-.btn {
+.modal-overlay .btn {
   flex: 1;
   padding: 10px 16px;
   border: none;
@@ -175,29 +175,29 @@ legend {
   font-size: 14px;
 }
 
-.btn-primary {
+.modal-overlay .btn-primary {
   background: var(--cian, #0EC6B8);
   color: var(--blanco, #ffffff);
 }
 
-.btn-primary:hover:not(:disabled) {
+.modal-overlay .btn-primary:hover:not(:disabled) {
   background: #0ab3a5;
   transform: translateY(-2px);
 }
 
-.btn-outline {
+.modal-overlay .btn-outline {
   border: 1px solid var(--line, #E5E7EB);
   background: transparent;
   color: var(--txt, #0B0B0C);
 }
 
-.btn-outline:hover {
+.modal-overlay .btn-outline:hover {
   border-color: var(--cian, #0EC6B8);
   color: var(--cian, #0EC6B8);
   background: rgba(14, 198, 184, 0.05);
 }
 
-.btn:disabled {
+.modal-overlay .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

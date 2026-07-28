@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, MoreThan, Repository } from 'typeorm';
@@ -12,8 +12,25 @@ import { UserRole } from '../../modules/organizations/user-role.enum';
 import { config } from '../../config';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { EmailService } from '../notifications/email.service';
+import { DataConsent } from '../data-protection/consent.entity';
+import { CompleteOnboardingDto, REQUIRED_CONSENTS, TERMS_VERSION } from './dto/onboarding.dto';
+import { ParameterResolver } from '../parameters/parameter-resolver.service';
 
 const REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn as JwtSignOptions['expiresIn'];
+
+/** Intentos fallidos consecutivos antes de bloquear la cuenta. */
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+
+/** Duración del bloqueo. Temporal para no convertir el ataque en una denegación de servicio. */
+const LOCKOUT_MINUTES = 15;
+
+/**
+ * Hash de descarte con el que se compara cuando el correo no existe.
+ *
+ * Sin esta comparación, un correo inexistente respondería mucho más rápido que uno real y
+ * permitiría enumerar qué cuentas están registradas midiendo el tiempo de respuesta.
+ */
+const ABSENT_USER_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 /**
  * Convierte el enum interno de TypeORM a la unión de string-literal compartida.
@@ -46,12 +63,15 @@ function hashRefreshToken(token: string): string {
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Organization) private readonly orgRepo: Repository<Organization>,
     @InjectRepository(PasswordResetToken) private readonly resetRepo: Repository<PasswordResetToken>,
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
+    private readonly parameters: ParameterResolver,
   ) {}
 
   /**
@@ -66,12 +86,51 @@ export class AuthService {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.userRepo.findOne({
       where: { email: normalizedEmail, isActive: true },
-      select: ['id', 'email', 'name', 'password', 'role', 'organizationId', 'avatarUrl', 'clientId', 'mustChangePassword'],
+      select: ['id', 'email', 'name', 'password', 'role', 'organizationId', 'avatarUrl', 'clientId', 'mustChangePassword', 'mustCompleteProfile', 'failedLoginAttempts', 'lockedUntil'],
     });
-    if (!user) throw new UnauthorizedException('Credenciales inválidas');
+    // Se compara igual contra un hash ficticio cuando el correo no existe, para que el
+    // tiempo de respuesta no revele qué cuentas están registradas.
+    if (!user) {
+      await bcrypt.compare(password, ABSENT_USER_HASH);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      const minutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
+      throw new UnauthorizedException(`Cuenta bloqueada por intentos fallidos. Vuelve a intentar en ${minutes} minuto(s).`);
+    }
+
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) throw new UnauthorizedException('Credenciales inválidas');
+    if (!isValid) {
+      await this.registerFailedAttempt(user);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    // Un acceso correcto cierra el episodio: se borra el contador y cualquier bloqueo.
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.userRepo.update(user.id, { failedLoginAttempts: 0, lockedUntil: null });
+    }
+    await this.userRepo.update(user.id, { lastLoginAt: new Date() });
     return user;
+  }
+
+  /**
+   * Suma un intento fallido y bloquea la cuenta al alcanzar el límite.
+   *
+   * El bloqueo es temporal a propósito: uno permanente convierte un ataque en una
+   * denegación de servicio contra la persona legítima, que es justo lo que busca quien
+   * ataca. La cuenta se libera sola pasada la ventana.
+   */
+  private async registerFailedAttempt(user: User): Promise<void> {
+    const attempts = (user.failedLoginAttempts ?? 0) + 1;
+    const reached = attempts >= MAX_FAILED_LOGIN_ATTEMPTS;
+    await this.userRepo.update(user.id, {
+      failedLoginAttempts: reached ? 0 : attempts,
+      lockedUntil: reached ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000) : user.lockedUntil ?? null,
+    });
+    if (reached) {
+      this.logger.warn(`Cuenta ${user.id} bloqueada ${LOCKOUT_MINUTES} min tras ${MAX_FAILED_LOGIN_ATTEMPTS} intentos fallidos`);
+    }
   }
 
   /**
@@ -211,11 +270,79 @@ export class AuthService {
    * Los `features` viajan aca para que el frontend construya el menu con la misma verdad
    * que aplica el backend, en vez de una lista paralela que puede divergir.
    */
-  async me(userId: string): Promise<(User & { features: OrganizationFeatures }) | null> {
+  async me(userId: string): Promise<(User & { features: OrganizationFeatures; mustAcceptTerms: boolean }) | null> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return null;
     const organization = await this.orgRepo.findOne({ where: { id: user.organizationId }, select: ['id', 'features'] });
-    return Object.assign(user, { features: normalizeOrganizationFeatures(organization?.features) });
+    return Object.assign(user, {
+      features: normalizeOrganizationFeatures(organization?.features),
+      mustAcceptTerms: await this.termsPending(user),
+    });
+  }
+
+  /**
+   * Registra una re-aceptación de condiciones sin tocar la contraseña.
+   *
+   * Es el caso de una renovación: la persona ya tiene su clave y solo debe aceptar el
+   * texto vigente porque dirección publicó una versión nueva o venció el plazo. Pedirle la
+   * contraseña temporal aquí no tendría sentido, porque hace tiempo que no la usa.
+   */
+  async acceptCurrentTerms(userId: string, acceptedConsents: string[], ipAddress?: string): Promise<{ accepted: true }> {
+    const user = await this.userRepo.findOne({ where: { id: userId, isActive: true }, select: ['id', 'organizationId'] });
+    if (!user) throw new BadRequestException('Usuario no disponible');
+
+    const missing = REQUIRED_CONSENTS.filter((key) => !acceptedConsents.includes(key));
+    if (missing.length > 0) throw new BadRequestException('Debes aceptar todas las condiciones para continuar');
+
+    const version = await this.parameters.get('compliance.terms_version', null, null, user.organizationId) ?? TERMS_VERSION;
+    const now = new Date();
+    await this.userRepo.manager.transaction(async (manager) => {
+      await manager.update(User, userId, { termsAcceptedAt: now, termsVersion: String(version) });
+      await manager.save(
+        DataConsent,
+        REQUIRED_CONSENTS.map((action) => manager.create(DataConsent, {
+          userId,
+          action: `${action}@${version}`,
+          granted: true,
+          ipAddress: ipAddress ?? null,
+        })),
+      );
+    });
+    this.logger.log(`Usuario ${userId} re-aceptó las condiciones ${version}`);
+    return { accepted: true };
+  }
+
+  /**
+   * Indica si la persona debe (volver a) aceptar las condiciones.
+   *
+   * Dirección controla tres parámetros: si la exigencia está activa, cuál es la versión
+   * vigente y cada cuántos meses hay que renovar la aceptación. Publicar una actualización
+   * es cambiar la versión: al hacerlo, todo el equipo vuelve a aceptar la próxima vez que
+   * entre, sin tocar código ni desplegar.
+   *
+   * Ante un fallo al leer los parámetros no se bloquea el acceso: se registra y se deja
+   * pasar, porque dejar al equipo fuera de la herramienta es peor que un día sin re-aceptar.
+   */
+  private async termsPending(user: User): Promise<boolean> {
+    try {
+      const [enforced, version, renewalMonths] = await Promise.all([
+        this.parameters.get('compliance.terms_enforced', null, null, user.organizationId),
+        this.parameters.get('compliance.terms_version', null, null, user.organizationId),
+        this.parameters.get('compliance.terms_renewal_months', null, null, user.organizationId),
+      ]);
+      if (enforced === false) return false;
+      if (!user.termsAcceptedAt) return true;
+      if (version && user.termsVersion !== version) return true;
+
+      const months = Number(renewalMonths) || 0;
+      if (months <= 0) return false;
+      const dueAt = new Date(user.termsAcceptedAt);
+      dueAt.setMonth(dueAt.getMonth() + months);
+      return dueAt.getTime() <= Date.now();
+    } catch (error) {
+      this.logger.warn(`No se pudo evaluar la vigencia de condiciones de ${user.id}: ${error instanceof Error ? error.message : error}`);
+      return false;
+    }
   }
 
   /**
@@ -289,5 +416,63 @@ export class AuthService {
       refreshToken: null,
     });
     return { changed: true };
+  }
+
+  /**
+   * Completa el primer ingreso: contraseña propia, consentimientos y datos personales.
+   *
+   * Las tres cosas ocurren en una transacción porque describen un mismo acto. Antes la
+   * aceptación de términos solo controlaba la interfaz y no se guardaba en ningún lado, de
+   * modo que no había forma de demostrar que alguien había aceptado nada.
+   *
+   * La sesión se invalida al terminar (`refreshToken: null`) para que la contraseña de
+   * invitación deje de servir de inmediato.
+   *
+   * @param ipAddress - Origen de la aceptación, parte del registro de consentimiento.
+   */
+  async completeOnboarding(userId: string, dto: CompleteOnboardingDto, ipAddress?: string): Promise<{ completed: true }> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId, isActive: true },
+      select: ['id', 'password', 'organizationId'],
+    });
+    if (!user || !await bcrypt.compare(dto.currentPassword, user.password)) {
+      throw new BadRequestException('La contraseña actual no es correcta');
+    }
+    if (await bcrypt.compare(dto.newPassword, user.password)) {
+      throw new BadRequestException('La nueva contraseña debe ser diferente');
+    }
+
+    const missing = REQUIRED_CONSENTS.filter((key) => !dto.acceptedConsents.includes(key));
+    if (missing.length > 0) {
+      throw new BadRequestException('Debes aceptar todas las condiciones para continuar');
+    }
+
+    const now = new Date();
+    await this.userRepo.manager.transaction(async (manager) => {
+      await manager.update(User, userId, {
+        name: dto.profile.name.trim(),
+        phone: dto.profile.phone?.replace(/[^\d+]/g, '') || null,
+        workMode: dto.profile.workMode,
+        password: await bcrypt.hash(dto.newPassword, Number(process.env.BCRYPT_ROUNDS || 10)),
+        mustChangePassword: false,
+        mustCompleteProfile: false,
+        passwordChangedAt: now,
+        termsAcceptedAt: now,
+        termsVersion: TERMS_VERSION,
+        refreshToken: null,
+      });
+      await manager.save(
+        DataConsent,
+        REQUIRED_CONSENTS.map((action) => manager.create(DataConsent, {
+          userId,
+          action: `${action}@${TERMS_VERSION}`,
+          granted: true,
+          ipAddress: ipAddress ?? null,
+        })),
+      );
+    });
+
+    this.logger.log(`Usuario ${userId} completó el primer ingreso y aceptó ${TERMS_VERSION}`);
+    return { completed: true };
   }
 }

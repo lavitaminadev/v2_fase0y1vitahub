@@ -22,6 +22,7 @@ interface ClientRecord {
   retainerAmount?: number;
   currency?: string;
   defaultUdBudget: number;
+  dailyReservationCap?: number;
   communityManagerId?: string;
   startedAt?: string;
   renewalAt?: string;
@@ -59,6 +60,7 @@ interface ClientFormState {
   retainerAmount: string;
   currency: string;
   defaultUdBudget: string;
+  dailyReservationCap: string;
   status: string;
   startedAt: string;
   renewalAt: string;
@@ -82,6 +84,7 @@ const EMPTY_FORM: ClientFormState = {
   retainerAmount: '',
   currency: 'CLP',
   defaultUdBudget: '20',
+  dailyReservationCap: '0',
   status: 'onboarding',
   startedAt: '',
   renewalAt: '',
@@ -228,6 +231,7 @@ export function ClientsPage() {
       retainerAmount: form.retainerAmount ? Number(form.retainerAmount) : undefined,
       currency: form.currency.trim() || undefined,
       defaultUdBudget: Number(form.defaultUdBudget),
+      dailyReservationCap: Number(form.dailyReservationCap) || 0,
       capabilities: form.capabilities,
       ...(editingId ? {
         status: form.status,
@@ -262,6 +266,7 @@ export function ClientsPage() {
       retainerAmount: client.retainerAmount == null ? '' : String(client.retainerAmount),
       currency: client.currency || 'CLP',
       defaultUdBudget: String(client.defaultUdBudget ?? 20),
+      dailyReservationCap: String(client.dailyReservationCap ?? 0),
       status: client.status,
       startedAt: client.startedAt?.slice(0, 10) || '',
       renewalAt: client.renewalAt?.slice(0, 10) || '',
@@ -405,6 +410,11 @@ export function ClientsPage() {
             <div className="form-group">
               <label>Presupuesto UD</label>
               <input className="input" type="number" min="0" value={form.defaultUdBudget} onChange={(e) => setForm({ ...form, defaultUdBudget: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="client-daily-cap">Tope de reservas por día</label>
+              <input id="client-daily-cap" className="input" type="number" min="0" max="5000" value={form.dailyReservationCap} onChange={(e) => setForm({ ...form, dailyReservationCap: e.target.value })} />
+              <small className="form-hint">Máximo que este cliente acepta al día sumando todos sus formularios. 0 = sin límite. Al alcanzarlo, el día aparece completo en su página pública.</small>
             </div>
           </div>
           <section className="client-capabilities" aria-labelledby="client-capabilities-title">

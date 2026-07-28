@@ -100,39 +100,39 @@
   gap: 6px;
 }
 
-.btn-primary {
+.logo-upload .btn-primary {
   background: var(--cian, #0EC6B8);
   color: var(--blanco, #FFFFFF);
 }
 
-.btn-primary:hover:not(:disabled) {
+.logo-upload .btn-primary:hover:not(:disabled) {
   background: var(--cian-dark, #0BA59A);
   box-shadow: 0 2px 8px rgba(14, 198, 184, 0.2);
 }
 
-.btn-outline {
+.logo-upload .btn-outline {
   border: 1.5px solid var(--line, #E5E7EB);
   background: transparent;
   color: var(--txt, #0B0B0C);
 }
 
-.btn-outline:hover:not(:disabled) {
+.logo-upload .btn-outline:hover:not(:disabled) {
   border-color: var(--cian, #0EC6B8);
   color: var(--cian, #0EC6B8);
   background: rgba(14, 198, 184, 0.05);
 }
 
-.btn-outline.btn-danger {
+.logo-upload .btn-outline.btn-danger {
   border-color: var(--rosa, #EA0F63);
   color: var(--rosa, #EA0F63);
 }
 
-.btn-outline.btn-danger:hover:not(:disabled) {
+.logo-upload .btn-outline.btn-danger:hover:not(:disabled) {
   border-color: var(--rosa, #EA0F63);
   background: rgba(234, 15, 99, 0.05);
 }
 
-.btn:disabled {
+.logo-upload .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

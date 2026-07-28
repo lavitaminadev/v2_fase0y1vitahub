@@ -151,7 +151,7 @@ export function LeadDetailDrawer({ leadId, onClose }: LeadDetailDrawerProps) {
       <aside ref={panelRef} className={`drawer-panel lead-detail-panel ${leadId ? 'is-open' : ''}`} role="dialog" aria-modal="true" aria-labelledby="lead-drawer-title" tabIndex={-1}>
         <div className="drawer-header">
           <div className="drawer-title-group">
-            <span className="drawer-eyebrow">FICHA COMERCIAL</span>
+            <span className="page-eyebrow">FICHA COMERCIAL</span>
             <h3 id="lead-drawer-title">{isLoading ? 'Cargando...' : lead?.name}</h3>
             {!isLoading && lead && (
               <div className="drawer-badges">

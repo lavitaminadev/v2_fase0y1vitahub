@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { CloudinaryConfigModal } from './CloudinaryConfigModal';
 import { ImageUpload } from '../../shared/ImageUpload';
 import { MediaLibraryModal } from '../../shared/MediaLibraryModal';
+import { PageHero } from '../../shared/PageHero';
 
 type SettingsTab = 'general' | 'security' | 'access';
 type SettingValue = string | number | boolean | null;
@@ -279,14 +280,12 @@ export function SettingsPage() {
 
   return (
     <div className="page settings-central">
-      <section className="settings-hero">
-        <div>
-          <span className="page-eyebrow">CONFIGURACIÓN CENTRAL</span>
-          <h1>Configuración de reservas y Meta.</h1>
-          <p>Identidad, accesos y configuraciones.</p>
-        </div>
-        <div className="settings-hero-mark" aria-hidden="true"><span>LV</span><small>control</small></div>
-      </section>
+      <PageHero
+        eyebrow="CONFIGURACIÓN CENTRAL"
+        title="Configuración de reservas y Meta."
+        subtitle="Identidad, accesos y configuraciones."
+        aside={<div className="settings-hero-mark" aria-hidden="true"><span>LV</span><small>control</small></div>}
+      />
 
       <section className="settings-health-grid" aria-label="Resumen de configuración">
         <article><span>Reglas guardadas</span><strong>{settings.length || '—'}</strong><small>{customizedRules} personalizadas para esta organización</small></article>

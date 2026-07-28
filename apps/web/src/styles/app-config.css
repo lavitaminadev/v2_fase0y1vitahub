@@ -2,36 +2,8 @@
 
 /* Configuration central */
 .settings-central { padding-bottom: 100px; }
-.settings-hero {
-  position: relative;
-  min-height: 270px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 170px;
-  align-items: center;
-  gap: 30px;
-  overflow: hidden;
-  padding: clamp(30px, 5vw, 58px);
-  border-radius: 26px;
-  background:
-    radial-gradient(circle at 78% 18%, rgba(218, 236, 128, .22), transparent 24%),
-    linear-gradient(118deg, #133a31 0%, #1e5848 62%, #2d6956 100%);
-  color: #fff;
-  box-shadow: 0 24px 65px rgba(17, 52, 43, .2);
-}
-.settings-hero::after {
-  content: '';
-  position: absolute;
-  right: 115px;
-  bottom: -95px;
-  width: 280px;
-  height: 280px;
-  border: 1px solid rgba(255, 255, 255, .11);
-  border-radius: 50%;
-}
-.settings-hero > div:first-child { position: relative; z-index: 1; max-width: 830px; }
-.settings-hero .page-eyebrow { color: #d7eb79; }
-.settings-hero h1 { max-width: 780px; margin: 12px 0 14px; color: #fff; font-size: clamp(34px, 5vw, 58px); line-height: .98; letter-spacing: -.055em; }
-.settings-hero p { max-width: 700px; margin: 0; color: rgba(255, 255, 255, .76); font-size: 14px; line-height: 1.7; }
+
+/* Marca circular del costado del encabezado de Configuración. */
 .settings-hero-mark { position: relative; z-index: 1; width: 145px; height: 145px; display: grid; place-content: center; justify-self: end; border: 1px solid rgba(255,255,255,.23); border-radius: 50%; background: rgba(255,255,255,.06); text-align: center; backdrop-filter: blur(10px); }
 .settings-hero-mark::before { content: ''; position: absolute; inset: 10px; border: 1px dashed rgba(215,235,121,.55); border-radius: inherit; }
 .settings-hero-mark span { font-family: Georgia, serif; color: #d7eb79; font-size: 39px; letter-spacing: -.08em; }
@@ -167,7 +139,6 @@
   .settings-save-bar { left: 24px; }
 }
 @media (max-width: 800px) {
-  .settings-hero { min-height: 240px; grid-template-columns: 1fr; }
   .settings-hero-mark { display: none; }
   .settings-health-grid { grid-template-columns: 1fr; margin-top: 12px; }
   .settings-health-grid article { min-height: 92px; }
@@ -179,9 +150,6 @@
 }
 @media (max-width: 560px) {
   .settings-central { padding-bottom: 125px; }
-  .settings-hero { min-height: 250px; padding: 27px 22px; border-radius: 19px; }
-  .settings-hero h1 { font-size: 35px; }
-  .settings-hero p { font-size: 11px; }
   .settings-health-grid { margin-right: 0; margin-left: 0; }
   .settings-tabs { margin-right: -16px; padding-right: 16px; border: 0; border-radius: 0; background: transparent; }
   .settings-tabs button { min-width: 125px; border: 1px solid #dfe5df; background: #f7f9f5; }

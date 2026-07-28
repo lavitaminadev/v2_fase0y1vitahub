@@ -4,6 +4,14 @@ import { LessThan, Repository } from 'typeorm';
 import { Lead } from '../../../modules/crm/leads/lead.entity';
 import { DataProtectionService } from '../../data-protection/data-protection.service';
 
+/**
+ * Dias que se conservan los datos personales de una reserva despues de ocurrida.
+ *
+ * Meta acepta conversiones hasta 7 dias despues del evento; el margen restante cubre la
+ * revision operativa del periodo y los reportes mensuales antes de borrar el dato.
+ */
+const RESERVATION_RETENTION_DAYS = 180;
+
 @Injectable()
 export class PurgeExpiredLeadsJob {
   private readonly logger = new Logger(PurgeExpiredLeadsJob.name);
@@ -41,5 +49,12 @@ export class PurgeExpiredLeadsJob {
     }
 
     this.logger.log(`Expired leads reviewed: ${expiredLeads.length}, anonymized: ${anonymized}`);
+
+    // Los datos del comensal (nombre, telefono, correo y los identificadores de match de
+    // Meta) viven en las reservas, no en los leads, y hasta ahora ningun trabajo los
+    // revisaba. Se conservan mientras la ventana de conversion sigue viva y se anonimizan
+    // despues, sin tocar fecha ni estado para no alterar la analitica de asistencia.
+    const reservations = await this.dataProtection.anonymizeExpiredReservations(RESERVATION_RETENTION_DAYS);
+    this.logger.log(`Expired reservations reviewed: ${reservations.reviewed}, anonymized: ${reservations.anonymized}`);
   }
 }

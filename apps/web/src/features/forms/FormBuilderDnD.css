@@ -97,7 +97,7 @@
   flex-shrink: 0;
 }
 
-.btn-icon {
+.form-builder-dnd .btn-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,12 +112,12 @@
   padding: 0;
 }
 
-.btn-icon:hover {
+.form-builder-dnd .btn-icon:hover {
   background: var(--gray, #F4F5F7);
   color: var(--cian, #0EC6B8);
 }
 
-.btn-icon.danger:hover {
+.form-builder-dnd .btn-icon.danger:hover {
   background: rgba(234, 15, 99, 0.1);
   color: var(--rosa, #EA0F63);
 }
@@ -128,7 +128,7 @@
   color: var(--txt-muted, #999);
 }
 
-.btn {
+.form-builder-dnd .btn {
   padding: 10px 16px;
   border: none;
   border-radius: 6px;
@@ -141,17 +141,17 @@
   font-size: 14px;
 }
 
-.btn-primary {
+.form-builder-dnd .btn-primary {
   background: var(--cian, #0EC6B8);
   color: var(--blanco, #ffffff);
 }
 
-.btn-primary:hover {
+.form-builder-dnd .btn-primary:hover {
   background: #0ab3a5;
   transform: translateY(-2px);
 }
 
-.btn-primary:disabled {
+.form-builder-dnd .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;

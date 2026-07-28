@@ -7,6 +7,7 @@ import { StatusBadge } from '../../shared/StatusBadge';
 import { statusLabel } from '../../shared/status-labels';
 import { getAllowedRolesForPath } from '../../core/navigation.registry';
 import { safeUrl } from '../../core/safe-url';
+import { PageHero } from '../../shared/PageHero';
 
 interface ClientOverview {
   client: {
@@ -112,23 +113,24 @@ export function ClientDetailPage() {
   return (
     <div className="page client-360">
       <Link className="client-back" to="/clients">← Volver a clientes</Link>
-      <section className="client-hero">
-        <div>
-          <span className="page-eyebrow">FICHA OPERATIVA 360</span>
-          <div className="client-title-line"><h1>{client.name}</h1><StatusBadge status={client.status} /></div>
-          <p>{client.legalName || 'Razón social pendiente'}{client.industry ? ` · ${client.industry}` : ''}</p>
-        </div>
-        <div className="client-hero-actions">
-          {driveUrl && <a className="btn btn-light" href={driveUrl} target="_blank" rel="noreferrer">Abrir Drive</a>}
+      <PageHero
+        variant="feature"
+        tone="entity"
+        eyebrow="FICHA OPERATIVA 360"
+        title={client.name}
+        badge={<StatusBadge status={client.status} />}
+        subtitle={`${client.legalName || 'Razón social pendiente'}${client.industry ? ` · ${client.industry}` : ''}`}
+        actions={<>
+          {driveUrl && <a className="btn btn-outline" href={driveUrl} target="_blank" rel="noreferrer">Abrir Drive</a>}
           <Link className="btn btn-accent" to="/clients">{canManageClient ? 'Administrar ficha' : 'Volver al listado'}</Link>
-        </div>
-        <div className="client-contract-strip">
+        </>}
+        footer={<div className="client-contract-strip">
           <span><small>Retainer</small><strong>{client.retainerAmount ? `${client.currency || 'CLP'} ${Number(client.retainerAmount).toLocaleString('es-CL')}` : 'Sin registrar'}</strong></span>
           <span><small>Inicio</small><strong>{formatDate(client.startedAt)}</strong></span>
           <span><small>Renovación</small><strong>{formatDate(client.renewalAt)}</strong></span>
           <span><small>Responsable</small><strong>{manager || (client.communityManagerId ? 'Asignado' : 'Sin asignar')}</strong></span>
-        </div>
-      </section>
+        </div>}
+      />
 
       <section className="client-kpi-grid" aria-label="Resumen operativo">
         <article><span>Piezas activas</span><strong>{stats.pendingPieces}</strong><Link to="/production">Ver producción</Link></article>

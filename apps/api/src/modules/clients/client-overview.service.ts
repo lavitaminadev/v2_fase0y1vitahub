@@ -28,6 +28,23 @@ export interface ClientOverviewStats {
   recentMeetings: any[];
 }
 
+/**
+ * Lee una columna construida con JSON_OBJECT/JSON_ARRAYAGG.
+ *
+ * Segun la version del driver y del motor, una misma consulta devuelve estas columnas ya
+ * deserializadas o como texto. Acepta ambas formas y trata como vacio el JSON invalido,
+ * porque un resumen incompleto es preferible a que la ficha del cliente no cargue.
+ */
+function readJsonColumn(value: unknown): any {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class ClientOverviewService {
   constructor(
@@ -43,8 +60,11 @@ export class ClientOverviewService {
     const statsResult = await this.dataSource.query(`
       SELECT
         (SELECT JSON_OBJECT('pieces', (
-          SELECT JSON_ARRAYAGG(JSON_OBJECT('status', status, 'total', COUNT(*)))
-          FROM pieces WHERE organization_id = ? AND client_id = ? GROUP BY status
+          SELECT JSON_ARRAYAGG(JSON_OBJECT('status', grouped.status, 'total', grouped.total))
+          FROM (
+            SELECT status, COUNT(*) AS total
+            FROM pieces WHERE organization_id = ? AND client_id = ? GROUP BY status
+          ) AS grouped
         ))) AS piece_data,
         (SELECT COUNT(*) FROM content_grids WHERE organization_id = ? AND client_id = ?) AS content_grids,
         (SELECT COUNT(*) FROM meetings WHERE organization_id = ? AND client_id = ?) AS meetings_total,
@@ -82,8 +102,8 @@ export class ClientOverviewService {
     ]);
 
     const stats = statsResult[0];
-    const pieceStatuses = JSON.parse(stats.piece_data)?.pieces || [];
-    const udData = JSON.parse(stats.ud_data) || {};
+    const pieceStatuses = readJsonColumn(stats.piece_data)?.pieces || [];
+    const udData = readJsonColumn(stats.ud_data) || {};
 
     const pendingPieces = pieceStatuses.reduce((sum: number, row: any) =>
       ['delivered', 'cancelled'].includes(row.status) ? sum : sum + row.total, 0);

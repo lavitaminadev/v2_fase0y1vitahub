@@ -13,4 +13,13 @@ export interface DesignConfig {
   [key: string]: string | undefined;
 }
 export interface ReservationForm { id: string; clientId: string; name: string; publicSlug: string; publicUrl?: string; status: string; mode: string; timezone: string; durationMinutes: number; bufferMinutes: number; capacityPerSlot: number; dailyCapacity: number; minimumNoticeHours: number; maximumAdvanceDays: number; confirmationMode: string; fieldSchema: FormField[]; designConfig: DesignConfig; scheduleConfig: { windows?: Array<{ day: number; start: string; end: string }> }; servicesConfig?: Array<{ id: string; name: string; durationMinutes?: number; capacity?: number }>; resourcesConfig?: Array<{ id: string; name: string; capacity?: number }>; campaignId?: string; crmEnabled?: boolean; calendarEnabled?: boolean; metaCapiEnabled?: boolean; teamNotifications?: string[]; pixelId?: string | null; pixelName?: string | null; metaReady?: boolean; ga4MeasurementId?: string | null; capabilities?: { reservations: boolean; crm: boolean; metaConversions: boolean; googleConversions?: boolean }; updatedAt: string }
-export interface Reservation { id: string; formId: string; referenceCode: string; status: string; startsAt: string; partySize: number; guestName: string; guestEmail?: string; guestPhone?: string; answers?: Record<string, unknown>; utmSource?: string; utmCampaign?: string; internalNotes?: string; couponCode?: string; createdAt?: string }
+export interface Reservation { id: string; formId: string; referenceCode: string; status: string; startsAt: string; partySize: number; guestName: string; guestEmail?: string; guestPhone?: string; answers?: Record<string, unknown>; utmSource?: string; utmCampaign?: string; internalNotes?: string; couponCode?: string; createdAt?: string; metaConversion?: MetaConversionStatus }
+
+/**
+ * Estado del circuito de conversión de una reserva.
+ *
+ * `schedule` es el evento de reserva y `attended` el de asistencia; `null` significa que
+ * todavía no se encoló. `matchFields` cuenta los identificadores con que Meta puede
+ * atribuir la reserva a la campaña: en cero, el evento llega sin coincidencia.
+ */
+export interface MetaConversionStatus { schedule: string | null; attended: string | null; matchFields: number }

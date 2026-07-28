@@ -302,13 +302,44 @@ export class ReservationsService {
     return qb.getCount();
   }
 
+  /**
+   * Reservas del cliente en un dia, sumando todos sus formularios.
+   *
+   * El tope del cliente describe lo que su operacion puede atender en una jornada, asi que
+   * cuenta el total del dia y no el de un formulario.
+   */
+  private async clientDailyReservationsCount(manager: EntityManager, clientId: string, dateKey: string, timeZone: string, excludeId?: string) {
+    const start = localToUtc(dateKey, '00:00', timeZone);
+    const end = localToUtc(addPlainDays(dateKey, 1), '00:00', timeZone);
+    const qb = manager.getRepository(Reservation).createQueryBuilder('r')
+      .where('r.client_id = :clientId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { clientId, start, end, statuses: ACTIVE_STATUSES });
+    if (excludeId) qb.andWhere('r.id != :excludeId', { excludeId });
+    return qb.getCount();
+  }
+
+  /**
+   * Tope diario que el cliente declaro para toda su operacion, o 0 si no fijo ninguno.
+   *
+   * Se lee por consulta directa para no acoplar el modulo de reservas al de clientes.
+   */
+  private async clientDailyCap(runner: { query(sql: string, params?: unknown[]): Promise<any> }, clientId: string): Promise<number> {
+    const rows = await runner.query('SELECT daily_reservation_cap FROM clients WHERE id = ?', [clientId]);
+    return Number(rows?.[0]?.daily_reservation_cap ?? 0) || 0;
+  }
+
   private async availability(manager: EntityManager, form: ReservationForm, startsAt: Date, partySize: number, serviceId?: string, resourceId?: string, excludeId?: string) {
     const rules = this.assertScheduled(form, startsAt, serviceId, resourceId); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000);
     const block = await manager.getRepository(AvailabilityBlock).createQueryBuilder('b').where('b.form_id = :formId AND b.starts_at < :endsAt AND b.ends_at > :startsAt', { formId: form.id, startsAt, endsAt }).getOne(); if (block) throw new ConflictException('El horario está bloqueado');
+    const dateKey = this.localDateKey(startsAt, form.timezone);
     if (form.dailyCapacity > 0) {
-      const dateKey = this.localDateKey(startsAt, form.timezone);
       const dailyCount = await this.dailyReservationsCount(manager, form.id, dateKey, form.timezone, excludeId);
       if (dailyCount >= form.dailyCapacity) throw new ConflictException('Este día ya alcanzó su tope de reservas');
+    }
+    // El tope del cliente se aplica ademas del propio del formulario: manda el mas estricto.
+    const clientCap = await this.clientDailyCap(manager, form.clientId);
+    if (clientCap > 0) {
+      const clientCount = await this.clientDailyReservationsCount(manager, form.clientId, dateKey, form.timezone, excludeId);
+      if (clientCount >= clientCap) throw new ConflictException('Este día ya alcanzó su tope de reservas');
     }
     const qb = manager.getRepository(Reservation).createQueryBuilder('r').where('r.form_id = :formId AND r.starts_at < :endsAt AND r.ends_at > :startsAt AND r.status IN (:...statuses)', { formId: form.id, startsAt, endsAt, statuses: ACTIVE_STATUSES }).setLock('pessimistic_write');
     if (resourceId) qb.andWhere('r.resource_id = :resourceId', { resourceId }); if (excludeId) qb.andWhere('r.id != :excludeId', { excludeId });
@@ -320,6 +351,19 @@ export class ReservationsService {
     const rangeStart = localToUtc(from, '00:00', form.timezone); const rangeEnd = localToUtc(addPlainDays(from, count), '00:00', form.timezone);
     const existingQb = this.reservations.createQueryBuilder('r').where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { formId: form.id, start: rangeStart, end: rangeEnd, statuses: ACTIVE_STATUSES }); if (resourceId) existingQb.andWhere('r.resource_id = :resourceId', { resourceId });
     const [existing, blocks] = await Promise.all([existingQb.getMany(), this.blocks.createQueryBuilder('b').where('b.form_id = :formId AND b.starts_at < :end AND b.ends_at > :start', { formId: form.id, start: rangeStart, end: rangeEnd }).getMany()]);
+    // El tope efectivo del dia es el mas estricto entre el del formulario y el del cliente.
+    // El del cliente cuenta las reservas de todos sus formularios, no solo las de este.
+    const clientCap = await this.clientDailyCap(this.dataSource, form.clientId);
+    const clientCounts = new Map<string, number>();
+    if (clientCap > 0) {
+      const clientRows = await this.reservations.createQueryBuilder('r')
+        .where('r.client_id = :clientId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { clientId: form.clientId, start: rangeStart, end: rangeEnd, statuses: ACTIVE_STATUSES })
+        .getMany();
+      for (const item of clientRows) {
+        const key = this.localDateKey(item.startsAt, form.timezone);
+        clientCounts.set(key, (clientCounts.get(key) ?? 0) + 1);
+      }
+    }
     const dailyCounts = new Map<string, number>();
     if (form.dailyCapacity > 0) {
       for (const item of existing) {
@@ -331,7 +375,7 @@ export class ReservationsService {
     // Un dia sin horarios puede estarlo por dos motivos que el comensal distingue: el local
     // no abre (o esta bloqueado) o ya alcanzo su tope diario. Solo el segundo es "completo".
     const fullDays: string[] = [];
-    for (let offset = 0; offset < count; offset += 1) { const date = addPlainDays(from, offset); const { weekday } = plainDateParts(date); if (form.dailyCapacity > 0 && (dailyCounts.get(date) ?? 0) >= form.dailyCapacity) { if (rules.windows.some((item) => item.day === weekday)) fullDays.push(date); continue; } for (const window of rules.windows.filter((item) => item.day === weekday)) { for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) { const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000); if (startsAt.getTime() < Date.now() + form.minimumNoticeHours * 3600000 || startsAt.getTime() > Date.now() + form.maximumAdvanceDays * 86400000) continue; if (blocks.some((block) => this.overlaps(startsAt, endsAt, block.startsAt, block.endsAt))) continue; const used = existing.filter((item) => this.overlaps(startsAt, endsAt, item.startsAt, item.endsAt)).reduce((sum, item) => sum + item.partySize, 0); if (used < rules.capacity) result.push({ startsAt: startsAt.toISOString(), available: rules.capacity - used }); } } }
+    for (let offset = 0; offset < count; offset += 1) { const date = addPlainDays(from, offset); const { weekday } = plainDateParts(date); const formFull = form.dailyCapacity > 0 && (dailyCounts.get(date) ?? 0) >= form.dailyCapacity; const clientFull = clientCap > 0 && (clientCounts.get(date) ?? 0) >= clientCap; if (formFull || clientFull) { if (rules.windows.some((item) => item.day === weekday)) fullDays.push(date); continue; } for (const window of rules.windows.filter((item) => item.day === weekday)) { for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) { const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000); if (startsAt.getTime() < Date.now() + form.minimumNoticeHours * 3600000 || startsAt.getTime() > Date.now() + form.maximumAdvanceDays * 86400000) continue; if (blocks.some((block) => this.overlaps(startsAt, endsAt, block.startsAt, block.endsAt))) continue; const used = existing.filter((item) => this.overlaps(startsAt, endsAt, item.startsAt, item.endsAt)).reduce((sum, item) => sum + item.partySize, 0); if (used < rules.capacity) result.push({ startsAt: startsAt.toISOString(), available: rules.capacity - used }); } } }
     return { slots: result, fullDays };
   }
 
@@ -386,7 +430,7 @@ export class ReservationsService {
         if (field.type === 'email' && typeof value === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new BadRequestException(`Correo inválido en ${field.label}`);
       }
 
-      const coupon = await this.validateCoupon(dto.couponCode, form, manager);
+      const coupon = await this.validateCoupon(dto.couponCode, form, manager, startsAt);
       if (coupon) {
         coupon.usageCount += 1;
         await manager.save(ReservationCoupon, coupon);
@@ -443,8 +487,8 @@ export class ReservationsService {
           organizationId: result.form.organizationId,
           clientId: result.form.clientId,
           name: result.booking.guestName,
-          email: result.booking.guestEmail,
-          phone: result.booking.guestPhone,
+          email: result.booking.guestEmail ?? undefined,
+          phone: result.booking.guestPhone ?? undefined,
           source: 'vitahub_reservations',
           sourceDetail: result.form.name,
           status: 'reserved',
@@ -608,7 +652,50 @@ export class ReservationsService {
   }
 
   async listReservations(organizationId: string, query: ListReservationsDto, clientId?: string, clientIds?: string[], includeInternalNotes = true) {
-    const page = query.page ?? 1; const pageSize = query.pageSize ?? 50; const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId }); if (clientId) qb.andWhere('r.client_id = :clientId', { clientId }); else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds }); if (query.formId) qb.andWhere('r.form_id = :formId', { formId: query.formId }); if (query.status) qb.andWhere('r.status = :status', { status: query.status }); if (query.from) qb.andWhere('r.starts_at >= :from', { from: query.from }); if (query.to) qb.andWhere('r.starts_at <= :to', { to: query.to });     if (query.search) qb.andWhere('(r.guest_name LIKE :search OR r.guest_email LIKE :search OR r.guest_phone LIKE :search OR r.reference_code LIKE :search)', { search: `%${query.search}%` }); if (query.couponCode) qb.andWhere('r.coupon_code = :couponCode', { couponCode: query.couponCode }); const [items, total] = await qb.orderBy('r.starts_at', 'DESC').skip((page - 1) * pageSize).take(pageSize).getManyAndCount(); const safeItems = includeInternalNotes ? items : items.map(({ internalNotes: _internalNotes, ...item }) => item); return { items: safeItems, total, page, pageSize, pages: Math.ceil(total / pageSize) };
+    const page = query.page ?? 1; const pageSize = query.pageSize ?? 50; const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId }); if (clientId) qb.andWhere('r.client_id = :clientId', { clientId }); else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds }); if (query.formId) qb.andWhere('r.form_id = :formId', { formId: query.formId }); if (query.status) qb.andWhere('r.status = :status', { status: query.status }); if (query.from) qb.andWhere('r.starts_at >= :from', { from: query.from }); if (query.to) qb.andWhere('r.starts_at <= :to', { to: query.to });     if (query.search) qb.andWhere('(r.guest_name LIKE :search OR r.guest_email LIKE :search OR r.guest_phone LIKE :search OR r.reference_code LIKE :search)', { search: `%${query.search}%` }); if (query.couponCode) qb.andWhere('r.coupon_code = :couponCode', { couponCode: query.couponCode }); const [items, total] = await qb.orderBy('r.starts_at', 'DESC').skip((page - 1) * pageSize).take(pageSize).getManyAndCount(); const safeItems = includeInternalNotes ? items : items.map(({ internalNotes: _internalNotes, ...item }) => item);
+    const conversions = await this.metaConversionStatus(organizationId, items);
+    const withConversion = safeItems.map((item) => ({ ...item, metaConversion: conversions.get(item.id) }));
+    return { items: withConversion, total, page, pageSize, pages: Math.ceil(total / pageSize) };
+  }
+
+  /**
+   * Estado de las conversiones enviadas a Meta para un lote de reservas.
+   *
+   * El brief mide el exito del circuito en Events Manager: que el evento llegue y que
+   * llegue con datos de coincidencia. Esto expone ambas cosas en la bandeja, sin tener que
+   * salir a Meta para saber si una reserva quedo fuera del circuito.
+   *
+   * `schedule` corresponde al evento de reserva y `attended` al de asistencia, que son los
+   * dos unicos eventos del alcance. `matchFields` cuenta los identificadores presentes en
+   * la reserva: sin ninguno, Meta no puede atribuirla a la campana.
+   */
+  private async metaConversionStatus(organizationId: string, items: Reservation[]) {
+    const result = new Map<string, { schedule: string | null; attended: string | null; matchFields: number }>();
+    if (items.length === 0) return result;
+
+    const eventIds = items.flatMap((item) => [`schedule:${item.id}`, `reserva_asistida:${item.id}`]);
+    let rows: Array<{ event_id: string; status: string }> = [];
+    try {
+      rows = await this.dataSource.query(
+        `SELECT event_id, status FROM meta_conversion_outbox WHERE organization_id = ? AND event_id IN (${eventIds.map(() => '?').join(',')})`,
+        [organizationId, ...eventIds],
+      );
+    } catch (err) {
+      // La bandeja debe abrir aunque el outbox no responda: el estado se muestra desconocido.
+      this.logger.warn(`No se pudo leer el estado de conversiones Meta: ${err instanceof Error ? err.message : err}`);
+      return result;
+    }
+
+    const byEvent = new Map(rows.map((row) => [row.event_id, row.status]));
+    for (const item of items) {
+      const matchFields = [item.guestEmail, item.guestPhone, item.fbc, item.fbp, item.clientIpAddress].filter(Boolean).length;
+      result.set(item.id, {
+        schedule: byEvent.get(`schedule:${item.id}`) ?? null,
+        attended: byEvent.get(`reserva_asistida:${item.id}`) ?? null,
+        matchFields,
+      });
+    }
+    return result;
   }
 
   async updateReservation(organizationId: string, id: string, dto: UpdateReservationDto, actorId: string, actorType: string, clientId?: string, clientIds?: string[]) {
@@ -690,12 +777,12 @@ export class ReservationsService {
 
     const fieldMap: Record<string, (item: Reservation) => string | number | Date | undefined> = {
       name: (item) => item.guestName,
-      phone: (item) => item.guestPhone,
-      email: (item) => item.guestEmail,
+      phone: (item) => item.guestPhone ?? undefined,
+      email: (item) => item.guestEmail ?? undefined,
       date: (item) => item.startsAt.toISOString(),
       status: (item) => item.status,
       attendance: (item) => item.status === 'attended' ? 'Sí' : item.status === 'no_show' ? 'No' : '-',
-      notes: (item) => item.internalNotes,
+      notes: (item) => item.internalNotes ?? undefined,
       campaign: (item) => item.utmCampaign || '-',
       code: (item) => item.referenceCode,
       origin: (item) => item.utmSource || 'direct',
@@ -733,7 +820,10 @@ export class ReservationsService {
     const exists = await this.coupons.findOne({ where: { organizationId, code } });
     if (exists) throw new ConflictException('Ya existe un cupón con ese código');
     const validDays = Array.isArray(dto.validDaysOfWeek) ? dto.validDaysOfWeek.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6) : undefined;
-    const coupon = this.coupons.create({ organizationId, clientId, code, discountType: dto.discountType || 'percentage', value: dto.value ?? 0, maxUses: dto.maxUses ?? 0, validFrom: dto.validFrom ? new Date(dto.validFrom) : undefined, validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined, formIds: dto.formIds, validDaysOfWeek: validDays });
+    if (dto.validFromTime && dto.validUntilTime && this.minutes(dto.validFromTime) >= this.minutes(dto.validUntilTime)) {
+      throw new BadRequestException('La hora de inicio del cupón debe ser anterior a la de término');
+    }
+    const coupon = this.coupons.create({ organizationId, clientId, code, discountType: dto.discountType || 'percentage', value: dto.value ?? 0, maxUses: dto.maxUses ?? 0, validFrom: dto.validFrom ? new Date(dto.validFrom) : undefined, validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined, formIds: dto.formIds, validDaysOfWeek: validDays, validFromTime: dto.validFromTime, validUntilTime: dto.validUntilTime });
     return this.coupons.save(coupon);
   }
 
@@ -771,7 +861,19 @@ export class ReservationsService {
     return { valid: true, discountType: coupon.discountType, value: coupon.value };
   }
 
-  private async validateCoupon(code: string | undefined, form: ReservationForm, manager: EntityManager): Promise<ReservationCoupon | undefined> {
+  /**
+   * Resuelve el cupón aplicable a una reserva, o lanza explicando por qué no aplica.
+   *
+   * La vigencia por fecha (`validFrom`/`validUntil`) y los usos disponibles se miden contra
+   * el momento de reservar, porque acotan la campaña. El día de la semana y la franja
+   * horaria se miden contra `startsAt`: describen cuándo se consume el beneficio, no cuándo
+   * se pide. Un cupón de martes debe aceptarse aunque se reserve un domingo.
+   *
+   * @param code - Código ingresado por el comensal.
+   * @param form - Formulario de la reserva, que aporta la zona horaria.
+   * @param startsAt - Inicio de la reserva, en UTC.
+   */
+  private async validateCoupon(code: string | undefined, form: ReservationForm, manager: EntityManager, startsAt: Date): Promise<ReservationCoupon | undefined> {
     if (!code) return undefined;
     const coupon = await manager.getRepository(ReservationCoupon).findOne({ where: { organizationId: form.organizationId, code: code.trim().toUpperCase(), active: true } });
     if (!coupon) throw new BadRequestException('Cupón no válido');
@@ -780,9 +882,22 @@ export class ReservationsService {
     if (coupon.validUntil && now > coupon.validUntil) throw new BadRequestException('El cupón ha expirado');
     if (coupon.maxUses > 0 && coupon.usageCount >= coupon.maxUses) throw new BadRequestException('El cupón ya no tiene usos disponibles');
     if (coupon.formIds && coupon.formIds.length > 0 && !coupon.formIds.includes(form.id)) throw new BadRequestException('El cupón no aplica para este formulario');
-    if (coupon.validDaysOfWeek && coupon.validDaysOfWeek.length > 0) {
-      const today = new Date(new Date().toLocaleString('en-US', { timeZone: form.timezone })).getDay();
-      if (!coupon.validDaysOfWeek.includes(today)) throw new BadRequestException('El cupón no es válido para el día de hoy');
+
+    const local = new Intl.DateTimeFormat('en-US', { timeZone: form.timezone, hourCycle: 'h23', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+      .formatToParts(startsAt)
+      .reduce<Record<string, string>>((parts, part) => ({ ...parts, [part.type]: part.value }), {});
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(local.weekday);
+
+    if (coupon.validDaysOfWeek && coupon.validDaysOfWeek.length > 0 && !coupon.validDaysOfWeek.includes(weekday)) {
+      throw new BadRequestException('El cupón no es válido para el día de la reserva');
+    }
+    if (coupon.validFromTime || coupon.validUntilTime) {
+      const minutes = Number(local.hour) * 60 + Number(local.minute);
+      const from = coupon.validFromTime ? this.minutes(coupon.validFromTime) : 0;
+      const until = coupon.validUntilTime ? this.minutes(coupon.validUntilTime) : 24 * 60;
+      if (minutes < from || minutes > until) {
+        throw new BadRequestException(`El cupón solo aplica entre ${coupon.validFromTime ?? '00:00'} y ${coupon.validUntilTime ?? '23:59'}`);
+      }
     }
     return coupon;
   }

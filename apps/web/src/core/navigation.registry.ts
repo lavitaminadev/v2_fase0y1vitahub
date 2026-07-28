@@ -9,34 +9,49 @@ import type { FeatureManifest } from './feature.manifest';
 /** Features registradas, ordenadas por orden de inserción. */
 let features: FeatureManifest[] = [];
 
-/** Orden preferido del sidebar para features habilitadas. Las no listadas se agregan alfabéticamente. */
-const NAVIGATION_ORDER: string[] = [
-  '/dashboard',
-  '/clients',
-  '/users',
-  '/reservations',
-  '/crm/contacts',
-  '/crm/leads',
-  '/production',
-  '/audiovisual',
-  '/content',
-  '/documents',
-  '/briefs',
-  '/approvals',
-  '/meetings',
-  '/reports',
-  '/billing',
-  '/contracts',
-  '/gamification',
-  '/catalog',
-  '/knowledge',
-  '/integrations',
-  '/onboarding',
-  '/direction',
-  '/operations',
-  '/governance',
-  '/settings',
+/**
+ * Secciones del sidebar, en orden de aparición, con las rutas que contiene cada una.
+ *
+ * Agrupar responde a una confusión concreta: VITAHUB tiene dos CRM distintos. «Captación de
+ * clientes» reúne lo que la agencia opera **para** sus clientes (reservas y los contactos
+ * que llegan de sus campañas), y «Comercial · La Vitamina» es el pipeline propio de la
+ * agencia. Verlos en secciones separadas evita leerlos como un mismo embudo.
+ *
+ * Una ruta sin sección cae en «Más», de modo que registrar una feature nueva nunca la
+ * esconde del menú.
+ */
+export const NAVIGATION_SECTIONS: Array<{ id: string; label: string; paths: string[] }> = [
+  { id: 'today', label: 'Hoy', paths: ['/dashboard'] },
+  {
+    id: 'acquisition',
+    label: 'Captación de clientes',
+    paths: ['/reservations', '/crm/contacts'],
+  },
+  {
+    id: 'commercial',
+    label: 'Comercial · La Vitamina',
+    paths: ['/crm/leads', '/crm/opportunities', '/crm/interactions', '/catalog', '/contracts', '/billing'],
+  },
+  {
+    id: 'accounts',
+    label: 'Cuentas',
+    paths: ['/clients', '/onboarding', '/meetings', '/briefs', '/documents'],
+  },
+  {
+    id: 'production',
+    label: 'Producción',
+    paths: ['/production', '/content', '/audiovisual', '/approvals', '/gamification'],
+  },
+  { id: 'insight', label: 'Análisis', paths: ['/reports', '/direction'] },
+  {
+    id: 'admin',
+    label: 'Administración',
+    paths: ['/users', '/settings', '/integrations', '/governance', '/operations', '/knowledge'],
+  },
 ];
+
+/** Orden preferido del sidebar, derivado de las secciones para no mantener dos listas. */
+const NAVIGATION_ORDER: string[] = NAVIGATION_SECTIONS.flatMap((section) => section.paths);
 
 /**
  * Registra un manifiesto de feature.
@@ -81,6 +96,47 @@ export function getNavigation(
   return roleAwareItems
     .slice()
     .sort((a, b) => (orderMap.get(a.path) ?? 999) - (orderMap.get(b.path) ?? 999));
+}
+
+/** Sección del sidebar ya resuelta, con los items que el usuario actual puede ver. */
+export interface NavigationSection {
+  id: string;
+  label: string;
+  items: NonNullable<FeatureManifest['navigation']>;
+}
+
+/**
+ * Agrupa la navegación visible en secciones, descartando las que quedan vacías.
+ *
+ * Las rutas sin sección declarada se agrupan al final bajo «Más», para que una feature
+ * recién registrada aparezca en el menú aunque nadie la haya asignado todavía.
+ *
+ * @param userRole - Rol del usuario actual.
+ * @param features - Módulos habilitados en la organización.
+ * @param permissions - Overrides de permiso por módulo.
+ */
+export function getNavigationSections(
+  userRole?: UserRole,
+  features?: Record<string, boolean>,
+  permissions?: Record<string, string>,
+): NavigationSection[] {
+  const items = getNavigation(userRole, features, permissions) ?? [];
+  const byPath = new Map(items.map((item) => [item.path, item]));
+  const assigned = new Set<string>();
+
+  const sections = NAVIGATION_SECTIONS.map((section) => {
+    const sectionItems = section.paths.flatMap((path) => {
+      const item = byPath.get(path);
+      if (!item) return [];
+      assigned.add(path);
+      return [item];
+    });
+    return { id: section.id, label: section.label, items: sectionItems };
+  }).filter((section) => section.items.length > 0);
+
+  const rest = items.filter((item) => !assigned.has(item.path));
+  if (rest.length > 0) sections.push({ id: 'more', label: 'Más', items: rest });
+  return sections;
 }
 
 /**

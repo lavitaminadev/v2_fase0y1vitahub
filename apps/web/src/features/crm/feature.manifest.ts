@@ -4,13 +4,19 @@ registerFeature({
   id: 'crm',
   name: 'CRM',
   navigation: [
-    // Contactos de campañas: los contactos de los clientes de la agencia, que opera el
-    // equipo. Las tres entradas siguientes son el pipeline comercial de La Vitamina —sus
-    // propios prospectos— y corresponden a dirección comercial.
-    { label: 'Contactos de campañas', path: '/crm/contacts', icon: 'CM', roles: ['admin', 'commercial_director', 'operations_director', 'community_manager'] },
-    { label: 'Pipeline comercial', path: '/crm/leads', icon: 'LD', roles: ['admin', 'commercial_director'] },
-    { label: 'Oportunidades', path: '/crm/opportunities', icon: 'OP', roles: ['admin', 'commercial_director'] },
-    { label: 'Actividad comercial', path: '/crm/interactions', icon: 'IN', roles: ['admin', 'commercial_director'] },
+    // Son dos CRM distintos y no deben leerse como un mismo embudo:
+    //
+    // 1. Contactos de campañas — el CRM DE LOS CLIENTES. Personas que llegaron por las
+    //    campañas de cada cliente, incluidas las que reservaron. Lo opera el equipo.
+    // 2. Prospectos / Pipeline / Actividad — el CRM DE LA VITAMINA. Las empresas que la
+    //    agencia quiere sumar como clientes. Es de dirección comercial.
+    //
+    // El "pipeline" es el recorrido por etapas de las oportunidades (nuevo → calificado →
+    // propuesta → negociación → ganado/perdido); los prospectos son quienes entran a él.
+    { label: 'Contactos de campañas', path: '/crm/contacts', icon: '🙋', roles: ['admin', 'commercial_director', 'operations_director', 'community_manager'] },
+    { label: 'Prospectos', path: '/crm/leads', icon: '🌱', roles: ['admin', 'commercial_director'] },
+    { label: 'Pipeline de oportunidades', path: '/crm/opportunities', icon: '🧭', roles: ['admin', 'commercial_director'] },
+    { label: 'Actividad comercial', path: '/crm/interactions', icon: '☎️', roles: ['admin', 'commercial_director'] },
   ],
   routes: [],
 });

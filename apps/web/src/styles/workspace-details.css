@@ -4,16 +4,6 @@
 .client-360 { max-width: 1380px; margin: 0 auto; }
 .client-back { display: inline-flex; margin-bottom: 14px; color: #687a73; font-size: 10px; font-weight: 800; text-decoration: none; }
 .client-back:hover { color: #173f35; }
-.client-hero { position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr auto; gap: 26px; min-height: 285px; padding: clamp(28px,4vw,50px); border-radius: 26px; background: radial-gradient(circle at 82% 15%,rgba(215,235,121,.2),transparent 25%),linear-gradient(122deg,#133a31,#205846 68%,#2c6a55); color: #fff; box-shadow: 0 24px 64px rgba(17,52,43,.21); }
-.client-hero::after { content: ''; position: absolute; right: -80px; bottom: -170px; width: 390px; height: 390px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; }
-.client-hero > div { position: relative; z-index: 1; }
-.client-hero .page-eyebrow { color: #d7eb79; }
-.client-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; }
-.client-title-line h1 { margin: 9px 0 8px; color: #fff; font-family: Georgia,serif; font-size: clamp(37px,5vw,61px); font-weight: 500; line-height: 1; letter-spacing: -.055em; }
-.client-hero > div:first-child > p { margin: 0; color: rgba(255,255,255,.68); font-size: 12px; }
-.client-hero-actions { display: flex; align-items: flex-start; gap: 8px; }
-.client-hero .btn-light { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.1); color: #fff; backdrop-filter: blur(9px); }
-.client-hero .btn-accent { border-color: #d7eb79; background: #d7eb79; color: #173f35; }
 .client-contract-strip { grid-column: 1 / -1; align-self: end; display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(0,0,0,.1); }
 .client-contract-strip span { display: grid; gap: 4px; padding: 15px 18px; border-right: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); }
 .client-contract-strip span:last-child { border-right: 0; }
@@ -54,7 +44,6 @@
 .client-ud-legend b { color: #173f35; font-size: 10px; }
 .client-panel-note { grid-column: 1/-1; margin: 15px 0 0; padding: 10px 12px; border-radius: 10px; background: #f4f7f2; color: #7c8984; font-size: 11px; }
 .client-quick-section { margin: 5px 0 24px; }
-.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 13px; }
 .section-heading > p { color: #82908a; font-size: 9px; }
 .client-quick-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
 .client-quick-grid a { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 12px; min-height: 78px; padding: 14px 16px; border: 1px solid #dfe6df; border-radius: 14px; background: #fff; color: inherit; text-decoration: none; transition: transform .18s,border-color .18s,box-shadow .18s; }
@@ -143,8 +132,6 @@
 }
 @media (max-width: 760px) {
   .crm-summary-grid { grid-template-columns: 1fr; }
-  .client-hero { grid-template-columns: 1fr; min-height: 0; }
-  .client-hero-actions { flex-wrap: wrap; }
   .client-contract-strip { grid-template-columns: 1fr 1fr; }
   .client-contract-strip span:nth-child(2) { border-right: 0; }
   .client-kpi-grid { margin: 12px 0 20px; }
@@ -155,7 +142,6 @@
   .google-card .asset-client-select { width: 100%; }
 }
 @media (max-width: 520px) {
-  .client-hero { padding: 27px 21px; border-radius: 19px; }
   .client-contract-strip { grid-template-columns: 1fr; }
   .client-contract-strip span { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.1); }
   .client-contract-strip span:last-child { border-bottom: 0; }
@@ -179,7 +165,7 @@
 .reservation-status-summary strong { font: 600 22px Georgia,serif; }
 .reservation-status-summary span { font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .reservation-form-filters { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 18px; }
-.reservation-form-filters .input:first-child { flex: 1 1 320px; }
+.reservation-form-filters .input:first-child { flex: 1 1 320px; min-width: 0; }
 .form-client-name { display: inline-flex; margin: 0 0 12px; padding: 5px 8px; border-radius: 99px; background: #edf3ee; color: #52675f; font-size: 9px; font-weight: 800; }
 .booking-answers { margin: 18px 0; padding: 16px; border: 1px solid #dfe7df; border-radius: 14px; background: #f8faf7; }
 .booking-answers h4 { margin-top: 0; }

@@ -15,6 +15,12 @@ export class ReservationCoupon {
   @Column({ name: 'valid_until', type: 'timestamp', nullable: true }) validUntil?: Date;
   @Column({ name: 'form_ids', type: 'json', nullable: true }) formIds?: string[];
   @Column({ name: 'valid_days_of_week', type: 'json', nullable: true }) validDaysOfWeek?: number[];
+  /**
+   * Franja horaria de la reserva en la que el cupón aplica, en formato `HH:MM` y en la zona
+   * horaria del formulario. Ambas nulas = cualquier hora.
+   */
+  @Column({ name: 'valid_from_time', type: 'varchar', length: 5, nullable: true }) validFromTime?: string;
+  @Column({ name: 'valid_until_time', type: 'varchar', length: 5, nullable: true }) validUntilTime?: string;
   @Column({ type: 'boolean', default: true }) active: boolean;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;

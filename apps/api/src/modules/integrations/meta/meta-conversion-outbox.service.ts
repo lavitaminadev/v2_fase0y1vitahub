@@ -8,6 +8,14 @@ import { MetaClientPixelService } from './meta-client-pixel.service';
 /** Tiempo tras el cual un evento tomado se considera abandonado y vuelve a la cola. */
 const CLAIM_TIMEOUT_MS = 10 * 60_000;
 
+/**
+ * Ventana que Meta acepta para recibir una conversión pasada.
+ *
+ * Marcar la asistencia al día siguiente entra sin problema; pasada esta ventana el evento
+ * ya no puede atribuirse y se deja de reintentar.
+ */
+const META_EVENT_MAX_AGE_DAYS = 7;
+
 interface ApiError {
   response?: {
     status: number;
@@ -118,6 +126,18 @@ export class MetaConversionOutboxService {
     let failed = 0;
     for (const item of items) {
       try {
+        // Meta rechaza eventos de mas de 7 dias. Sin este corte el evento agotaba los ocho
+        // reintentos contra una ventana ya cerrada y terminaba como un fallo generico, sin
+        // que nadie supiera que la conversion se habia perdido por antiguedad.
+        const eventTime = Number((item.eventData as ConversionEvent)?.eventTime ?? 0);
+        if (eventTime > 0 && Date.now() - eventTime * 1000 > META_EVENT_MAX_AGE_DAYS * 86_400_000) {
+          item.status = 'expired';
+          item.nextAttemptAt = undefined;
+          item.lastError = `El evento supera los ${META_EVENT_MAX_AGE_DAYS} días que acepta Meta y ya no puede atribuirse.`;
+          await this.outbox.save(item);
+          failed += 1;
+          continue;
+        }
         const token = await this.clientPixels.resolveByPixel(item.organizationId, item.pixelId);
         if (!token) throw new Error('Meta conversion token is unavailable');
         await this.conversions.sendServerEvent(item.pixelId, token, item.eventData as ConversionEvent);

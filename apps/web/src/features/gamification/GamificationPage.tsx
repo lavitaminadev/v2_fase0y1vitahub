@@ -5,6 +5,8 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { EmptyState } from '../../shared/EmptyState';
 import { Modal } from '../../shared/Modal';
 import { useAuth } from '../../core/auth';
+import { PageHero } from '../../shared/PageHero';
+import { QueryErrorState } from '../../shared/QueryErrorState';
 
 interface RankingEntry {
   id: string;
@@ -31,7 +33,7 @@ export function GamificationPage() {
   const createReview = useMutation({ mutationFn: (xpPeriodId: string) => api.post('/gamification/disputes', { xpPeriodId, message }), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['xp-disputes'] }); setReviewOpen(false); setMessage(''); setFeedback({ tone: 'success', text: 'Solicitud enviada a dirección. El ajuste, si corresponde, quedará auditado.' }); }, onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }) });
   const resolveReview = useMutation({ mutationFn: ({ status }: { status: 'accepted' | 'rejected' }) => api.put(`/gamification/disputes/${resolving!.id}/resolve`, { status, resolution, adjustmentPoints: status === 'accepted' ? Number(adjustment) : 0 }), onSuccess: async (_, variables) => { await Promise.all([qc.invalidateQueries({ queryKey: ['xp-disputes'] }), qc.invalidateQueries({ queryKey: ['gamification-ranking'] })]); setResolving(null); setResolution(''); setAdjustment('0'); setFeedback({ tone: 'success', text: variables.status === 'accepted' ? 'Revisión aceptada y ranking recalculado.' : 'Revisión resuelta sin ajuste.' }); }, onError: (error: Error) => setFeedback({ tone: 'error', text: error.message }) });
   if (rankingQuery.isLoading) return <LoadingSpinner text="Calculando ranking semanal..." />;
-  if (rankingQuery.error) return <div className="page"><div className="page-load-error"><span>!</span><h1>No pudimos cargar el ranking</h1><p>{rankingQuery.error.message}</p><button className="btn btn-primary" onClick={() => rankingQuery.refetch()}>Reintentar</button></div></div>;
+  if (rankingQuery.error) return <QueryErrorState title="No pudimos cargar el ranking" message={rankingQuery.error.message} onRetry={() => rankingQuery.refetch()} />;
   const users = Array.isArray(rankingQuery.data) ? rankingQuery.data : [];
   const leaders = users.slice(0, 3);
   const totalXp = users.reduce((sum, user) => sum + Number(user.totalXp || 0), 0);
@@ -41,7 +43,14 @@ export function GamificationPage() {
   const disputes = disputesQuery.data ?? [];
 
   return <div className="page gamification-page">
-    <section className="team-hero"><div><span className="page-eyebrow">RITMO DEL EQUIPO</span><h1>Ranking semanal</h1><p>Reconocimiento semanal por desempeño.</p><button className="btn btn-outline team-review-button" disabled={!ownPeriod} onClick={() => { setFeedback(null); setReviewOpen(true); }}>Solicitar revisión de mis XP</button></div><div className="team-hero-metrics"><span><small>Participantes</small><strong>{users.length}</strong></span><span><small>XP de la semana</small><strong>{totalXp}</strong></span></div></section>
+    <PageHero
+      variant="feature"
+      eyebrow="RITMO DEL EQUIPO"
+      title="Ranking semanal"
+      subtitle="Reconocimiento semanal por desempeño."
+      actions={<button className="btn btn-outline" disabled={!ownPeriod} onClick={() => { setFeedback(null); setReviewOpen(true); }}>Solicitar revisión de mis XP</button>}
+      aside={<div className="page-hero-stats"><span><small>Participantes</small><strong>{users.length}</strong></span><span><small>XP de la semana</small><strong>{totalXp}</strong></span></div>}
+    />
     {feedback && <div className={`alert alert-${feedback.tone}`}>{feedback.text}</div>}
     {!users.length ? <EmptyState icon="XP" title="La semana todavía no tiene movimientos" description="Los puntos aparecerán automáticamente cuando se registren entregas o ajustes autorizados." /> : <>
       <section className={`podium-grid podium-${leaders.length}`}>{leaders.map((user, index) => <article className={`podium-card place-${index + 1}`} key={user.id}><span className="podium-position">{String(index + 1).padStart(2, '0')}</span><div className="podium-avatar">{(user.user?.name || 'E').slice(0, 2).toUpperCase()}</div><h2>{user.user?.name || 'Integrante del equipo'}</h2><strong>{user.totalXp} <small>XP</small></strong><i className={`tier tier-${user.tier || 'bronze'}`}>{tierLabel[user.tier || 'bronze'] || user.tier}</i>{index > 0 && <p>{topXp - user.totalXp} XP para alcanzar el primer lugar</p>}</article>)}</section>

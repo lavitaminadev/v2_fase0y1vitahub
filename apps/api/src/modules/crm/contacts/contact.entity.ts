@@ -10,8 +10,8 @@ export class Contact {
   @Column({ name: 'lead_id', type: 'uuid', nullable: true }) leadId?: string;
   @ManyToOne(() => Lead, { nullable: true }) @JoinColumn({ name: 'lead_id' }) lead?: Lead;
   @Column({ type: 'varchar', length: 255 }) name: string;
-  @Column({ type: 'varchar', length: 255, nullable: true }) email?: string;
-  @Column({ type: 'varchar', length: 50, nullable: true }) phone?: string;
+  @Column({ type: 'varchar', length: 255, nullable: true }) email?: string | null;
+  @Column({ type: 'varchar', length: 50, nullable: true }) phone?: string | null;
   @Column({ type: 'varchar', length: 255, nullable: true }) position?: string;
   @Column({ type: 'text', nullable: true }) notes?: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
