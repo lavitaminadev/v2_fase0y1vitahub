@@ -56,8 +56,8 @@ export class CrmLeadAutomationService {
    * contacto se crea siempre —no solo si el lead califica—, porque todo el que reserva forma
    * parte de la audiencia del local por definición.
    */
-  async ensureAudienceContact(lead: Lead, manager?: EntityManager): Promise<void> {
-    await this.ensureContact(lead, manager);
+  async ensureAudienceContact(lead: Lead, manager?: EntityManager): Promise<Contact | null> {
+    return this.ensureContact(lead, manager);
   }
 
   /** Indica si el lead describe a un comensal, según el origen con que fue capturado. */
@@ -65,12 +65,12 @@ export class CrmLeadAutomationService {
     return Boolean(lead.source && CrmLeadAutomationService.AUDIENCE_SOURCES.has(lead.source));
   }
 
-  private async ensureContact(lead: Lead, manager?: EntityManager): Promise<void> {
+  private async ensureContact(lead: Lead, manager?: EntityManager): Promise<Contact | null> {
     const repo = manager?.getRepository(Contact) ?? this.contactsRepo;
     const existing = await repo.findOne({ where: { organizationId: lead.organizationId, leadId: lead.id } });
-    if (existing) return;
+    if (existing) return existing;
 
-    await repo.save(
+    return repo.save(
       repo.create({
         organizationId: lead.organizationId,
         leadId: lead.id,

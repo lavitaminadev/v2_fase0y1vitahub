@@ -10,6 +10,7 @@ import { Modal } from '../../shared/Modal';
 import { statusLabel } from '../../shared/status-labels';
 import { matchesSearch } from '../../shared/search';
 import { StatusTrafficLight } from '../../shared/StatusTrafficLight';
+import { attendanceRateOf } from '../../shared/attendance';
 import { CONTACT_STATUS_OPTIONS } from '../../shared/status-palette';
 import { useSearchParams } from 'react-router-dom';
 
@@ -130,9 +131,7 @@ export function ContactsPage() {
     () => ({ new: 0, reserved: 0, attended: 0, no_show: 0, ...(countsQuery.data ?? {}) }),
     [countsQuery.data],
   );
-  const attendanceRate = statusCounts.attended + statusCounts.no_show > 0
-    ? Math.round((statusCounts.attended / (statusCounts.attended + statusCounts.no_show)) * 100)
-    : null;
+  const attendanceRate = attendanceRateOf(statusCounts.attended, statusCounts.no_show);
   const updateFilter = (key: 'clientId' | 'status', value: string) => {
     setSearchParams((current) => { const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); return next; });
     if (key === 'clientId') setClientFilter(value);

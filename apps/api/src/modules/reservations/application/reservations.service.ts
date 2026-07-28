@@ -483,12 +483,11 @@ export class ReservationsService {
 
     if (result.created && result.form.crmEnabled && capabilities.crm) {
       try {
-        await this.leadIntake.captureLead({
+        // Quien reserva una mesa es audiencia del local, no un prospecto para vender VITAHUB:
+        // `captureAudience` mantiene la captura fuera del embudo comercial y devuelve el contacto.
+        const { contact } = await this.leadIntake.captureAudience({
           organizationId: result.form.organizationId,
           clientId: result.form.clientId,
-          // Quien reserva una mesa es audiencia del local, no un prospecto para vender VITAHUB:
-          // el dominio evita que la captura entre al embudo comercial.
-          domain: 'audience',
           name: result.booking.guestName,
           email: result.booking.guestEmail ?? undefined,
           phone: result.booking.guestPhone ?? undefined,
@@ -506,6 +505,12 @@ export class ReservationsService {
             startsAt: result.booking.startsAt.toISOString(),
           },
         });
+        // El vínculo se guarda en la reserva para que la ficha del comensal pueda listar sus
+        // reservas por clave, sin cruzar teléfonos que además cambian cuando alguien los corrige.
+        if (contact?.id && result.booking.contactId !== contact.id) {
+          result.booking.contactId = contact.id;
+          await this.reservations.update(result.booking.id, { contactId: contact.id });
+        }
       } catch (err) {
         this.logger.warn(`CRM intake failed for booking ${result.booking.id}: ${err instanceof Error ? err.message : err}`);
         await this.recordIntegrationFailure(result.booking, 'crm');

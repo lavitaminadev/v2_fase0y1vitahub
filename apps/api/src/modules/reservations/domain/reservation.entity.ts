@@ -3,11 +3,23 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Entity('reservations')
 @Index('IDX_reservations_form_start', ['formId', 'startsAt'])
 @Index('UQ_reservations_form_idempotency', ['formId', 'idempotencyKey'], { unique: true })
+@Index('IDX_reservations_contact', ['contactId'])
 export class Reservation {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId: string;
   @Column({ name: 'client_id', type: 'uuid' }) clientId: string;
   @Column({ name: 'form_id', type: 'uuid' }) formId: string;
+  /**
+   * Contacto de campañas al que pertenece la reserva.
+   *
+   * Da la relación directa «un contacto tiene muchas reservas» que la ficha del comensal
+   * necesita. Sin ella habría que cruzar teléfono o correo en cada consulta, que además de
+   * costoso falla cuando el dato se corrige después de reservar.
+   *
+   * Es nullable porque una reserva puede existir sin contacto: cuando el cliente tiene el CRM
+   * desactivado, o si la captura del contacto falló y quedó para reintento.
+   */
+  @Column({ name: 'contact_id', type: 'uuid', nullable: true }) contactId?: string | null;
   @Column({ name: 'reference_code', type: 'varchar', length: 20 }) referenceCode: string;
   @Column({ name: 'idempotency_key', type: 'varchar', length: 80, nullable: true }) idempotencyKey?: string;
   @Column({ type: 'varchar', length: 24, default: 'confirmed' }) status: string;

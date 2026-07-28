@@ -130,6 +130,44 @@ describe('LeadIntakeService', () => {
       expect(lead).not.toHaveProperty('domain');
     });
 
+    it('deduplica por teléfono antes que por correo', async () => {
+      // El brief define el teléfono como señal primaria dentro del cliente: es obligatorio al
+      // reservar, mientras que el correo es opcional y una familia puede compartirlo.
+      repo.findOne.mockReset();
+      repo.findOne.mockImplementation(async ({ where }: any) => (where?.phone ? { id: 'lead-por-telefono', organizationId: 'org-1', metadata: {} } : null));
+
+      const lead = await service.captureLead({ ...diner, externalLeadId: undefined, domain: 'audience' });
+
+      expect(lead.id).toBe('lead-por-telefono');
+      const firstLookup = repo.findOne.mock.calls[0][0].where;
+      expect(firstLookup).toHaveProperty('phone');
+      expect(firstLookup).not.toHaveProperty('email');
+    });
+
+    it('acota la búsqueda al cliente, para no unir comensales de locales distintos', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await service.captureLead({ ...diner, externalLeadId: undefined, domain: 'audience' });
+
+      expect(repo.findOne.mock.calls[0][0].where).toMatchObject({ clientId: 'client-1' });
+    });
+
+    it('devuelve el contacto para que la reserva pueda vincularlo', async () => {
+      repo.findOne.mockResolvedValue(null);
+      automation.ensureAudienceContact.mockResolvedValue({ id: 'contact-1' });
+
+      const result = await service.captureAudience({
+        organizationId: 'org-1',
+        clientId: 'client-1',
+        name: diner.name,
+        phone: diner.phone,
+        source: 'vitahub_reservations',
+      });
+
+      expect(result.contact?.id).toBe('contact-1');
+      expect(result.lead).toBeDefined();
+    });
+
     it('conserva la automatización comercial cuando no se declara dominio', async () => {
       repo.findOne.mockResolvedValue(null);
 

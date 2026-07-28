@@ -4,6 +4,7 @@ import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { Lead } from './lead.entity';
 import { LeadFitStatus } from './lead-fit-status.enum';
 import { CrmLeadAutomationService } from './crm-lead-automation.service';
+import { Contact } from '../contacts/contact.entity';
 
 const GENERIC_EMAIL_DOMAINS = new Set([
   'gmail.com',
@@ -102,7 +103,32 @@ export class LeadIntakeService {
     private readonly automation: CrmLeadAutomationService,
   ) {}
 
+  /**
+   * Captura a una persona que reservó y devuelve su contacto de audiencia.
+   *
+   * La reserva guarda el identificador del contacto para no tener que reconstruir el vínculo
+   * cruzando teléfonos más adelante.
+   */
+  async captureAudience(input: Omit<LeadCaptureInput, 'domain'>): Promise<{ lead: Lead; contact: Contact | null }> {
+    return this.capture({ ...input, domain: 'audience' });
+  }
+
+  /**
+   * Captura una persona u organización y devuelve el lead resultante.
+   *
+   * Se conserva por compatibilidad con quienes solo necesitan el lead.
+   */
   async captureLead(input: LeadCaptureInput): Promise<Lead> {
+    const { lead } = await this.capture(input);
+    return lead;
+  }
+
+  /**
+   * Implementación común. Devuelve también el contacto para que el llamador pueda vincularlo,
+   * en vez de exponerlo en un campo compartido del servicio: dos reservas simultáneas se
+   * pisarían ese campo entre los `await` de la transacción.
+   */
+  private async capture(input: LeadCaptureInput): Promise<{ lead: Lead; contact: Contact | null }> {
     const { domain, payload } = this.splitDomain(input);
     const normalized = this.normalizeInput(payload);
     const transactionManager = this.repo.manager;
@@ -113,7 +139,7 @@ export class LeadIntakeService {
 
     return transactionManager.transaction(async (manager) => {
       const leadsRepo = manager.getRepository(Lead);
-      const existing = await this.findExistingLead(normalized, leadsRepo);
+      const existing = await this.findExistingLead(normalized, leadsRepo, domain);
       const qualification = this.qualifyLead(normalized, domain);
       const retentionReviewAt = this.buildRetentionReviewDate();
 
@@ -134,16 +160,16 @@ export class LeadIntakeService {
 
       if (!lead.status) lead.status = 'new';
       const savedLead = await leadsRepo.save(lead);
-      await this.runAutomation(savedLead, domain, manager);
-      return leadsRepo.save(savedLead);
+      const contact = await this.runAutomation(savedLead, domain, manager);
+      return { lead: await leadsRepo.save(savedLead), contact };
     });
   }
 
   private async captureLeadWithoutTransaction(
     input: LeadCaptureInput & { retentionReviewAt?: Date },
     domain: LeadDomain,
-  ): Promise<Lead> {
-    const existing = await this.findExistingLead(input);
+  ): Promise<{ lead: Lead; contact: Contact | null }> {
+    const existing = await this.findExistingLead(input, this.repo, domain);
     const qualification = this.qualifyLead(input, domain);
     const retentionReviewAt = this.buildRetentionReviewDate();
 
@@ -164,8 +190,8 @@ export class LeadIntakeService {
 
     if (!lead.status) lead.status = 'new';
     const savedLead = await this.repo.save(lead);
-    await this.runAutomation(savedLead, domain);
-    return this.repo.save(savedLead);
+    const contact = await this.runAutomation(savedLead, domain);
+    return { lead: await this.repo.save(savedLead), contact };
   }
 
   /**
@@ -185,12 +211,12 @@ export class LeadIntakeService {
    * Una reserva no es una venta: para `audience` solo se asegura el contacto, sin abrir
    * oportunidad ni asignar responsable comercial.
    */
-  private async runAutomation(lead: Lead, domain: LeadDomain, manager?: EntityManager): Promise<void> {
+  private async runAutomation(lead: Lead, domain: LeadDomain, manager?: EntityManager): Promise<Contact | null> {
     if (domain === 'audience') {
-      await this.automation.ensureAudienceContact(lead, manager);
-      return;
+      return this.automation.ensureAudienceContact(lead, manager);
     }
     await this.automation.runForLead(lead, manager);
+    return null;
   }
 
   private normalizeInput(input: LeadCaptureInput): LeadCaptureInput & { retentionReviewAt?: Date } {
@@ -220,7 +246,23 @@ export class LeadIntakeService {
     return this.repo.save(lead);
   }
 
-  private async findExistingLead(input: LeadCaptureInput, repo: Repository<Lead> = this.repo): Promise<Lead | null> {
+  /**
+   * Busca una captura previa de la misma persona.
+   *
+   * El orden de las señales depende del dominio. Para audiencia el teléfono manda: es obligatorio
+   * en la reserva, casi siempre único por persona, y el correo suele ser opcional o compartido
+   * —una familia que reserva con la casilla de uno solo generaría contactos falsamente distintos
+   * si el correo decidiera primero. Para el dominio comercial el correo sigue mandando, porque
+   * identifica a la persona dentro de la empresa.
+   *
+   * La búsqueda queda acotada al cliente cuando hay uno: el mismo teléfono en dos restaurantes
+   * son dos personas distintas a efectos de datos, y deben quedar separadas.
+   */
+  private async findExistingLead(
+    input: LeadCaptureInput,
+    repo: Repository<Lead> = this.repo,
+    domain: LeadDomain = 'commercial',
+  ): Promise<Lead | null> {
     if (input.externalLeadId) {
       const byExternalId = await repo.findOne({
         where: { organizationId: input.organizationId, externalLeadId: input.externalLeadId },
@@ -231,14 +273,15 @@ export class LeadIntakeService {
     const baseWhere: FindOptionsWhere<Lead> = { organizationId: input.organizationId };
     if (input.clientId) baseWhere.clientId = input.clientId;
 
-    if (input.email) {
-      const byEmail = await repo.findOne({ where: { ...baseWhere, email: input.email } });
-      if (byEmail) return byEmail;
-    }
+    const byEmail = async () =>
+      input.email ? repo.findOne({ where: { ...baseWhere, email: input.email } }) : null;
+    const byPhone = async () =>
+      input.phone ? repo.findOne({ where: { ...baseWhere, phone: input.phone } }) : null;
 
-    if (input.phone) {
-      const byPhone = await repo.findOne({ where: { ...baseWhere, phone: input.phone } });
-      if (byPhone) return byPhone;
+    const signals = domain === 'audience' ? [byPhone, byEmail] : [byEmail, byPhone];
+    for (const lookup of signals) {
+      const found = await lookup();
+      if (found) return found;
     }
 
     return null;

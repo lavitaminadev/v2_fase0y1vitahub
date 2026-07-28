@@ -15,9 +15,15 @@ describe('alcance de fase', () => {
   });
 
   it('oculta los módulos fuera de alcance', () => {
-    for (const module of ['production', 'commercialPipeline', 'billing', 'gamification']) {
+    for (const module of ['production', 'billing', 'gamification', 'adsInsights']) {
       expect(isModuleInPhaseScope(module), module).toBe(false);
     }
+  });
+
+  it('mantiene visible el pipeline comercial por decisión explícita', () => {
+    // El brief lo excluye de lo que hay que *construir*, no de lo que se muestra. Si algún día
+    // se decide ocultarlo, mover la clave y actualizar esta expectativa.
+    expect(isModuleInPhaseScope('commercialPipeline')).toBe(true);
   });
 
   it('no clasifica un módulo en las dos listas a la vez', () => {
@@ -49,11 +55,16 @@ describe('navegación bajo el alcance de fase', () => {
   it('oculta las rutas fuera de alcance para cualquier rol', () => {
     const outOfScopePaths = ['/production', '/content', '/audiovisual', '/approvals', '/briefs',
       '/meetings', '/billing', '/contracts', '/catalog', '/gamification', '/knowledge',
-      '/onboarding', '/direction', '/operations', '/governance', '/documents',
-      '/crm/leads', '/crm/opportunities', '/crm/interactions'];
+      '/onboarding', '/direction', '/operations', '/governance', '/documents'];
 
     for (const path of outOfScopePaths) {
       expect(visible(path), path).toBe(false);
+    }
+  });
+
+  it('deja visibles las rutas del pipeline comercial', () => {
+    for (const path of ['/crm/leads', '/crm/opportunities', '/crm/interactions']) {
+      expect(visible(path), path).toBe(true);
     }
   });
 
@@ -63,7 +74,7 @@ describe('navegación bajo el alcance de fase', () => {
   });
 
   it('toda ruta fuera de alcance declara su módulo, sin lo cual no se podría ocultar', () => {
-    for (const path of ['/production', '/billing', '/crm/leads']) {
+    for (const path of ['/production', '/billing', '/contracts']) {
       expect(getFeatureForPath(path), path).toBeDefined();
     }
   });

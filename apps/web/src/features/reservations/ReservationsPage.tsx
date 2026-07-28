@@ -11,6 +11,7 @@ import { QueryErrorState } from '../../shared/QueryErrorState';
 import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import { EmptyState } from '../../shared/EmptyState';
 import { triggerToast } from '../../shared/Toast';
+import { attendanceRateOf } from '../../shared/attendance';
 import type { MetaConversionStatus, Reservation, ReservationForm } from './types';
 import { localInputToUtc } from './local-time';
 import { publicReservationUrl } from '../../core/public-url';
@@ -145,8 +146,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
       return Object.fromEntries(BOOKING_TILE_STATUSES.map((status, index) => [status, totals[index]]));
     },
   });
-  const closedCycle = (statusCounts.attended ?? 0) + (statusCounts.no_show ?? 0);
-  const attendanceRate = closedCycle > 0 ? Math.round((statusCounts.attended ?? 0) / closedCycle * 100) : null;
+  const attendanceRate = attendanceRateOf(statusCounts.attended, statusCounts.no_show);
   const { data: historyData = [], isLoading: historyLoading } = useQuery<ReservationEvent[]>({ queryKey: ['reservation-history', selectedBooking?.id], queryFn: () => api.get(`/reservations/${selectedBooking!.id}/history`), enabled: Boolean(selectedBooking) });
   const history = Array.isArray(historyData) ? historyData : [];
 

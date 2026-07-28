@@ -11,6 +11,7 @@ import { isModuleInPhaseScope } from '../../core/phase-scope';
 import { QueryErrorState } from '../../shared/QueryErrorState';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { ReservationResults } from './ReservationResults';
+import { reservationTotals, useReservationMetrics } from './use-reservation-metrics';
 import { ConversionQueue } from './ConversionQueue';
 import { PageHero } from '../../shared/PageHero';
 
@@ -52,7 +53,10 @@ const ROLE_PRESETS: Record<string, DashboardWidget[]> = {
 const WIDGET_MODULE: Partial<Record<DashboardWidget, string>> = {
   reservations: 'reservations',
   conversions: 'integrations',
-  performance: 'integrations',
+  // El panel de gasto y rendimiento de campañas se alimenta de `ads_read`, que el brief de
+  // Fase 1 excluye de forma explícita y deja para Fase 2. Se separa de `integrations` —de la
+  // que sí depende el envío de conversiones— para poder apagarlo sin apagar el resto.
+  performance: 'adsInsights',
   ud: 'udBudget',
   pieces: 'production',
   attention: 'production',
@@ -93,6 +97,9 @@ export function DashboardPage() {
    * recurre a los módulos habilitados de la organización.
    */
   const moduleAllowed = (module: string): boolean => {
+    // El alcance de fase manda sobre el permiso: una tarjeta de un módulo que el producto
+    // todavía no ofrece no se muestra aunque el usuario tenga acceso a ese módulo.
+    if (!isModuleInPhaseScope(module)) return false;
     if (user?.permissions) return (user.permissions[module] ?? 'none') !== 'none';
     if (user?.features) return user.features[module] !== false;
     return true;
@@ -108,6 +115,10 @@ export function DashboardPage() {
     if (!isModuleInPhaseScope(required)) return false;
     return !required || moduleAllowed(required);
   };
+  // Comparte clave de caché con el panel de resultados: montados juntos resuelven con una sola
+  // llamada y no pueden mostrar cifras distintas del mismo período.
+  const { data: reservationMetrics } = useReservationMetrics(30);
+  const reservationKpis = reservationTotals(reservationMetrics);
   const availableWidgets = (Object.keys(WIDGET_LABELS) as DashboardWidget[])
     .filter((widget) => canViewPerformance || widget !== 'performance')
     .filter((widget) => widget !== 'conversions' || canManageConversions)
@@ -134,10 +145,17 @@ export function DashboardPage() {
       {!personalView && widgetVisible('pulse') && <VitaminaPulse />}
 
       {widgetVisible('kpis') && <div className="card-grid">
-        {!personalView && moduleAllowed('clients') && <Card title="Clientes Activos" value={data.activeClients ?? 0} icon="👥" color="#1a1a2e" />}
-        {moduleAllowed('production') && <Card title="Piezas Pendientes" value={data.pendingPieces ?? 0} icon="⏳" color="#f39c12" />}
-        {moduleAllowed('gamification') && <Card title="XP del Equipo" value={data.teamXp ?? 0} icon="⭐" color="#9b59b6" />}
-        {!personalView && moduleAllowed('udBudget') && <Card title="UD este Mes" value={data.monthUd ?? 0} icon="📊" color="#27ae60" />}
+        {/* Ciclo de reserva: es lo que el producto promete en esta fase, así que va primero. */}
+        {moduleAllowed('reservations') && <>
+          <Card title="Reservas (30 días)" value={reservationKpis.reservations} color="#2a78d6" />
+          <Card title="Asistieron" value={reservationKpis.attended} color="#1baf7a" />
+          <Card title="No asistieron" value={reservationKpis.noShow} color="#EA0F63" />
+          <Card title="Tasa de asistencia" value={reservationKpis.attendanceRate === null ? '—' : `${reservationKpis.attendanceRate}%`} color="#0EC6B8" />
+        </>}
+        {!personalView && moduleAllowed('clients') && <Card title="Clientes Activos" value={data.activeClients ?? 0} color="#1a1a2e" />}
+        {moduleAllowed('production') && <Card title="Piezas Pendientes" value={data.pendingPieces ?? 0} color="#f39c12" />}
+        {moduleAllowed('gamification') && <Card title="XP del Equipo" value={data.teamXp ?? 0} color="#9b59b6" />}
+        {!personalView && moduleAllowed('udBudget') && <Card title="UD este Mes" value={data.monthUd ?? 0} color="#27ae60" />}
       </div>}
 
       {!personalView && widgetVisible('reservations') && <ReservationResults />}

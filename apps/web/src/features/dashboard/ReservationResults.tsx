@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, Line, LineChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { QueryErrorState } from '../../shared/QueryErrorState';
+import { reservationTotals, useReservationMetrics } from './use-reservation-metrics';
 
 /**
  * Resultados del ciclo de reserva — el foco de la Fase 1.
@@ -24,14 +23,6 @@ const SERIES_ASISTENCIAS = '#1baf7a';
 const FUNNEL_RAMP = ['#8fd0b8', '#55b995', '#2a9d78', '#17795c'];
 const AXIS_INK = '#75857e';
 const GRID_INK = '#e7ede8';
-
-interface Metrics {
-  totals: { total?: number; attended?: number; no_show?: number; pending?: number; confirmed?: number; cancelled?: number };
-  daily: Array<{ day: string; total: number; attended: number; no_show: number }>;
-  sources: Array<{ source: string; campaign: string; total: number; attended: number }>;
-  funnel: { views: number; starts: number; completed: number; conversionRate: number | null };
-  days: number;
-}
 
 const RANGES = [
   { days: 7, label: '7 días' },
@@ -69,16 +60,9 @@ export function ReservationResults({ clientId, headingLevel = 2 }: { clientId?: 
   const Heading = headingLevel === 1 ? 'h1' : 'h2';
   const [days, setDays] = useState(30);
   const [showTable, setShowTable] = useState(false);
-  const { data, isLoading, error, refetch, isFetching } = useQuery<Metrics>({
-    queryKey: ['reservation-metrics', days, clientId ?? null],
-    queryFn: () => api.get(`/reservations/analytics/metrics?days=${days}${clientId ? `&clientId=${encodeURIComponent(clientId)}` : ''}`),
-  });
+  const { data, isLoading, error, refetch, isFetching } = useReservationMetrics(days, clientId);
 
-  const totals = data?.totals ?? {};
-  const attended = Number(totals.attended ?? 0);
-  const noShow = Number(totals.no_show ?? 0);
-  const reservations = Number(totals.total ?? 0);
-  const attendanceRate = attended + noShow > 0 ? Math.round((attended / (attended + noShow)) * 100) : null;
+  const { attended, noShow, reservations, attendanceRate } = reservationTotals(data);
 
   const funnel = useMemo(() => {
     if (!data) return [];

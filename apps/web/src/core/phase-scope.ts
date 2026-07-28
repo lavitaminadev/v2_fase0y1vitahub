@@ -53,6 +53,15 @@ export const PHASE_1_MODULES: readonly string[] = [
   'reports', // Resultados de reservas y asistencia
   'users', // Altas y roles
   'settings', // Configuración de la organización
+
+  // Excepción explícita, decidida el 2026-07-28.
+  //
+  // El brief de Fase 1 deja el pipeline fuera de alcance —«Fuera de alcance ahora: Pipeline,
+  // oportunidades, scoring, secuencias, multicanal»—, y esa exclusión sigue valiendo para
+  // *construir*: no se le agrega trabajo. Pero el módulo ya está hecho y se muestra a pedido
+  // del equipo, porque forma parte de lo que se presenta. Se mantiene en su propia sección de
+  // navegación, separada del CRM de campañas, según la regla de §4 del brief.
+  'commercialPipeline',
 ];
 
 /**
@@ -64,7 +73,6 @@ export const PHASE_1_MODULES: readonly string[] = [
  * que se vende a un restaurante.
  */
 export const OUT_OF_SCOPE_MODULES: Readonly<Record<string, string>> = {
-  commercialPipeline: 'CRM comercial: prospectos, oportunidades y actividad de venta',
   production: 'Producción de piezas',
   content: 'Calendario de contenido',
   audiovisual: 'Producción audiovisual',
@@ -82,6 +90,9 @@ export const OUT_OF_SCOPE_MODULES: Readonly<Record<string, string>> = {
   operations: 'Operaciones internas',
   governance: 'Gobernanza',
   udBudget: 'Unidades de dedicación',
+  // El brief de Fase 1 lo excluye por escrito: «Panel ads_read → No incluir en Fase 1».
+  // Depende además de permisos de Meta que se aprueban en Fase 2.
+  adsInsights: 'Panel de gasto y rendimiento de campañas (ads_read)',
 };
 
 /** Búsqueda O(1) sobre el alcance vigente. */
