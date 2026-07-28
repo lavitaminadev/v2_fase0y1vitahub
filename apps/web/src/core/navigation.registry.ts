@@ -12,10 +12,11 @@ let features: FeatureManifest[] = [];
 /**
  * Secciones del sidebar, en orden de aparición, con las rutas que contiene cada una.
  *
- * Agrupar responde a una confusión concreta: VITAHUB tiene dos CRM distintos. «Captación de
- * clientes» reúne lo que la agencia opera **para** sus clientes (reservas y los contactos
- * que llegan de sus campañas), y «Comercial · La Vitamina» es el pipeline propio de la
- * agencia. Verlos en secciones separadas evita leerlos como un mismo embudo.
+ * Agrupar responde a una confusión concreta: VITAHUB tiene dos CRM distintos. «CRM»
+ * reúne lo que la agencia opera **para** sus clientes (reservas y los contactos
+ * que llegan de sus campañas), y «Pipeline» es el pipeline propio de la
+ * agencia (leads, oportunidades, contratos). Verlos en secciones separadas evita
+ * leerlos como un mismo embudo.
  *
  * Una ruta sin sección cae en «Más», de modo que registrar una feature nueva nunca la
  * esconde del menú.
@@ -23,13 +24,13 @@ let features: FeatureManifest[] = [];
 export const NAVIGATION_SECTIONS: Array<{ id: string; label: string; paths: string[] }> = [
   { id: 'today', label: 'Hoy', paths: ['/dashboard'] },
   {
-    id: 'acquisition',
-    label: 'Captación de clientes',
+    id: 'crm',
+    label: 'CRM',
     paths: ['/reservations', '/crm/contacts'],
   },
   {
-    id: 'commercial',
-    label: 'Comercial · La Vitamina',
+    id: 'pipeline',
+    label: 'Pipeline',
     paths: ['/crm/leads', '/crm/opportunities', '/crm/interactions', '/catalog', '/contracts', '/billing'],
   },
   {
