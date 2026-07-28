@@ -21,6 +21,15 @@ const FIELD_LIBRARY = [
   ['coupon', 'Cupón promocional'],
 ] as const;
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+/**
+ * Campos que caben en el formulario sin salirse del alcance acordado.
+ *
+ * El alcance pide lo mínimo —nombre, teléfono, correo opcional y número de personas— más
+ * el consentimiento; la fecha y la hora las aporta la agenda. Pasado ese número se avisa,
+ * pero no se bloquea: hay clientes con una necesidad puntual que lo justifica.
+ */
+const RECOMMENDED_FIELD_COUNT = 5;
 const STEPS = ['Estructura', 'Disponibilidad', 'Diseño', 'Publicación'];
 const TIMEZONES = (typeof Intl !== 'undefined' && typeof Intl.supportedValuesOf === 'function') ? Intl.supportedValuesOf('timeZone').filter((tz: string) => tz.includes('America') || tz.includes('Europe/Madrid') || tz.includes('Atlantic')) : ['America/Santiago', 'America/Argentina/Buenos_Aires', 'America/Lima', 'America/Bogota', 'America/Mexico_City', 'America/New_York', 'Europe/Madrid'];
 const DESIGN_TEMPLATES: Array<{ name: string; config: Record<string, string> }> = [
@@ -258,7 +267,6 @@ export function ReservationBuilderPage() {
     const next = [...fields]; const [moved] = next.splice(from, 1); next.splice(to, 0, moved); change({ fieldSchema: next });
   };
   const UI_TO_JS_DAY = [1, 2, 3, 4, 5, 6, 0];
-  const JS_TO_UI_DAY = [6, 0, 1, 2, 3, 4, 5];
   const toggleDay = (uiDay: number) => {
     const jsDay = UI_TO_JS_DAY[uiDay];
     change({ scheduleConfig: { windows: windows.some((window) => window.day === jsDay) ? windows.filter((window) => window.day !== jsDay) : [...windows, { day: jsDay, start: '09:00', end: '18:00' }] } });
@@ -299,6 +307,10 @@ export function ReservationBuilderPage() {
         <aside className="field-library"><span className="page-eyebrow">BIBLIOTECA DE CAMPOS</span><h3>Agrega campos</h3><p>Arrastra al formulario o usa los botones.</p><div className="field-library-help"><strong>Recomendados para Meta</strong><small>Nombre, telefono, correo y consentimiento mejoran la calidad de match.</small></div>{FIELD_LIBRARY.map(([type, label]) => <button draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('new-field', type); }} onDragEnd={() => setCanvasDragOver(false)} onClick={() => addField(type)} key={type} className={RECOMMENDED_FIELDS.has(type) ? 'recommended' : ''}><span>{label.slice(0, 2).toUpperCase()}</span><div><strong>{label}</strong><small>{RECOMMENDED_FIELDS.has(type) ? 'Recomendado para reservas' : 'Campo opcional'}</small></div><em>Agregar</em></button>)}</aside>
         <main className={`builder-canvas ${canvasDragOver ? 'drag-over' : ''}`} onDragEnter={() => setCanvasDragOver(true)} onDragLeave={(event) => { if (event.currentTarget === event.target) setCanvasDragOver(false); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = event.dataTransfer.types.includes('new-field') ? 'copy' : 'move'; setCanvasDragOver(true); }} onDrop={(event) => { event.preventDefault(); setCanvasDragOver(false); const type = event.dataTransfer.getData('new-field'); if (type) { addField(type); return; } const from = event.dataTransfer.getData('field-id'); if (from && fields.length > 1) { const current = fields.find((field) => field.id === from); if (current && fields[fields.length - 1]?.id !== from) change({ fieldSchema: [...fields.filter((field) => field.id !== from), current] }); } }}>
           <div className="canvas-intro"><span>FORMULARIO</span><h2>{draft.designConfig.title || draft.name}</h2><p>{draft.designConfig.welcome}</p><small>Arrastra campos o usa los botones de cada fila.</small></div>
+          {fields.length > RECOMMENDED_FIELD_COUNT && <div className="canvas-scope-hint" role="status">
+            <strong>{fields.length} campos en el formulario</strong>
+            <span>El alcance pide lo mínimo: nombre, teléfono, correo opcional y número de personas. La fecha y la hora las resuelve la agenda. Cada campo extra baja la tasa de reserva desde el celular, que es por donde llega casi todo el tráfico de los anuncios.</span>
+          </div>}
           {fields.map((field, index) => <article tabIndex={0} draggable onDragStart={(event) => event.dataTransfer.setData('field-id', field.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const from = event.dataTransfer.getData('field-id'); if (from) reorder(from, field.id); }} className={`canvas-field ${selected === field.id ? 'selected' : ''}`} key={field.id} onClick={() => setSelected(field.id)} onFocus={() => setSelected(field.id)}>
             <span className="drag-handle" aria-label="Arrastrar para ordenar">⠿</span><div><label>{field.label}{field.required && ' *'}{field.system && <em> Protegido</em>}</label><div className="field-preview-input">{field.placeholder || (['select', 'multi_select'].includes(field.type) ? 'Selecciona una opcion' : 'Respuesta del visitante')}</div></div><div className="field-actions">
               <button type="button" className="btn btn-sm btn-outline" aria-label={`Editar ${field.label}`} onClick={(e) => { e.stopPropagation(); openEditor(field); }} title="Editar campo">✏️</button>

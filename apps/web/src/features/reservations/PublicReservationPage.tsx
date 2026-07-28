@@ -15,7 +15,7 @@ import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible, slotDat
 import { safeUrl } from '../../core/safe-url';
 
 interface Slot { startsAt: string; available: number }
-interface Created { id: string; referenceCode: string; status: string; startsAt: string }
+interface Created { id: string; referenceCode: string; status: string; startsAt: string; couponCode?: string }
 const DEFAULT_BACKGROUND_GRADIENT = 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)';
 
 /** Clave de `sessionStorage` donde vive la clave de idempotencia de la reserva en curso. */
@@ -31,7 +31,9 @@ export function PublicReservationPage() {
   const [resourceId, setResourceId] = useState('');
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [guest, setGuest] = useState({ guestName: '', guestEmail: '', guestPhone: '', partySize: 1 });
-  const [website] = useState('');
+  // Campo trampa: invisible para la persona, presente en el HTML para los bots, que
+  // rellenan todo lo que encuentran. El servidor descarta cualquier envío que lo traiga.
+  const [website, setWebsite] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [couponValid, setCouponValid] = useState<boolean | null>(null);
   const [couponMsg, setCouponMsg] = useState('');
@@ -235,7 +237,7 @@ export function PublicReservationPage() {
   }, [slots, form]);
 
   const calendarDays = useMemo(() => {
-    if (!form) return [];
+    if (!form) return { rawDays: [], weeks: [] };
     const [y, m, d] = fromDate.split('-').map(Number);
     const start = new Date(Date.UTC(y, m - 1, d));
     const rawDays: Array<{ date: string; day: number; weekday: string; slots: Slot[]; hasSlots: boolean; isFull: boolean }> = [];
@@ -246,27 +248,37 @@ export function PublicReservationPage() {
       const month = String(date.getUTCMonth() + 1).padStart(2, '0');
       const dayNum = String(date.getUTCDate()).padStart(2, '0');
       const key = `${year}-${month}-${dayNum}`;
-      const weekday = new Intl.DateTimeFormat('es-CL', { weekday: 'short', timeZone: form.timezone }).format(date);
+      // `date` ya representa el día calendario del formulario, así que se formatea en UTC.
+      // Convertirlo a la zona del cliente lo corría un día y la etiqueta no coincidía con
+      // la columna: el 27 aparecía como domingo estando en la columna del lunes.
+      const weekday = new Intl.DateTimeFormat('es-CL', { weekday: 'short', timeZone: 'UTC' }).format(date);
       const daySlots = slotsByDate.get(key) || [];
       rawDays.push({ date: key, day: date.getUTCDate(), weekday, slots: daySlots, hasSlots: daySlots.length > 0, isFull: fullDays.has(key) });
     }
-    // Agrupar en semanas que empiezan en lunes
-    const weeks: typeof rawDays[] = [];
-    let currentWeek: typeof rawDays = [];
+    // Agrupar en semanas que empiezan en lunes.
+    //
+    // La primera semana se rellena con huecos hasta el día que corresponde: sin ese relleno
+    // el primer día ocupa la columna del lunes sea cual sea, y toda la rejilla queda
+    // corrida respecto a la cabecera de días.
+    type Cell = typeof rawDays[number] | null;
+    const weeks: Cell[][] = [];
+    let currentWeek: Cell[] = [];
+    if (rawDays.length > 0) {
+      const firstDow = new Date(rawDays[0].date + 'T00:00:00Z').getUTCDay();
+      const leading = (firstDow + 6) % 7;
+      currentWeek = Array.from({ length: leading }, () => null);
+    }
     for (const day of rawDays) {
-      const dow = new Date(day.date + 'T00:00:00').getUTCDay();
-      // Si es domingo (0) o es el primer día y no es lunes, rellenar con placeholders
-      if (dow === 1 && currentWeek.length > 0) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
       currentWeek.push(day);
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
       }
     }
-    if (currentWeek.length > 0) weeks.push(currentWeek);
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) currentWeek.push(null);
+      weeks.push(currentWeek);
+    }
     return { rawDays, weeks };
   }, [fromDate, slotsByDate, form, fullDays]);
 
@@ -329,7 +341,7 @@ export function PublicReservationPage() {
     const gcalUrl = safeUrl(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(form.name)}&dates=${formatIcsDate(startDate)}/${formatIcsDate(endDate)}&details=${encodeURIComponent('Reserva ' + submit.data.referenceCode)}`);
     const icsBlob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
     const icsUrl = URL.createObjectURL(icsBlob);
-    return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div><small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions">
+    return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div>{submit.data.couponCode && <p className="success-coupon">🎫 Cupón <strong>{submit.data.couponCode}</strong> aplicado a esta reserva</p>}<small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions">
       {gcalUrl ? <a className="btn btn-outline" href={gcalUrl} target="_blank" rel="noopener noreferrer">📅 Google Calendar</a> : null}
       <a className="btn btn-outline" href={icsUrl} download={`reserva-${submit.data.referenceCode}.ics`}>📥 Descargar .ics</a>
       {submit.data.status === 'pending' ? <small>Recibirás una confirmación pronto.</small> : <Link className="btn btn-outline" to={`/book/${slug}`}>Volver al inicio</Link>}
@@ -345,6 +357,19 @@ export function PublicReservationPage() {
     <div className="public-booking-layout">
       <section className="public-booking-intro">{design.logoUrl && visible(design.showLogo) && <img className="public-booking-logo" src={design.logoUrl} alt="Logo de la empresa" />}{visible(design.showEyebrow) && <span>{eyebrowText}</span>}<h1>{design.title || form.name}</h1>{visible(design.showWelcome) && <p>{design.welcome || 'Elige el horario que mejor te acomode.'}</p>}{visible(design.showFacts) && <div className="public-booking-facts"><div><strong>{selectedService?.durationMinutes || form.durationMinutes}</strong><span>{durationLabel}</span></div><div><strong>{form.confirmationMode === 'automatic' ? (design.automaticLabel || 'Directa') : (design.manualLabel || 'Manual')}</strong><span>{confirmationLabel}</span></div><div><strong>{design.timezoneValue || form.timezone.split('/').pop()?.replaceAll('_', ' ')}</strong><span>{timezoneLabel}</span></div></div>}</section>
       <form className="public-booking-card" onSubmit={(event) => { event.preventDefault(); if (step === 3) { submit.mutate(); } else if (step === 2) { goToConfirm(); } else { goToForm(); } }}>
+        {/* Se oculta desplazándolo fuera de pantalla y no con `display:none`, que los bots
+            reconocen como campo técnico y omiten. `aria-hidden` y `tabIndex={-1}` lo dejan
+            fuera del alcance de lectores de pantalla y de la navegación con teclado. */}
+        <input
+          className="booking-honeypot"
+          type="text"
+          name="website"
+          value={website}
+          onChange={(event) => setWebsite(event.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+        />
         <div className="booking-steps"><div className={`booking-step-dot ${step >= 1 ? 'active' : ''}`}><span>1</span><small>Fecha</small></div><div className={`booking-step-dot ${step >= 2 ? 'active' : ''}`}><span>2</span><small>Datos</small></div><div className={`booking-step-dot ${step >= 3 ? 'active' : ''}`}><span>3</span><small>Confirmar</small></div></div>
 
         {step === 1 && <div>
@@ -357,7 +382,9 @@ export function PublicReservationPage() {
           {!loadingSlots && calendarDays.rawDays.length > 0 && <div>
             <div className="calendar-month-nav"><button type="button" className="btn btn-outline btn-xs" disabled={monthOffset <= 0} onClick={() => { setMonthOffset((m) => Math.max(0, m - 1)); setSelected(''); setSelectedDate(''); }}>← Mes anterior</button><span>{new Date(fromDate + 'T00:00:00').toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: form.timezone })}</span><button type="button" className="btn btn-outline btn-xs" onClick={() => { setMonthOffset((m) => m + 1); setSelected(''); setSelectedDate(''); }}>Mes siguiente →</button></div>
             <div className="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
-            <div className="calendar-grid">{calendarDays.weeks.map((week, weekIndex) => <div key={weekIndex} className="calendar-week">{week.map((day) => <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : day.isFull ? 'is-full' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} aria-label={`${day.weekday} ${day.day}${day.hasSlots ? '' : day.isFull ? ', completo' : ', cerrado'}`} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span>{day.isFull && !day.hasSlots && <span className="calendar-day-tag">Completo</span>}</button>)}</div>)}</div>
+            <div className="calendar-grid">{calendarDays.weeks.map((week, weekIndex) => <div key={weekIndex} className="calendar-week">{week.map((day, dayIndex) => day === null
+              ? <span key={`empty-${dayIndex}`} className="calendar-day is-empty" aria-hidden="true" />
+              : <button type="button" key={day.date} className={`calendar-day ${day.hasSlots ? 'has-slots' : day.isFull ? 'is-full' : 'no-slots'} ${selectedDate === day.date ? 'selected' : ''}`} disabled={!day.hasSlots} aria-label={`${day.weekday} ${day.day}${day.hasSlots ? '' : day.isFull ? ', completo' : ', cerrado'}`} onClick={() => { if (day.hasSlots) { setSelectedDate(day.date); setSelected(''); } }}><span className="calendar-weekday">{day.weekday}</span><span className="calendar-number">{day.day}</span>{day.isFull && !day.hasSlots && <span className="calendar-day-tag">Completo</span>}</button>)}</div>)}</div>
             <div className="calendar-hint"><span className="dot available" /> Disponible <span className="dot full" /> Completo <span className="dot taken" /> Cerrado</div>
             {slotDays <= 60 && <button type="button" className="btn btn-outline btn-sm calendar-load-more" onClick={() => setSlotDays((d) => d + 14)}>Cargar más fechas</button>}
           </div>}
