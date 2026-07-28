@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { Lead } from './lead.entity';
 import { LeadFitStatus } from './lead-fit-status.enum';
 import { CrmLeadAutomationService } from './crm-lead-automation.service';
@@ -54,9 +54,22 @@ interface LeadMetadata {
   [key: string]: string | number | boolean | string[] | Record<string, unknown>[] | undefined;
 }
 
+/**
+ * Dominio al que pertenece la captura.
+ *
+ * `commercial` es una organización que puede convertirse en cliente de VITAHUB: se le aplica
+ * el scoring comercial y, si califica, la automatización que abre contacto y oportunidad.
+ *
+ * `audience` es una persona que reservó en el local de un cliente. Nunca es una venta, así que
+ * no se le aplica scoring comercial ni se le abre oportunidad; solo se asegura su contacto.
+ */
+export type LeadDomain = 'commercial' | 'audience';
+
 export interface LeadCaptureInput {
   organizationId: string;
   clientId?: string;
+  /** Dominio de la captura. Por defecto `commercial`, que preserva el comportamiento previo. */
+  domain?: LeadDomain;
   name: string;
   email?: string;
   phone?: string;
@@ -90,17 +103,18 @@ export class LeadIntakeService {
   ) {}
 
   async captureLead(input: LeadCaptureInput): Promise<Lead> {
-    const normalized = this.normalizeInput(input);
+    const { domain, payload } = this.splitDomain(input);
+    const normalized = this.normalizeInput(payload);
     const transactionManager = this.repo.manager;
 
     if (!transactionManager?.transaction) {
-      return this.captureLeadWithoutTransaction(normalized);
+      return this.captureLeadWithoutTransaction(normalized, domain);
     }
 
     return transactionManager.transaction(async (manager) => {
       const leadsRepo = manager.getRepository(Lead);
       const existing = await this.findExistingLead(normalized, leadsRepo);
-      const qualification = this.qualifyLead(normalized);
+      const qualification = this.qualifyLead(normalized, domain);
       const retentionReviewAt = this.buildRetentionReviewDate();
 
       const lead = existing ?? leadsRepo.create({ organizationId: normalized.organizationId });
@@ -120,14 +134,17 @@ export class LeadIntakeService {
 
       if (!lead.status) lead.status = 'new';
       const savedLead = await leadsRepo.save(lead);
-      await this.automation.runForLead(savedLead, manager);
+      await this.runAutomation(savedLead, domain, manager);
       return leadsRepo.save(savedLead);
     });
   }
 
-  private async captureLeadWithoutTransaction(input: LeadCaptureInput & { retentionReviewAt?: Date }): Promise<Lead> {
+  private async captureLeadWithoutTransaction(
+    input: LeadCaptureInput & { retentionReviewAt?: Date },
+    domain: LeadDomain,
+  ): Promise<Lead> {
     const existing = await this.findExistingLead(input);
-    const qualification = this.qualifyLead(input);
+    const qualification = this.qualifyLead(input, domain);
     const retentionReviewAt = this.buildRetentionReviewDate();
 
     const lead = existing ?? this.repo.create({ organizationId: input.organizationId });
@@ -147,8 +164,33 @@ export class LeadIntakeService {
 
     if (!lead.status) lead.status = 'new';
     const savedLead = await this.repo.save(lead);
-    await this.automation.runForLead(savedLead);
+    await this.runAutomation(savedLead, domain);
     return this.repo.save(savedLead);
+  }
+
+  /**
+   * Separa el dominio del resto del payload.
+   *
+   * `domain` decide qué automatización corre, pero no es una columna de `crm_leads`: se extrae
+   * antes de normalizar para que no llegue al `Object.assign` que arma la entidad.
+   */
+  private splitDomain(input: LeadCaptureInput): { domain: LeadDomain; payload: LeadCaptureInput } {
+    const { domain = 'commercial', ...payload } = input;
+    return { domain, payload };
+  }
+
+  /**
+   * Ejecuta la automatización que corresponde al dominio de la captura.
+   *
+   * Una reserva no es una venta: para `audience` solo se asegura el contacto, sin abrir
+   * oportunidad ni asignar responsable comercial.
+   */
+  private async runAutomation(lead: Lead, domain: LeadDomain, manager?: EntityManager): Promise<void> {
+    if (domain === 'audience') {
+      await this.automation.ensureAudienceContact(lead, manager);
+      return;
+    }
+    await this.automation.runForLead(lead, manager);
   }
 
   private normalizeInput(input: LeadCaptureInput): LeadCaptureInput & { retentionReviewAt?: Date } {
@@ -202,7 +244,14 @@ export class LeadIntakeService {
     return null;
   }
 
-  private qualifyLead(input: LeadCaptureInput): LeadQualificationResult {
+  private qualifyLead(input: LeadCaptureInput, domain: LeadDomain = 'commercial'): LeadQualificationResult {
+    // El scoring mide encaje comercial: correo corporativo, empresa, intención de compra. Aplicado
+    // a un comensal no significa nada —reservar una mesa con Gmail no es una señal de baja calidad—
+    // así que la audiencia no se puntúa y queda siempre en revisión, fuera de toda priorización.
+    if (domain === 'audience') {
+      return { qualityScore: 0, fitStatus: LeadFitStatus.REVIEW, scoringSignals: ['audience'] };
+    }
+
     let qualityScore = 0;
     const signals: string[] = [];
     const haystack = [

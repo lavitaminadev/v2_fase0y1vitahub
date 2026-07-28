@@ -1,18 +1,31 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../core/auth';
+import { isModuleInPhaseScope } from '../../core/phase-scope';
 import { NavGlyph } from '../../shared/NavGlyph';
 import { BrandMark } from '../../shared/Brand';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { PwaInstallButton } from '../../shared/PwaInstallButton';
 
-const CLIENT_NAV = [
+/**
+ * Navegación del portal del cliente.
+ *
+ * El portal tiene su propio menú porque no comparte layout con la aplicación interna, pero el
+ * alcance de fase se aplica igual: `module` declara de qué módulo depende cada entrada, y las
+ * que quedan fuera del alcance vigente no se muestran. Sin `module`, la entrada es siempre
+ * visible porque pertenece al núcleo del producto.
+ *
+ * Grilla, Aprobaciones y Reuniones son servicios de agencia, no del producto de reservas: un
+ * restaurante que solo contrató VITAHUB no debe encontrarse con tres secciones de algo que no
+ * compró.
+ */
+const CLIENT_NAV: Array<{ label: string; path: string; icon: string; module?: string }> = [
   { label: 'Inicio', path: '/portal', icon: 'IN' },
-  { label: 'Reservas', path: '/portal/reservations', icon: 'RS' },
-  { label: 'Grilla', path: '/portal/grid', icon: 'GR' },
-  { label: 'Aprobaciones', path: '/portal/approvals', icon: 'AP' },
-  { label: 'Reuniones', path: '/portal/meetings', icon: 'RE' },
-  { label: 'Informes', path: '/portal/reports', icon: 'RP' },
+  { label: 'Reservas', path: '/portal/reservations', icon: 'RS', module: 'reservations' },
+  { label: 'Grilla', path: '/portal/grid', icon: 'GR', module: 'content' },
+  { label: 'Aprobaciones', path: '/portal/approvals', icon: 'AP', module: 'approvals' },
+  { label: 'Reuniones', path: '/portal/meetings', icon: 'RE', module: 'meetings' },
+  { label: 'Informes', path: '/portal/reports', icon: 'RP', module: 'reports' },
 ];
 
 export function ClientLayout() {
@@ -25,7 +38,7 @@ export function ClientLayout() {
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-header"><BrandMark decorative /><div><h2>Mi cuenta</h2><span>La Vitamina</span></div></div>
         <nav className="sidebar-nav">
-          {CLIENT_NAV.map((item) => {
+          {CLIENT_NAV.filter((item) => isModuleInPhaseScope(item.module)).map((item) => {
             const active = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(`${item.path}/`));
             return (
               <Link key={item.path} to={item.path} className={`nav-item ${active ? 'active' : ''}`} onClick={() => setOpen(false)}>

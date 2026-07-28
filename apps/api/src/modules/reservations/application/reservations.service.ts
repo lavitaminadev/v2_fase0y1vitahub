@@ -486,6 +486,9 @@ export class ReservationsService {
         await this.leadIntake.captureLead({
           organizationId: result.form.organizationId,
           clientId: result.form.clientId,
+          // Quien reserva una mesa es audiencia del local, no un prospecto para vender VITAHUB:
+          // el dominio evita que la captura entre al embudo comercial.
+          domain: 'audience',
           name: result.booking.guestName,
           email: result.booking.guestEmail ?? undefined,
           phone: result.booking.guestPhone ?? undefined,

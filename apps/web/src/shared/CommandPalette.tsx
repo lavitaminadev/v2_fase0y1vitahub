@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../core/api';
 import { useAuth } from '../core/auth';
-import { getNavigation } from '../core/navigation.registry';
+import { getNavigation, isPathEnabled } from '../core/navigation.registry';
 import { publicReservationUrl } from '../core/public-url';
 
 interface SearchItem { id: string; group: string; title: string; description: string; path?: string; action?: () => void }
@@ -27,7 +27,18 @@ export function CommandPalette() {
   const [taskMode, setTaskMode] = useState(false);
   const [taskForm, setTaskForm] = useState({ meetingId: '', description: '' });
   const navigation = useMemo(() => getNavigation(user?.role, user?.features, user?.permissions), [user?.role, user?.features, user?.permissions]);
-  const hasPath = useCallback((prefix: string) => navigation.some((item) => item.path.startsWith(prefix)), [navigation]);
+  /**
+   * Indica si una ruta concreta se puede abrir.
+   *
+   * Se valida la ruta exacta, no un prefijo: comparar por prefijo hace que `/crm` dé verdadero
+   * mientras exista cualquier ruta bajo `/crm` —por ejemplo la audiencia de campañas— y eso
+   * ofrecería el CRM comercial aunque esté fuera de alcance. Un resultado que termina en 404 es
+   * peor que no ofrecer el resultado.
+   */
+  const canOpen = useCallback(
+    (path: string) => isPathEnabled(path, user?.features, user?.permissions),
+    [user?.features, user?.permissions],
+  );
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -47,31 +58,37 @@ export function CommandPalette() {
     return () => window.clearTimeout(timer);
   }, [open, taskMode]);
 
-  const clientsQuery = useQuery<{ data: ClientResult[] }>({ queryKey: ['command-clients'], queryFn: () => api.get('/clients'), enabled: open && hasPath('/clients'), retry: false });
-  const leadsQuery = useQuery<{ data: LeadResult[] }>({ queryKey: ['command-leads'], queryFn: () => api.get('/crm/leads'), enabled: open && hasPath('/crm'), retry: false });
-  const documentsQuery = useQuery<{ data: DocumentResult[] }>({ queryKey: ['command-documents'], queryFn: () => api.get('/documents'), enabled: open && hasPath('/documents'), retry: false });
-  const formsQuery = useQuery<FormResult[]>({ queryKey: ['command-forms'], queryFn: () => api.get('/reservations/forms'), enabled: open && hasPath('/reservations'), retry: false });
-  const reservationsQuery = useQuery<{ items: ReservationResult[] }>({ queryKey: ['command-reservations'], queryFn: () => api.get('/reservations?page=1&pageSize=50'), enabled: open && hasPath('/reservations'), retry: false });
-  const usersQuery = useQuery<UserResult[]>({ queryKey: ['command-users'], queryFn: () => api.get('/users'), enabled: open && hasPath('/users'), retry: false });
-  const opportunitiesQuery = useQuery<{ data: OpportunityResult[] }>({ queryKey: ['command-opportunities'], queryFn: () => api.get('/crm/opportunities?limit=100'), enabled: open && hasPath('/crm'), retry: false });
-  const meetingsQuery = useQuery<MeetingResult[]>({ queryKey: ['command-meetings'], queryFn: () => api.get('/meetings'), enabled: open && taskMode && hasPath('/meetings'), retry: false });
+  const clientsQuery = useQuery<{ data: ClientResult[] }>({ queryKey: ['command-clients'], queryFn: () => api.get('/clients'), enabled: open && canOpen('/clients'), retry: false });
+  const leadsQuery = useQuery<{ data: LeadResult[] }>({ queryKey: ['command-leads'], queryFn: () => api.get('/crm/leads'), enabled: open && canOpen('/crm/leads'), retry: false });
+  const documentsQuery = useQuery<{ data: DocumentResult[] }>({ queryKey: ['command-documents'], queryFn: () => api.get('/documents'), enabled: open && canOpen('/documents'), retry: false });
+  const formsQuery = useQuery<FormResult[]>({ queryKey: ['command-forms'], queryFn: () => api.get('/reservations/forms'), enabled: open && canOpen('/reservations'), retry: false });
+  const reservationsQuery = useQuery<{ items: ReservationResult[] }>({ queryKey: ['command-reservations'], queryFn: () => api.get('/reservations?page=1&pageSize=50'), enabled: open && canOpen('/reservations'), retry: false });
+  const usersQuery = useQuery<UserResult[]>({ queryKey: ['command-users'], queryFn: () => api.get('/users'), enabled: open && canOpen('/users'), retry: false });
+  const opportunitiesQuery = useQuery<{ data: OpportunityResult[] }>({ queryKey: ['command-opportunities'], queryFn: () => api.get('/crm/opportunities?limit=100'), enabled: open && canOpen('/crm/opportunities'), retry: false });
+  const meetingsQuery = useQuery<MeetingResult[]>({ queryKey: ['command-meetings'], queryFn: () => api.get('/meetings'), enabled: open && taskMode && canOpen('/meetings'), retry: false });
   const taskMutation = useMutation({ mutationFn: () => api.post(`/meetings/${taskForm.meetingId}/action-items`, { description: taskForm.description.trim() }), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['meetings'] }); setTaskForm({ meetingId: '', description: '' }); setTaskMode(false); setOpen(false); } });
 
   const items = useMemo<SearchItem[]>(() => {
     const actions: SearchItem[] = navigation.map((item) => ({ id: `nav-${item.path}`, group: 'Navegación', title: item.label, description: `Abrir ${item.label}`, path: item.path }));
-    if (hasPath('/clients')) actions.unshift({ id: 'action-new-client', group: 'Acciones rápidas', title: 'Crear empresa o cliente', description: 'Abrir nueva ficha comercial', path: '/clients?create=1' });
-    if (hasPath('/users')) actions.unshift({ id: 'action-new-user', group: 'Acciones rápidas', title: 'Crear usuario', description: 'Asignar rol, empresa y acceso', path: '/users?create=1' });
-    if (hasPath('/documents')) actions.unshift({ id: 'action-new-document', group: 'Acciones rápidas', title: 'Crear documento', description: 'Registrar o subir archivo a Drive', path: '/documents?create=1' });
-    if (hasPath('/production')) actions.unshift({ id: 'action-new-piece', group: 'Acciones rápidas', title: 'Crear pieza de producción', description: 'Abrir encargo con fecha y dependencias', path: '/production?create=1' });
-    if (hasPath('/crm')) actions.unshift(
+    if (canOpen('/clients')) actions.unshift({ id: 'action-new-client', group: 'Acciones rápidas', title: 'Crear empresa o cliente', description: 'Abrir nueva ficha comercial', path: '/clients?create=1' });
+    if (canOpen('/users')) actions.unshift({ id: 'action-new-user', group: 'Acciones rápidas', title: 'Crear usuario', description: 'Asignar rol, empresa y acceso', path: '/users?create=1' });
+    if (canOpen('/documents')) actions.unshift({ id: 'action-new-document', group: 'Acciones rápidas', title: 'Crear documento', description: 'Registrar o subir archivo a Drive', path: '/documents?create=1' });
+    if (canOpen('/production')) actions.unshift({ id: 'action-new-piece', group: 'Acciones rápidas', title: 'Crear pieza de producción', description: 'Abrir encargo con fecha y dependencias', path: '/production?create=1' });
+    if (canOpen('/crm/opportunities')) actions.unshift(
       { id: 'nav-opportunities', group: 'CRM Comercial', title: 'Oportunidades y forecast', description: 'Abrir tablero comercial', path: '/crm/opportunities' },
-      { id: 'nav-contacts', group: 'CRM Comercial', title: 'Contactos', description: 'Abrir personas y canales', path: '/crm/contacts' },
-      { id: 'nav-activity', group: 'CRM Comercial', title: 'Centro de actividad', description: 'Abrir seguimientos y bandeja diaria', path: '/crm/interactions' },
       { id: 'action-new-opportunity', group: 'Acciones rápidas', title: 'Crear oportunidad', description: 'Registrar monto, cierre y próxima acción', path: '/crm/opportunities?create=1' },
+    );
+    if (canOpen('/crm/contacts')) actions.unshift(
+      { id: 'nav-contacts', group: 'CRM', title: 'Contactos de campañas', description: 'Abrir personas y canales', path: '/crm/contacts' },
+    );
+    if (canOpen('/crm/interactions')) actions.unshift(
+      { id: 'nav-activity', group: 'CRM Comercial', title: 'Centro de actividad', description: 'Abrir seguimientos y bandeja diaria', path: '/crm/interactions' },
+    );
+    if (canOpen('/crm/leads')) actions.unshift(
       { id: 'action-new-lead', group: 'Acciones rápidas', title: 'Crear lead', description: 'Abrir registro comercial', path: '/crm/leads?create=1' },
     );
-    if (hasPath('/reservations')) actions.unshift({ id: 'action-new-form', group: 'Acciones rápidas', title: 'Crear formulario o encuesta', description: 'Abrir el constructor guiado', path: '/reservations?create=1' });
-    if (hasPath('/meetings')) actions.unshift({ id: 'action-new-task', group: 'Acciones rápidas', title: 'Crear tarea de reunión', description: 'Registrar una acción sin abandonar la pantalla', action: () => setTaskMode(true) });
+    if (canOpen('/reservations')) actions.unshift({ id: 'action-new-form', group: 'Acciones rápidas', title: 'Crear formulario o encuesta', description: 'Abrir el constructor guiado', path: '/reservations?create=1' });
+    if (canOpen('/meetings')) actions.unshift({ id: 'action-new-task', group: 'Acciones rápidas', title: 'Crear tarea de reunión', description: 'Registrar una acción sin abandonar la pantalla', action: () => setTaskMode(true) });
     const records: SearchItem[] = [
       ...(clientsQuery.data?.data || []).map((client) => ({ id: `client-${client.id}`, group: 'Clientes', title: client.name, description: `${client.industry || 'Sin industria'} · ${client.status}`, path: `/clients/${client.id}` })),
       ...(leadsQuery.data?.data || []).map((lead) => ({ id: `lead-${lead.id}`, group: 'Leads', title: lead.name, description: `${lead.company || lead.email || 'Sin empresa'} · ${lead.status}`, path: `/crm/leads?focus=${lead.id}` })),
@@ -83,7 +100,7 @@ export function CommandPalette() {
     ];
     const needle = query.trim().toLocaleLowerCase('es');
     return [...actions, ...records].filter((item) => !needle || `${item.title} ${item.description} ${item.group}`.toLocaleLowerCase('es').includes(needle)).slice(0, 40);
-  }, [clientsQuery.data, documentsQuery.data, formsQuery.data, hasPath, leadsQuery.data, navigation, opportunitiesQuery.data, query, reservationsQuery.data, usersQuery.data]);
+  }, [clientsQuery.data, documentsQuery.data, formsQuery.data, canOpen, leadsQuery.data, navigation, opportunitiesQuery.data, query, reservationsQuery.data, usersQuery.data]);
 
   const execute = (item: SearchItem | undefined) => {
     if (!item) return;

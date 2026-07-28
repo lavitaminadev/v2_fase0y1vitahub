@@ -5,6 +5,7 @@
 
 import type { UserRole } from '@vitahub/shared';
 import type { FeatureManifest } from './feature.manifest';
+import { isModuleInPhaseScope } from './phase-scope';
 
 /** Features registradas, ordenadas por orden de inserción. */
 let features: FeatureManifest[] = [];
@@ -212,6 +213,9 @@ export function isPathEnabled(
   permissions?: Record<string, string>,
 ): boolean {
   const required = getFeatureForPath(path);
+  // El alcance de fase se evalúa antes que permisos y capacidades: un módulo que el producto
+  // todavía no ofrece no debe aparecer para nadie, por más permisos que tenga el usuario.
+  if (!isModuleInPhaseScope(required)) return false;
   if (!required) return true;
   if (permissions) return permissions[required] !== undefined && permissions[required] !== 'none';
   if (features) return features[required] !== false;

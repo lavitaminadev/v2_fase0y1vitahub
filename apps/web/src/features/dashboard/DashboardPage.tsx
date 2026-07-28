@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { VitaminaPulse } from '../pulse/VitaminaPulse';
 import { statusLabel } from '../../shared/status-labels';
 import { useAuth } from '../../core/auth';
+import { isModuleInPhaseScope } from '../../core/phase-scope';
 import { QueryErrorState } from '../../shared/QueryErrorState';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { ReservationResults } from './ReservationResults';
@@ -96,9 +97,15 @@ export function DashboardPage() {
     if (user?.features) return user.features[module] !== false;
     return true;
   };
-  /** Un widget sin módulo asociado siempre está disponible. */
+  /**
+   * Un widget sin módulo asociado siempre está disponible.
+   *
+   * El alcance de fase se evalúa primero: un widget de un módulo que el producto todavía no
+   * ofrece no se muestra ni se ofrece en el configurador, para ningún rol.
+   */
   const widgetAllowed = (widget: DashboardWidget): boolean => {
     const required = WIDGET_MODULE[widget];
+    if (!isModuleInPhaseScope(required)) return false;
     return !required || moduleAllowed(required);
   };
   const availableWidgets = (Object.keys(WIDGET_LABELS) as DashboardWidget[])

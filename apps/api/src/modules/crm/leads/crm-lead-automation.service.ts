@@ -18,7 +18,17 @@ export class CrmLeadAutomationService {
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) {}
 
+  /** Orígenes cuyo lead describe a un comensal, no a una organización que pueda comprar VITAHUB. */
+  private static readonly AUDIENCE_SOURCES = new Set(['vitahub_reservations']);
+
   async runForLead(lead: Lead, manager?: EntityManager): Promise<void> {
+    // Una captura de audiencia que llegue por esta vía se atiende como tal aunque el llamador no
+    // haya declarado el dominio: el origen basta para saber que no es una venta.
+    if (this.isAudienceLead(lead)) {
+      await this.ensureAudienceContact(lead, manager);
+      return;
+    }
+
     await this.ensureIntakeInteraction(lead, manager);
 
     if (lead.fitStatus === LeadFitStatus.DISCARDED) {
@@ -38,6 +48,23 @@ export class CrmLeadAutomationService {
     await this.ensureQualifiedInteraction(lead, ownerId ?? lead.assignedTo, manager);
   }
 
+  /**
+   * Asegura el contacto de una persona que reservó.
+   *
+   * Se separa de `runForLead` porque la audiencia no atraviesa el embudo comercial: no genera
+   * interacciones de prospección, no se asigna a un ejecutivo y no abre oportunidad. Además, el
+   * contacto se crea siempre —no solo si el lead califica—, porque todo el que reserva forma
+   * parte de la audiencia del local por definición.
+   */
+  async ensureAudienceContact(lead: Lead, manager?: EntityManager): Promise<void> {
+    await this.ensureContact(lead, manager);
+  }
+
+  /** Indica si el lead describe a un comensal, según el origen con que fue capturado. */
+  private isAudienceLead(lead: Lead): boolean {
+    return Boolean(lead.source && CrmLeadAutomationService.AUDIENCE_SOURCES.has(lead.source));
+  }
+
   private async ensureContact(lead: Lead, manager?: EntityManager): Promise<void> {
     const repo = manager?.getRepository(Contact) ?? this.contactsRepo;
     const existing = await repo.findOne({ where: { organizationId: lead.organizationId, leadId: lead.id } });
@@ -47,6 +74,9 @@ export class CrmLeadAutomationService {
       repo.create({
         organizationId: lead.organizationId,
         leadId: lead.id,
+        // El contacto hereda el cliente del lead: así la audiencia de cada local queda separada
+        // de la de los demás. Los leads comerciales no tienen cliente y el contacto queda global.
+        clientId: lead.clientId ?? undefined,
         name: lead.name,
         email: lead.email ?? undefined,
         phone: lead.phone ?? undefined,
@@ -56,6 +86,11 @@ export class CrmLeadAutomationService {
   }
 
   private async ensureOpportunity(lead: Lead, ownerId?: string, manager?: EntityManager): Promise<void> {
+    // Segunda barrera, deliberadamente redundante con `runForLead`: una oportunidad representa una
+    // venta de VITAHUB a una empresa. Abrir una desde una reserva mete comensales en el forecast
+    // comercial y se los asigna a un ejecutivo, así que el origen se verifica también acá.
+    if (this.isAudienceLead(lead)) return;
+
     const repo = manager?.getRepository(Opportunity) ?? this.opportunitiesRepo;
     const existing = await repo.findOne({ where: { organizationId: lead.organizationId, leadId: lead.id } });
     if (existing) return;

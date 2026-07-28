@@ -5,7 +5,8 @@ import { useAuth } from '../../core/auth';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { StatusBadge } from '../../shared/StatusBadge';
 import { statusLabel } from '../../shared/status-labels';
-import { getAllowedRolesForPath } from '../../core/navigation.registry';
+import { getAllowedRolesForPath, isPathEnabled } from '../../core/navigation.registry';
+import { isModuleInPhaseScope } from '../../core/phase-scope';
 import { safeUrl } from '../../core/safe-url';
 import { PageHero } from '../../shared/PageHero';
 
@@ -98,10 +99,19 @@ export function ClientDetailPage() {
   const udPercent = ud.contracted > 0 ? Math.min(100, Math.round((usedUd / ud.contracted) * 100)) : 0;
   const canPrepareDrive = ['admin', 'operations_director'].includes(user?.role ?? '');
   const canManageClient = ['admin', 'commercial_director', 'operations_director'].includes(user?.role ?? '');
+  // Un acceso hacia un módulo que el usuario no puede abrir termina en 404. Se filtra por lo
+  // mismo que decide el menú —alcance de fase, módulo habilitado y permiso— para que la tarjeta
+  // no exista si el destino no existe.
   const visibleQuickLinks = quickLinks.filter((item) => {
     const roles = getAllowedRolesForPath(item.to);
-    return !roles?.length || Boolean(user && roles.includes(user.role));
+    const allowedByRole = !roles?.length || Boolean(user && roles.includes(user.role));
+    return allowedByRole && isPathEnabled(item.to, user?.features, user?.permissions);
   });
+  /** Módulos de agencia que alimentan los paneles de esta ficha. */
+  const showProduction = isModuleInPhaseScope('production');
+  const showMeetings = isModuleInPhaseScope('meetings');
+  const showDocuments = isModuleInPhaseScope('documents');
+  const showUdBudget = isModuleInPhaseScope('udBudget');
   const driveUrl = safeUrl(driveMutation.data?.rootUrl || (client.driveFolderId ? `https://drive.google.com/drive/folders/${client.driveFolderId}` : ''));
   const readiness = [
     { label: 'Responsable operativo', ready: Boolean(client.communityManagerId), value: manager || (client.communityManagerId ? 'Asignado' : 'Pendiente') },
@@ -133,9 +143,9 @@ export function ClientDetailPage() {
       />
 
       <section className="client-kpi-grid" aria-label="Resumen operativo">
-        <article><span>Piezas activas</span><strong>{stats.pendingPieces}</strong><Link to="/production">Ver producción</Link></article>
-        <article><span>Próximas reuniones</span><strong>{stats.upcomingMeetings}</strong><Link to="/meetings">Ver agenda</Link></article>
-        <article><span>Documentos</span><strong>{stats.documents}</strong><Link to="/documents">Abrir repositorio</Link></article>
+        {showProduction && <article><span>Piezas activas</span><strong>{stats.pendingPieces}</strong><Link to="/production">Ver producción</Link></article>}
+        {showMeetings && <article><span>Próximas reuniones</span><strong>{stats.upcomingMeetings}</strong><Link to="/meetings">Ver agenda</Link></article>}
+        {showDocuments && <article><span>Documentos</span><strong>{stats.documents}</strong><Link to="/documents">Abrir repositorio</Link></article>}
         <article><span>Formularios publicados</span><strong>{stats.publishedForms}/{stats.reservationForms}</strong><Link to="/reservations">Gestionar reservas</Link></article>
       </section>
 
@@ -150,12 +160,12 @@ export function ClientDetailPage() {
           {driveMutation.data && <div className="alert alert-success">Drive creado con {Object.keys(driveMutation.data.folders).length} carpetas operativas.</div>}
         </section>
 
-        <section className="client-panel client-ud-panel">
+        {showUdBudget && <section className="client-panel client-ud-panel">
           <header><div><span className="page-eyebrow">CAPACIDAD DEL MES</span><h2>Presupuesto UD</h2></div><strong>{udPercent}%</strong></header>
           <div className="client-ud-ring" style={{ '--ud-progress': `${udPercent * 3.6}deg` } as React.CSSProperties}><div><strong>{availableUd}</strong><small>UD disponibles</small></div></div>
           <div className="client-ud-legend"><span><i className="contracted" />Contratadas <b>{ud.contracted || client.defaultUdBudget || 0}</b></span><span><i className="reserved" />Reservadas <b>{ud.reserved}</b></span><span><i className="consumed" />Consumidas <b>{ud.consumed}</b></span></div>
           {!ud.contracted && <p className="client-panel-note">Aún no existe un presupuesto mensual abierto. El contrato base indica {client.defaultUdBudget || 0} UD.</p>}
-        </section>
+        </section>}
       </div>
 
       <section className="client-quick-section">
@@ -163,17 +173,17 @@ export function ClientDetailPage() {
         <div className="client-quick-grid">{visibleQuickLinks.map((item, index) => <Link to={`${item.to}?clientId=${client.id}`} key={item.to}><b>{String(index + 1).padStart(2, '0')}</b><span><strong>{item.label}</strong><small>{item.note}</small></span><i>→</i></Link>)}</div>
       </section>
 
-      <div className="client-activity-grid">
-        <section className="client-panel">
+      {(showProduction || showMeetings) && <div className="client-activity-grid">
+        {showProduction && <section className="client-panel">
           <header><div><span className="page-eyebrow">PRODUCCIÓN</span><h2>Últimas piezas</h2></div><Link to="/production">Ver todas</Link></header>
           {recentPieces.length ? <div className="client-activity-list">{recentPieces.map((piece) => <article key={piece.id}><span><strong>{piece.title}</strong><small>{piece.deadlineAt ? `Entrega ${formatDate(piece.deadlineAt)}` : 'Sin fecha de entrega'} · {piece.udAmount ?? 0} UD</small></span><StatusBadge status={piece.status} /></article>)}</div> : <div className="client-empty"><strong>Sin producción registrada</strong><span>Las nuevas piezas aparecerán aquí.</span></div>}
           {pieceStatuses.length > 0 && <div className="client-status-flow">{pieceStatuses.map((item) => <span key={item.status}><b>{item.total}</b>{statusLabel(item.status)}</span>)}</div>}
-        </section>
-        <section className="client-panel">
+        </section>}
+        {showMeetings && <section className="client-panel">
           <header><div><span className="page-eyebrow">RELACIÓN</span><h2>Reuniones recientes</h2></div><Link to="/meetings">Ver agenda</Link></header>
           {recentMeetings.length ? <div className="client-activity-list">{recentMeetings.map((meeting) => <article key={meeting.id}><span><strong>{meeting.title}</strong><small>{formatDate(meeting.scheduledAt)} · {statusLabel(meeting.type)}</small></span><StatusBadge status={meeting.status} /></article>)}</div> : <div className="client-empty"><strong>Sin reuniones registradas</strong><span>Agenda una reunión para iniciar la trazabilidad.</span></div>}
-        </section>
-      </div>
+        </section>}
+      </div>}
     </div>
   );
 }

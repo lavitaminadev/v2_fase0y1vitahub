@@ -30,9 +30,15 @@ export class ContactsService {
     return this.repo.save(contact);
   }
 
-  async findAll(organizationId: string, limit = 50, offset = 0): Promise<{ data: Contact[]; total: number; limit: number; offset: number }> {
+  /**
+   * Lista los contactos de la organización.
+   *
+   * @param clientId - Acota el listado a la audiencia de un cliente. Sin él se devuelven todos
+   * los de la organización, que es lo que necesita el equipo interno.
+   */
+  async findAll(organizationId: string, limit = 50, offset = 0, clientId?: string): Promise<{ data: Contact[]; total: number; limit: number; offset: number }> {
     const [data, total] = await this.repo.findAndCount({
-      where: { organizationId },
+      where: clientId ? { organizationId, clientId } : { organizationId },
       order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,

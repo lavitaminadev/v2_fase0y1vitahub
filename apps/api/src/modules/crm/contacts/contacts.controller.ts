@@ -21,8 +21,8 @@ export class ContactsController {
   }
 
   @Get()
-  findAll(@Query() query: PaginationDto, @Req() req: AuthenticatedRequest) {
-    return this.service.findAll(req.organizationId, query.limit, query.offset);
+  findAll(@Query() query: PaginationDto, @Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
+    return this.service.findAll(req.organizationId, query.limit, query.offset, clientId);
   }
 
   @Get(':id')

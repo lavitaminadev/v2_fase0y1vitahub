@@ -10,6 +10,7 @@ const repo = {
 
 const automation = {
   runForLead: vi.fn(),
+  ensureAudienceContact: vi.fn(),
 };
 
 describe('LeadIntakeService', () => {
@@ -21,6 +22,7 @@ describe('LeadIntakeService', () => {
     repo.create.mockImplementation((data) => data);
     repo.save.mockImplementation(async (data) => ({ id: data.id ?? 'lead-1', ...data }));
     automation.runForLead.mockResolvedValue(undefined);
+    automation.ensureAudienceContact.mockResolvedValue(undefined);
   });
 
   it('qualifies a strong lead with contact data and campaign context', async () => {
@@ -75,5 +77,74 @@ describe('LeadIntakeService', () => {
 
     expect(lead.id).toBe('lead-existing');
     expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'lead-existing' }));
+  });
+
+  describe('capturas de audiencia', () => {
+    // Una reserva describe a un comensal. El scoring comercial premia el correo corporativo y las
+    // palabras del rubro —que el nombre del formulario contiene siempre—, de modo que sin separar
+    // el dominio un comensal alcanza el umbral de calificación y abre una oportunidad de venta.
+    const diner = {
+      organizationId: 'org-1',
+      clientId: 'client-1',
+      name: 'María Fernández',
+      email: 'maria@empresapropia.cl',
+      phone: '+56912345678',
+      source: 'vitahub_reservations',
+      sourceDetail: 'Reservas Restaurante Del Puerto',
+      campaignName: 'Campaña Reservas Restaurante',
+      status: 'reserved',
+    } as const;
+
+    it('no ejecuta la automatización comercial para una reserva', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await service.captureLead({ ...diner, domain: 'audience' });
+
+      expect(automation.runForLead).not.toHaveBeenCalled();
+      expect(automation.ensureAudienceContact).toHaveBeenCalledTimes(1);
+    });
+
+    it('no aplica el scoring comercial a un comensal', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      const lead = await service.captureLead({ ...diner, domain: 'audience' });
+
+      expect(lead.fitStatus).toBe(LeadFitStatus.REVIEW);
+      expect(lead.qualityScore).toBe(0);
+      expect(lead.discardReason).toBeUndefined();
+    });
+
+    it('mantiene el estado de reserva en lugar de sobreescribirlo', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      const lead = await service.captureLead({ ...diner, domain: 'audience' });
+
+      expect(lead.status).toBe('reserved');
+    });
+
+    it('no persiste el dominio como columna del lead', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      const lead = await service.captureLead({ ...diner, domain: 'audience' });
+
+      expect(lead).not.toHaveProperty('domain');
+    });
+
+    it('conserva la automatización comercial cuando no se declara dominio', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await service.captureLead({
+        organizationId: 'org-1',
+        name: 'Restaurante Nuevo',
+        email: 'gerencia@restaurantenuevo.cl',
+        phone: '+56911111111',
+        company: 'Restaurante Nuevo',
+        source: 'meta_lead_ads',
+        notes: 'Pide cotización de campaña',
+      });
+
+      expect(automation.runForLead).toHaveBeenCalledTimes(1);
+      expect(automation.ensureAudienceContact).not.toHaveBeenCalled();
+    });
   });
 });
