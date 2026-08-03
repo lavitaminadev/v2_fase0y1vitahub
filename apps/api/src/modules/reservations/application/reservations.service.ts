@@ -168,8 +168,14 @@ export class ReservationsService {
     const rows = await q('SELECT capabilities FROM clients WHERE id = ? AND organization_id = ? LIMIT 1', [clientId, organizationId]);
     if (!Array.isArray(rows) || rows.length === 0) throw new ForbiddenException('El cliente no pertenece a esta organización');
     const raw = rows[0]?.capabilities;
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return normalizeClientCapabilities(parsed);
+    let parsed: unknown;
+    try {
+      parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (err) {
+      this.logger.warn(`Client capabilities invalid JSON for ${clientId}: ${err instanceof Error ? err.message : err}`);
+      parsed = undefined;
+    }
+    return normalizeClientCapabilities(parsed as Parameters<typeof normalizeClientCapabilities>[0]);
   }
 
   private async uniqueSlug(baseValue: string) {
@@ -347,10 +353,20 @@ export class ReservationsService {
   }
 
   async slots(slug: string, from: string, days = 14, serviceId?: string, resourceId?: string) {
-    const form = await this.publishedForm(slug); if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new BadRequestException('Fecha inválida'); const rules = this.effectiveRules(form, serviceId, resourceId); const count = Math.min(Math.max(days, 1), 31);
-    const rangeStart = localToUtc(from, '00:00', form.timezone); const rangeEnd = localToUtc(addPlainDays(from, count), '00:00', form.timezone);
-    const existingQb = this.reservations.createQueryBuilder('r').where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { formId: form.id, start: rangeStart, end: rangeEnd, statuses: ACTIVE_STATUSES }); if (resourceId) existingQb.andWhere('r.resource_id = :resourceId', { resourceId });
-    const [existing, blocks] = await Promise.all([existingQb.getMany(), this.blocks.createQueryBuilder('b').where('b.form_id = :formId AND b.starts_at < :end AND b.ends_at > :start', { formId: form.id, start: rangeStart, end: rangeEnd }).getMany()]);
+    const form = await this.publishedForm(slug);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new BadRequestException('Fecha inválida');
+    const rules = this.effectiveRules(form, serviceId, resourceId);
+    const count = Math.min(Math.max(days, 1), 31);
+    const rangeStart = localToUtc(from, '00:00', form.timezone);
+    const rangeEnd = localToUtc(addPlainDays(from, count), '00:00', form.timezone);
+    const existingQb = this.reservations.createQueryBuilder('r')
+      .select(['r.id', 'r.startsAt', 'r.endsAt', 'r.partySize'])
+      .where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { formId: form.id, start: rangeStart, end: rangeEnd, statuses: ACTIVE_STATUSES });
+    if (resourceId) existingQb.andWhere('r.resource_id = :resourceId', { resourceId });
+    const blocksQb = this.blocks.createQueryBuilder('b')
+      .select(['b.id', 'b.startsAt', 'b.endsAt'])
+      .where('b.form_id = :formId AND b.starts_at < :end AND b.ends_at > :start', { formId: form.id, start: rangeStart, end: rangeEnd });
+    const [existing, blocks] = await Promise.all([existingQb.getMany(), blocksQb.getMany()]);
     // El tope efectivo del dia es el mas estricto entre el del formulario y el del cliente.
     // El del cliente cuenta las reservas de todos sus formularios, no solo las de este.
     const clientCap = await this.clientDailyCap(this.dataSource, form.clientId);
@@ -365,17 +381,65 @@ export class ReservationsService {
       }
     }
     const dailyCounts = new Map<string, number>();
+    const reservationsByDate = new Map<string, Reservation[]>();
+    const blocksByDate = new Map<string, AvailabilityBlock[]>();
     if (form.dailyCapacity > 0) {
       for (const item of existing) {
         const key = this.localDateKey(item.startsAt, form.timezone);
         dailyCounts.set(key, (dailyCounts.get(key) ?? 0) + 1);
       }
     }
+    for (const item of existing) {
+      const key = this.localDateKey(item.startsAt, form.timezone);
+      const list = reservationsByDate.get(key) || [];
+      list.push(item);
+      reservationsByDate.set(key, list);
+    }
+    for (const block of blocks) {
+      const startKey = this.localDateKey(block.startsAt, form.timezone);
+      const endKey = this.localDateKey(block.endsAt, form.timezone);
+      const keys = startKey === endKey ? [startKey] : [startKey, endKey];
+      for (const key of keys) {
+        const list = blocksByDate.get(key) || [];
+        list.push(block);
+        blocksByDate.set(key, list);
+      }
+    }
     const result: Array<{ startsAt: string; available: number }> = [];
+    const windowsByWeekday = new Map<number, ScheduleWindow[]>();
+    for (const window of rules.windows) {
+      const list = windowsByWeekday.get(window.day) || [];
+      list.push(window);
+      windowsByWeekday.set(window.day, list);
+    }
+    const minStart = Date.now() + form.minimumNoticeHours * 3600000;
+    const maxStart = Date.now() + form.maximumAdvanceDays * 86400000;
     // Un dia sin horarios puede estarlo por dos motivos que el comensal distingue: el local
     // no abre (o esta bloqueado) o ya alcanzo su tope diario. Solo el segundo es "completo".
     const fullDays: string[] = [];
-    for (let offset = 0; offset < count; offset += 1) { const date = addPlainDays(from, offset); const { weekday } = plainDateParts(date); const formFull = form.dailyCapacity > 0 && (dailyCounts.get(date) ?? 0) >= form.dailyCapacity; const clientFull = clientCap > 0 && (clientCounts.get(date) ?? 0) >= clientCap; if (formFull || clientFull) { if (rules.windows.some((item) => item.day === weekday)) fullDays.push(date); continue; } for (const window of rules.windows.filter((item) => item.day === weekday)) { for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) { const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone); const endsAt = new Date(startsAt.getTime() + rules.duration * 60000); if (startsAt.getTime() < Date.now() + form.minimumNoticeHours * 3600000 || startsAt.getTime() > Date.now() + form.maximumAdvanceDays * 86400000) continue; if (blocks.some((block) => this.overlaps(startsAt, endsAt, block.startsAt, block.endsAt))) continue; const used = existing.filter((item) => this.overlaps(startsAt, endsAt, item.startsAt, item.endsAt)).reduce((sum, item) => sum + item.partySize, 0); if (used < rules.capacity) result.push({ startsAt: startsAt.toISOString(), available: rules.capacity - used }); } } }
+    for (let offset = 0; offset < count; offset += 1) {
+      const date = addPlainDays(from, offset);
+      const { weekday } = plainDateParts(date);
+      const dayWindows = windowsByWeekday.get(weekday) || [];
+      const formFull = form.dailyCapacity > 0 && (dailyCounts.get(date) ?? 0) >= form.dailyCapacity;
+      const clientFull = clientCap > 0 && (clientCounts.get(date) ?? 0) >= clientCap;
+      if (formFull || clientFull) {
+        if (dayWindows.length > 0) fullDays.push(date);
+        continue;
+      }
+      const dayReservations = reservationsByDate.get(date) || [];
+      const dayBlocks = blocksByDate.get(date) || [];
+      for (const window of dayWindows) {
+        for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) {
+          const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone);
+          const endsAt = new Date(startsAt.getTime() + rules.duration * 60000);
+          if (startsAt.getTime() < minStart || startsAt.getTime() > maxStart) continue;
+          if (dayBlocks.some((block) => this.overlaps(startsAt, endsAt, block.startsAt, block.endsAt))) continue;
+          const used = dayReservations.reduce((sum, item) => this.overlaps(startsAt, endsAt, item.startsAt, item.endsAt) ? sum + item.partySize : sum, 0);
+          if (used < rules.capacity) result.push({ startsAt: startsAt.toISOString(), available: rules.capacity - used });
+        }
+      }
+    }
     return { slots: result, fullDays };
   }
 
