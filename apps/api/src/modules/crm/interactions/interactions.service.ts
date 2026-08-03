@@ -36,16 +36,26 @@ export class InteractionsService {
     limit = 50,
     offset = 0,
     leadId?: string,
+    clientId?: string,
   ): Promise<{ data: Interaction[]; total: number; limit: number; offset: number }> {
+    if (clientId === '__none__') return { data: [], total: 0, limit, offset };
     const where: Record<string, unknown> = { organizationId };
     if (leadId) where.leadId = leadId;
+    const query = this.repo.createQueryBuilder('interaction')
+      .where('interaction.organization_id = :organizationId', { organizationId })
+      .orderBy('interaction.date', 'DESC')
+      .take(limit)
+      .skip(offset);
+    if (leadId) query.andWhere('interaction.lead_id = :leadId', { leadId });
+    if (clientId) {
+      query
+        .leftJoin(Lead, 'lead', 'lead.id = interaction.lead_id AND lead.organization_id = interaction.organization_id')
+        .leftJoin(Contact, 'contact', 'contact.id = interaction.contact_id AND contact.organization_id = interaction.organization_id')
+        .leftJoin(Lead, 'contact_lead', 'contact_lead.id = contact.lead_id AND contact_lead.organization_id = interaction.organization_id')
+        .andWhere('(lead.client_id = :clientId OR contact_lead.client_id = :clientId)', { clientId });
+    }
 
-    const [data, total] = await this.repo.findAndCount({
-      where,
-      order: { date: 'DESC' },
-      take: limit,
-      skip: offset,
-    });
+    const [data, total] = await query.getManyAndCount();
     return { data, total, limit, offset };
   }
 

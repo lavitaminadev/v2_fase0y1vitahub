@@ -12,11 +12,22 @@ let features: FeatureManifest[] = [];
 /** Orden preferido del sidebar para features habilitadas. Las no listadas se agregan alfabéticamente. */
 const NAVIGATION_ORDER: string[] = [
   '/dashboard',
+  '/reservations',
+  '/reservations/calendar',
+  '/reservations/availability',
+  '/crm/contacts',
   '/clients',
   '/users',
-  '/reservations',
-  '/crm/contacts',
+  '/integrations/meta/events',
   '/crm/leads',
+  '/crm/opportunities',
+  '/crm/interactions',
+  '/integrations',
+  '/system/health',
+  '/settings',
+];
+
+const FUTURE_PHASE_PATHS = new Set([
   '/production',
   '/audiovisual',
   '/content',
@@ -30,13 +41,15 @@ const NAVIGATION_ORDER: string[] = [
   '/gamification',
   '/catalog',
   '/knowledge',
-  '/integrations',
   '/onboarding',
   '/direction',
   '/operations',
   '/governance',
-  '/settings',
-];
+]);
+
+function futureModulesEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_FUTURE_MODULES === 'true';
+}
 
 /**
  * Registra un manifiesto de feature.
@@ -106,7 +119,10 @@ const PATH_FEATURE: Record<string, string> = {
   '/users': 'users',
   '/settings': 'settings',
   '/integrations': 'integrations',
+  '/integrations/meta/events': 'integrations',
   '/reservations': 'reservations',
+  '/reservations/calendar': 'reservations',
+  '/reservations/availability': 'reservations',
   '/crm/contacts': 'crm',
   '/crm/leads': 'commercialPipeline',
   '/crm/opportunities': 'commercialPipeline',
@@ -128,6 +144,7 @@ const PATH_FEATURE: Record<string, string> = {
   '/direction': 'direction',
   '/operations': 'operations',
   '/governance': 'governance',
+  '/system/health': 'settings',
 };
 
 /** Módulo requerido por una ruta, o `undefined` si la ruta no depende de ninguno. */
@@ -154,6 +171,7 @@ export function isPathEnabled(
   features?: Record<string, boolean>,
   permissions?: Record<string, string>,
 ): boolean {
+  if (FUTURE_PHASE_PATHS.has(path) && !futureModulesEnabled()) return false;
   const required = getFeatureForPath(path);
   if (!required) return true;
   if (permissions) return permissions[required] !== undefined && permissions[required] !== 'none';

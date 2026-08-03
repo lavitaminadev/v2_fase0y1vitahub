@@ -47,6 +47,10 @@ interface ManagerOption { id: string; name: string; role: string }
 interface DriveResult { rootId: string; rootUrl: string; folders: Record<string, string> }
 
 const quickLinks = [
+  { to: '/reservations/calendar', label: 'Calendario', note: 'Ocupacion y reservas por fecha' },
+  { to: '/reservations/availability', label: 'Disponibilidad', note: 'Horarios, cupos y agendas' },
+  { to: '/crm/contacts', label: 'Comensales', note: 'Contactos operativos del restaurante' },
+  { to: '/integrations/meta/events', label: 'Eventos CAPI', note: 'Conversiones Meta por reserva' },
   { to: '/contracts', label: 'Contratos', note: 'Vigencias y capacidad acordada' },
   { to: '/briefs', label: 'Briefs', note: 'Requerimientos y aprobaciones' },
   { to: '/onboarding', label: 'Onboarding', note: 'Alta y entregables iniciales' },

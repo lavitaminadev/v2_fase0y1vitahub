@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { ConversionEvent, MetaConversionsService } from './meta-conversions.service';
 import { MetaConversionOutbox } from './meta-conversion-outbox.entity';
 import { MetaClientPixelService } from './meta-client-pixel.service';
+import { ListMetaEventsDto } from './dto/list-meta-events.dto';
 
 /** Tiempo tras el cual un evento tomado se considera abandonado y vuelve a la cola. */
 const CLAIM_TIMEOUT_MS = 10 * 60_000;
@@ -15,6 +16,30 @@ interface ApiError {
   };
   message?: string;
 }
+
+type SanitizedMetaEvent = {
+  id: string;
+  organizationId: string;
+  eventId: string;
+  pixelId: string;
+  eventName: string | null;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  nextAttemptAt: Date | null;
+  processedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  safeEventData: {
+    eventName: string | null;
+    eventTime: number | null;
+    eventSourceUrl: string | null;
+    actionSource: string | null;
+    eventId: string | null;
+    customData: Record<string, unknown>;
+    matchKeys: string[];
+  };
+};
 
 @Injectable()
 export class MetaConversionOutboxService {
@@ -65,6 +90,77 @@ export class MetaConversionOutboxService {
       order: { updatedAt: 'DESC' },
       take: Math.min(Math.max(limit, 1), 100),
     });
+  }
+
+  async listEvents(organizationId: string, query: ListMetaEventsDto): Promise<{ items: SanitizedMetaEvent[]; total: number; limit: number; offset: number }> {
+    const limit = Math.min(Math.max(query.limit ?? 25, 1), 100);
+    const offset = Math.max(query.offset ?? 0, 0);
+    const qb = this.outbox.createQueryBuilder('event')
+      .where('event.organization_id = :organizationId', { organizationId });
+
+    if (query.status) qb.andWhere('event.status = :status', { status: query.status });
+    if (query.eventId) qb.andWhere('event.event_id LIKE :eventId', { eventId: `%${query.eventId}%` });
+    if (query.eventName) {
+      qb.andWhere("LOWER(JSON_UNQUOTE(JSON_EXTRACT(event.event_data, '$.eventName'))) LIKE :eventName", {
+        eventName: `%${query.eventName.trim().toLowerCase()}%`,
+      });
+    }
+
+    const [rows, total] = await qb
+      .orderBy('event.created_at', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .getManyAndCount();
+
+    const items = rows.map((item) => this.sanitizeEvent(item));
+
+    return { items, total, limit, offset };
+  }
+
+  async getEvent(organizationId: string, id: string): Promise<SanitizedMetaEvent> {
+    const item = await this.outbox.findOne({ where: { id, organizationId } });
+    if (!item) throw new NotFoundException('Evento CAPI no encontrado');
+    return this.sanitizeEvent(item);
+  }
+
+  async retryEvent(organizationId: string, id: string): Promise<SanitizedMetaEvent> {
+    const item = await this.outbox.findOne({ where: { id, organizationId } });
+    if (!item) throw new NotFoundException('Evento CAPI no encontrado');
+    if (item.status === 'processed') throw new BadRequestException('Un evento ya procesado no se reintenta');
+    item.status = 'retry';
+    item.nextAttemptAt = undefined;
+    item.processedAt = undefined;
+    const saved = await this.outbox.save(item);
+    return this.sanitizeEvent(saved);
+  }
+
+  private sanitizeEvent(item: MetaConversionOutbox): SanitizedMetaEvent {
+    const data = (item.eventData ?? {}) as ConversionEvent;
+    const userData = (data.userData ?? {}) as Record<string, unknown>;
+    const customData = (data.customData ?? {}) as Record<string, unknown>;
+    return {
+      id: item.id,
+      organizationId: item.organizationId,
+      eventId: item.eventId,
+      pixelId: item.pixelId,
+      eventName: data.eventName ?? null,
+      status: item.status,
+      attempts: item.attempts,
+      lastError: item.lastError ?? null,
+      nextAttemptAt: item.nextAttemptAt ?? null,
+      processedAt: item.processedAt ?? null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      safeEventData: {
+        eventName: data.eventName ?? null,
+        eventTime: data.eventTime ?? null,
+        eventSourceUrl: data.eventSourceUrl ?? null,
+        actionSource: data.actionSource ?? null,
+        eventId: data.eventId ?? null,
+        customData,
+        matchKeys: Object.keys(userData).filter((key) => userData[key] !== undefined && userData[key] !== null),
+      },
+    };
   }
 
   /**

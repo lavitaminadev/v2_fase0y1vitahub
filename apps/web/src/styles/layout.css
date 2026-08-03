@@ -17,13 +17,18 @@
   left: 0;
   bottom: 0;
   z-index: 100;
-  transition: transform 0.3s;
+  transition: width 0.25s ease, transform 0.3s;
 }
 
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
+.sidebar-header > div { min-width: 0; }
 
 .sidebar-header h2 {
   color: #fff;
@@ -120,11 +125,83 @@
   display: none;
 }
 
+.app-workspace {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--sidebar-width);
+  transition: margin-left 0.25s ease;
+}
+
 .main-content {
   flex: 1;
-  margin-left: var(--sidebar-width);
   padding: 24px;
   min-height: 100dvh;
+}
+
+.sidebar-collapse-button {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.sidebar-collapse-button:hover { background: rgba(255,255,255,0.18); }
+
+.sidebar-compact { --sidebar-width: 76px; }
+
+.sidebar-compact .sidebar { align-items: center; }
+
+.sidebar-compact .sidebar-header {
+  width: 100%;
+  justify-content: center;
+  padding: 18px 10px;
+}
+
+.sidebar-compact .sidebar-header > div,
+.sidebar-compact .sidebar-nav-section-title,
+.sidebar-compact .nav-label,
+.sidebar-compact .sidebar-footer .user-info,
+.sidebar-compact .sidebar-account-link,
+.sidebar-compact .sidebar-footer .btn,
+.sidebar-compact .sidebar-footer .pwa-install-button,
+.sidebar-compact .sidebar-footer-actions {
+  display: none;
+}
+
+.sidebar-compact .sidebar-collapse-button {
+  position: absolute;
+  top: 58px;
+  right: -13px;
+  margin: 0;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(0,0,0,.18);
+}
+
+.sidebar-compact .sidebar-nav {
+  width: 100%;
+  padding: 56px 10px 12px;
+}
+
+.sidebar-compact .sidebar-nav-section { margin-bottom: 8px; }
+
+.sidebar-compact .nav-item {
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  margin: 0 auto 8px;
+  border-radius: 16px;
+}
+
+.sidebar-compact .sidebar-footer {
+  width: 100%;
+  padding: 12px 10px;
 }
 
 /* Page */
@@ -139,3 +216,201 @@
 }
 .section { margin-top: 28px; }
 
+.global-search-shell {
+  position: relative;
+  min-width: min(330px, 30vw);
+}
+.global-search-shell label {
+  display: block;
+  position: relative;
+}
+.global-search-shell label span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.global-search-shell input {
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid #dfe7df;
+  border-radius: 12px;
+  background: #fff;
+  color: #173f35;
+  font-size: 12px;
+  box-shadow: 0 8px 20px rgba(23,63,53,.05);
+}
+.global-search-results {
+  position: absolute;
+  z-index: 80;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(420px, 88vw);
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid #dfe7df;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 20px 48px rgba(23,63,53,.16);
+}
+.global-search-results a {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 10px;
+  color: #24483e;
+  text-decoration: none;
+}
+.global-search-results a:hover {
+  background: #f3f7f1;
+}
+.global-search-results span {
+  color: #8a6b00;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.global-search-results strong {
+  font-size: 12px;
+}
+.global-search-results small,
+.global-search-results p {
+  margin: 0;
+  color: #75857e;
+  font-size: 11px;
+}
+
+.system-health-page {
+  max-width: 1180px;
+}
+.health-grid-premium {
+  display: grid;
+  grid-template-columns: repeat(5,minmax(0,1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.health-card-premium {
+  min-height: 120px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 16px;
+  border: 1px solid #dfe7df;
+  border-left: 4px solid #9aa8a0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(23,63,53,.06);
+}
+.health-card-premium.is-ok { border-left-color: #1f8f61; }
+.health-card-premium.is-warn { border-left-color: #d19b34; background: #fffaf0; }
+.health-card-premium.is-error { border-left-color: #b5332d; background: #fff6f3; }
+.health-card-premium span,
+.system-diagnostics span {
+  color: #75857e;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.health-card-premium strong {
+  color: #173f35;
+  font-size: 18px;
+}
+.health-card-premium small {
+  color: #6f7f78;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.system-diagnostics {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 10px;
+}
+.system-diagnostics article {
+  padding: 15px;
+  border: 1px solid #dfe7df;
+  border-radius: 14px;
+  background: #fff;
+}
+.system-diagnostics strong {
+  display: block;
+  margin-top: 5px;
+  color: #173f35;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .app-workspace {
+    margin-left: 0;
+  }
+
+  .sidebar-toggle {
+    display: block;
+  }
+
+  .sidebar {
+    width: min(86vw, 280px);
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-compact .sidebar {
+    align-items: stretch;
+  }
+
+  .sidebar-compact .sidebar-header > div,
+  .sidebar-compact .sidebar-nav-section-title,
+  .sidebar-compact .nav-label,
+  .sidebar-compact .sidebar-footer .user-info,
+  .sidebar-compact .sidebar-account-link,
+  .sidebar-compact .sidebar-footer .btn,
+  .sidebar-compact .sidebar-footer-actions {
+    display: block;
+  }
+
+  .sidebar-compact .sidebar-collapse-button {
+    display: none;
+  }
+
+  .sidebar-compact .sidebar-nav {
+    padding: 12px 8px;
+  }
+
+  .sidebar-compact .nav-item {
+    justify-content: flex-start;
+    width: auto;
+    height: auto;
+    padding: 10px 12px;
+    margin: 0 0 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    border: 0;
+    background: rgba(0,0,0,.28);
+  }
+
+  .main-content {
+    padding: 72px 16px 20px;
+  }
+
+  .global-search-shell {
+    display: none;
+  }
+
+  .health-grid-premium,
+  .system-diagnostics {
+    grid-template-columns: 1fr;
+  }
+}

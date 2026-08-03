@@ -129,7 +129,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RoleModuleMap> = {
    * consultar lo suyo y a validar piezas.
    */
   [UserRole.CLIENT]: {
-    reservations: 'view',
+    reservations: 'edit',
     content: 'view',
     approvals: 'edit',
     meetings: 'view',

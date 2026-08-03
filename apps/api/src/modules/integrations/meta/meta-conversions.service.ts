@@ -32,6 +32,10 @@ export interface ConversionEvent {
     value?: number;
     contentIds?: string[];
     contentType?: string;
+    clientId?: string;
+    formId?: string;
+    reservationId?: string;
+    referenceCode?: string;
   };
   eventId?: string;
 }

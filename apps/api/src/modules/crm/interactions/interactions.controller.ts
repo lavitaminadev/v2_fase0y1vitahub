@@ -8,13 +8,17 @@ import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { RequiresFeature } from '../../../core/authorization/requires-feature.decorator';
+import { AccountAccessService } from '../../../core/client-scope/account-access.service';
 
 @Controller('crm/interactions')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
 @RequiresFeature('commercialPipeline')
 export class InteractionsController {
-  constructor(private service: InteractionsService) {}
+  constructor(
+    private service: InteractionsService,
+    private readonly accountAccess: AccountAccessService,
+  ) {}
 
   @Post()
   @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
@@ -23,8 +27,12 @@ export class InteractionsController {
   }
 
   @Get()
-  findAll(@Query() query: ListInteractionsDto, @Req() req: AuthenticatedRequest) {
-    return this.service.findAll(req.organizationId, query.limit, query.offset, query.leadId);
+  async findAll(@Query() query: ListInteractionsDto, @Req() req: AuthenticatedRequest) {
+    const allowedClientIds = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    const clientScope = allowedClientIds === undefined
+      ? query.clientId
+      : (query.clientId ? (allowedClientIds.includes(query.clientId) ? query.clientId : '__none__') : undefined);
+    return this.service.findAll(req.organizationId, query.limit, query.offset, query.leadId, clientScope);
   }
 
   @Get(':id')

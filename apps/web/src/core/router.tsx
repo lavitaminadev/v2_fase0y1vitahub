@@ -26,6 +26,7 @@ const MeetingsPage = lazy(() => import('../features/meetings/MeetingsPage').then
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
+const CapiEventsPage = lazy(() => import('../features/integrations/CapiEventsPage').then(m => ({ default: m.CapiEventsPage })));
 const MetaOAuthCallbackPage = lazy(() => import('../features/integrations/OAuthCallbackPage').then(m => ({ default: () => <m.OAuthCallbackPage provider="meta" /> })));
 const OperationsPage = lazy(() => import('../features/operations/OperationsPage').then(m => ({ default: m.OperationsPage })));
 const DirectionPage = lazy(() => import('../features/direction/DirectionPage').then(m => ({ default: m.DirectionPage })));
@@ -45,10 +46,15 @@ const ClientMeetings = lazy(() => import('../features/client-portal/ClientMeetin
 const ClientReports = lazy(() => import('../features/client-portal/ClientReports').then(m => ({ default: m.ClientReports })));
 const ClientLayout = lazy(() => import('../features/client-portal/ClientLayout').then(m => ({ default: m.ClientLayout })));
 const ReservationsPage = lazy(() => import('../features/reservations/ReservationsPage').then(m => ({ default: m.ReservationsPage })));
+const ReservationCalendarPage = lazy(() => import('../features/reservations/ReservationCalendarPage').then(m => ({ default: m.ReservationCalendarPage })));
+const AvailabilityPage = lazy(() => import('../features/reservations/AvailabilityPage').then(m => ({ default: m.AvailabilityPage })));
 const ReservationBuilderPage = lazy(() => import('../features/reservations/ReservationBuilderPage').then(m => ({ default: m.ReservationBuilderPage })));
 const PublicReservationPage = lazy(() => import('../features/reservations/PublicReservationPage').then(m => ({ default: m.PublicReservationPage })));
 const AudiovisualPage = lazy(() => import('../features/audiovisual/AudiovisualPage').then(m => ({ default: m.AudiovisualPage })));
 const GovernancePage = lazy(() => import('../features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
+const SystemHealthPage = lazy(() => import('../features/system/SystemHealthPage').then(m => ({ default: m.SystemHealthPage })));
+
+const clientFutureModulesEnabled = import.meta.env.VITE_ENABLE_FUTURE_MODULES === 'true';
 
 function SafeSuspense({ children }: { children: React.ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingSpinner text="Preparando tu espacio..." />}>{children}</Suspense></ErrorBoundary>;
@@ -94,6 +100,7 @@ export function AppRouter() {
           <Route path="/meetings" element={<ProtectedRoute path="/meetings"><SafeSuspense><MeetingsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute path="/reports"><SafeSuspense><ReportsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute path="/settings"><SafeSuspense><SettingsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/integrations/meta/events" element={<ProtectedRoute path="/integrations/meta/events"><SafeSuspense><CapiEventsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/integrations" element={<ProtectedRoute path="/integrations"><SafeSuspense><IntegrationsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/integrations/meta/callback" element={<ProtectedRoute path="/integrations"><SafeSuspense><MetaOAuthCallbackPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/operations" element={<ProtectedRoute path="/operations"><SafeSuspense><OperationsPage /></SafeSuspense></ProtectedRoute>} />
@@ -109,15 +116,20 @@ export function AppRouter() {
           <Route path="/catalog" element={<ProtectedRoute path="/catalog"><SafeSuspense><CatalogPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/knowledge" element={<ProtectedRoute path="/knowledge"><SafeSuspense><KnowledgePage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/reservations" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationsPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/calendar" element={<ProtectedRoute path="/reservations/calendar"><SafeSuspense><ReservationCalendarPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/availability" element={<ProtectedRoute path="/reservations/availability"><SafeSuspense><AvailabilityPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/reservations/forms/:id" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationBuilderPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/system/health" element={<ProtectedRoute path="/system/health"><SafeSuspense><SystemHealthPage /></SafeSuspense></ProtectedRoute>} />
         </Route>
         <Route path="/portal" element={<ClientRoute><SafeSuspense><ClientLayout /></SafeSuspense></ClientRoute>}>
           <Route index element={<SafeSuspense><ClientDashboard /></SafeSuspense>} />
-          <Route path="grid" element={<SafeSuspense><ClientGrid /></SafeSuspense>} />
-          <Route path="approvals" element={<SafeSuspense><ClientApprovals /></SafeSuspense>} />
-          <Route path="meetings" element={<SafeSuspense><ClientMeetings /></SafeSuspense>} />
-          <Route path="reports" element={<SafeSuspense><ClientReports /></SafeSuspense>} />
+          <Route path="grid" element={clientFutureModulesEnabled ? <SafeSuspense><ClientGrid /></SafeSuspense> : <Navigate to="/portal/reservations" replace />} />
+          <Route path="approvals" element={clientFutureModulesEnabled ? <SafeSuspense><ClientApprovals /></SafeSuspense> : <Navigate to="/portal/reservations" replace />} />
+          <Route path="meetings" element={clientFutureModulesEnabled ? <SafeSuspense><ClientMeetings /></SafeSuspense> : <Navigate to="/portal/reservations" replace />} />
+          <Route path="reports" element={clientFutureModulesEnabled ? <SafeSuspense><ClientReports /></SafeSuspense> : <Navigate to="/portal/reservations" replace />} />
           <Route path="reservations" element={<SafeSuspense><ReservationsPage clientView /></SafeSuspense>} />
+          <Route path="calendar" element={<SafeSuspense><ReservationCalendarPage clientView /></SafeSuspense>} />
+          <Route path="availability" element={<SafeSuspense><AvailabilityPage clientView /></SafeSuspense>} />
           <Route path="reservations/forms/:id" element={<SafeSuspense><ReservationBuilderPage /></SafeSuspense>} />
         </Route>
         <Route path="/" element={<HomeRedirect />} />

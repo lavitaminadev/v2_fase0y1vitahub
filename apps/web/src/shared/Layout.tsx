@@ -15,12 +15,13 @@ import { CommandPalette } from './CommandPalette';
 import { PwaInstallButton } from './PwaInstallButton';
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { ContextHelpDrawer } from './help/ContextHelpDrawer';
+import { GlobalSearch } from './GlobalSearch';
 
 const NAV_GROUPS: { label: string; paths: string[] }[] = [
-  { label: 'Medir', paths: ['/dashboard'] },
-  { label: 'Operar', paths: ['/reservations', '/crm/contacts', '/crm/leads', '/crm/opportunities', '/crm/interactions', '/production', '/audiovisual', '/content', '/documents', '/briefs', '/approvals', '/catalog'] },
-  { label: 'Colaborar', paths: ['/meetings', '/reports', '/billing', '/contracts', '/gamification'] },
-  { label: 'Configurar', paths: ['/clients', '/users', '/integrations', '/knowledge', '/onboarding', '/direction', '/operations', '/governance', '/settings'] },
+  { label: 'Fase 1 reservas', paths: ['/dashboard', '/reservations', '/reservations/calendar', '/reservations/availability', '/crm/contacts', '/clients'] },
+  { label: 'Comercial La Vitamina', paths: ['/crm/leads', '/crm/opportunities', '/crm/interactions'] },
+  { label: 'Meta e integraciones', paths: ['/integrations/meta/events', '/integrations'] },
+  { label: 'Administracion', paths: ['/system/health', '/users', '/settings'] },
 ];
 
 /**
@@ -35,6 +36,7 @@ export function Layout(): JSX.Element {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCompact, setSidebarCompact] = useState(() => window.localStorage.getItem('vitahub:sidebar:compact') === 'true');
   const [helpOpen, setHelpOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
   useEffect(() => { const updateConnection = () => setOnline(navigator.onLine); window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection); return () => { window.removeEventListener('online', updateConnection); window.removeEventListener('offline', updateConnection); }; }, []);
@@ -50,11 +52,19 @@ export function Layout(): JSX.Element {
   );
 
   const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);
+  const toggleSidebarCompact = useCallback(() => {
+    setSidebarCompact((current) => {
+      const next = !current;
+      window.localStorage.setItem('vitahub:sidebar:compact', String(next));
+      return next;
+    });
+  }, []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
-  const currentItem = navItems.find((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`));
+  const matchesNavItem = useCallback((path: string) => location.pathname === path || (path !== '/integrations' && location.pathname.startsWith(`${path}/`)), [location.pathname]);
+  const currentItem = navItems.find((item) => matchesNavItem(item.path));
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${sidebarCompact ? 'sidebar-compact' : ''}`}>
       <ToastContainer />
       <NotificationCenter />
       <CommandPalette />
@@ -66,13 +76,16 @@ export function Layout(): JSX.Element {
         <div className="sidebar-header">
           <BrandMark decorative />
           <div><h2>VITAHUB</h2><span>La Vitamina</span></div>
+          <button type="button" className="sidebar-collapse-button" onClick={toggleSidebarCompact} aria-label={sidebarCompact ? 'Expandir menu' : 'Achicar menu'} title={sidebarCompact ? 'Expandir menu' : 'Achicar menu'}>
+            {sidebarCompact ? '>' : '<'}
+          </button>
         </div>
         <nav className="sidebar-nav">
           {groupedNavItems.map((group) => (
             <section className="sidebar-nav-section" key={group.label} aria-label={group.label}>
               <span className="sidebar-nav-section-title">{group.label}</span>
               {group.items.map((item) => {
-                const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+                const active = matchesNavItem(item.path);
                 return (
                   <Link
                     key={item.path}
@@ -80,6 +93,7 @@ export function Layout(): JSX.Element {
                     className={`nav-item ${active ? 'active' : ''}`}
                     onClick={closeSidebar}
                     aria-label={item.label}
+                    title={item.label}
                   >
                     <NavGlyph label={item.label} />
                     <span className="nav-label">{item.label}</span>
@@ -108,7 +122,7 @@ export function Layout(): JSX.Element {
       <div className="app-workspace">
         <header className="workspace-header">
           <div className="workspace-heading"><span>Espacio de trabajo</span><strong>{currentItem?.label ?? 'VITAHUB'}</strong></div>
-          <div className="workspace-header-actions"><button className="workspace-command" onClick={() => setHelpOpen(true)} title="Ayuda"><span>? Ayuda</span></button><button className="workspace-command" onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}><span>Buscar o ejecutar</span><kbd>Ctrl K</kbd></button><div className="workspace-user"><span className="online-dot" />{user?.name}</div></div>
+          <div className="workspace-header-actions"><GlobalSearch /><button className="workspace-command" onClick={() => setHelpOpen(true)} title="Ayuda"><span>? Ayuda</span></button><button className="workspace-command" onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}><span>Comandos</span><kbd>Ctrl K</kbd></button><div className="workspace-user"><span className="online-dot" />{user?.name}</div></div>
         </header>
         <main className="main-content"><Outlet /></main>
         <ContextHelpDrawer open={helpOpen} onClose={() => setHelpOpen(false)} />

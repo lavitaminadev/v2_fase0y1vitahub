@@ -42,6 +42,11 @@ describe('roleLevel', () => {
     expect(roleLevel(UserRole.COMMUNITY_MANAGER, 'crm')).toBe('edit');
     expect(roleLevel(UserRole.COMMUNITY_MANAGER, 'billing')).toBe('none');
   });
+
+  it('da al cliente edición acotada de reservas y sin CRM', () => {
+    expect(roleLevel(UserRole.CLIENT, 'reservations')).toBe('edit');
+    expect(roleLevel(UserRole.CLIENT, 'crm')).toBe('none');
+  });
 });
 
 describe('PermissionResolverService', () => {

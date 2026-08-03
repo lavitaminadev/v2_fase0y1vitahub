@@ -169,6 +169,55 @@ Convertir lead a cliente.
 
 - **Auth**: Sí (Bearer)
 
+### POST /crm/intake/external
+
+Punto de entrada sugerido para formularios o integraciones externas que deban
+crear o actualizar contactos operacionales conectados a reservas.
+
+- **Auth**: Sí (Bearer o token de integración por cliente)
+- **Body**:
+  ```json
+  {
+    "organizationId": "uuid",
+    "clientId": "uuid",
+    "source": "external_form",
+    "externalFormId": "landing-meta-01",
+    "externalSubmissionId": "abc-123",
+    "contact": {
+      "name": "Daniela Soto",
+      "phone": "+56955552001",
+      "email": "daniela@example.com"
+    },
+    "reservation": {
+      "requestedDate": "2026-08-02",
+      "requestedTime": "20:00",
+      "partySize": 2
+    },
+    "attribution": {
+      "utmSource": "instagram",
+      "utmCampaign": "invierno-casa-nativa",
+      "fbclid": "..."
+    },
+    "metadata": {}
+  }
+  ```
+
+- **Reglas funcionales**:
+  - exige `organizationId` y `clientId`
+  - deduplica por `externalSubmissionId` y contacto normalizado
+  - crea o actualiza contacto operacional
+  - crea reserva solo si el payload incluye una solicitud válida
+  - conserva trazabilidad de fuente externa
+  - dispara conversión Meta solo si la reserva queda creada y válida
+
+### POST /crm/intake/external/import
+
+Carga manual sugerida para CSV o JSON con la misma estructura funcional del
+intake externo.
+
+- **Auth**: Sí (Bearer)
+- **Body**: Multipart o JSON según implementación elegida
+
 ---
 
 ## Clientes

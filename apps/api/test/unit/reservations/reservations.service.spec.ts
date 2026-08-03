@@ -211,6 +211,28 @@ describe('ReservationsService', () => {
       expect(open.length).toBeGreaterThan(0);
       expect(blocked).toEqual([]);
     });
+
+    it('rechaza el ultimo cupo cuando otra reserva ya tomo la capacidad del horario', async () => {
+      const day = nextMonday();
+      const startsAt = new Date(`${day}T13:00:00.000Z`);
+      const endsAt = new Date(`${day}T14:00:00.000Z`);
+      const blockQb = { where: vi.fn().mockReturnThis(), getOne: vi.fn().mockResolvedValue(null) };
+      const reservationQb = {
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        setLock: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([{ startsAt, endsAt, partySize: 1, status: 'confirmed' }]),
+      };
+      const manager = {
+        getRepository: vi.fn()
+          .mockReturnValueOnce({ createQueryBuilder: vi.fn().mockReturnValue(blockQb) })
+          .mockReturnValueOnce({ createQueryBuilder: vi.fn().mockReturnValue(reservationQb) }),
+      };
+
+      await expect((service as any).availability(manager, publishedForm(), startsAt, 1))
+        .rejects.toThrow('Ese horario acaba de ocuparse');
+      expect(reservationQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+    });
   });
 
   it('createCoupon validates code uniqueness', async () => {

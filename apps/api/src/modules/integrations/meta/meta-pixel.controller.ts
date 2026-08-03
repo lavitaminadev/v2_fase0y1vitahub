@@ -17,6 +17,7 @@ import { MetaInsightsService } from './meta-insights.service';
 import { resolveOAuthRedirect } from '../../../shared/security/oauth-redirect';
 import { MetaClientPixelService } from './meta-client-pixel.service';
 import { MetaConversionOutboxService } from './meta-conversion-outbox.service';
+import { ListMetaEventsDto } from './dto/list-meta-events.dto';
 
 @Controller('integrations/meta')
 @UseGuards(AuthGuard('jwt'))
@@ -65,6 +66,34 @@ export class MetaPixelController {
         updatedAt: item.updatedAt,
       })),
     };
+  }
+
+  @Get('events/stats')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Estadisticas de eventos CAPI Meta' })
+  capiEventStats(@Req() req: AuthenticatedRequest) {
+    return this.conversionOutbox.stats(req.organizationId);
+  }
+
+  @Get('events')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Listado seguro de eventos CAPI Meta' })
+  capiEvents(@Req() req: AuthenticatedRequest, @Query() query: ListMetaEventsDto) {
+    return this.conversionOutbox.listEvents(req.organizationId, query);
+  }
+
+  @Get('events/:eventId')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Detalle seguro de un evento CAPI Meta' })
+  capiEvent(@Req() req: AuthenticatedRequest, @Param('eventId') eventId: string) {
+    return this.conversionOutbox.getEvent(req.organizationId, eventId);
+  }
+
+  @Post('events/:eventId/retry')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Reintentar un evento CAPI Meta' })
+  retryCapiEvent(@Req() req: AuthenticatedRequest, @Param('eventId') eventId: string) {
+    return this.conversionOutbox.retryEvent(req.organizationId, eventId);
   }
 
   @Post('client-pixels/setup')

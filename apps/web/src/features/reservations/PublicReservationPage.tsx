@@ -18,8 +18,29 @@ interface Slot { startsAt: string; available: number }
 interface Created { id: string; referenceCode: string; status: string; startsAt: string }
 const DEFAULT_BACKGROUND_GRADIENT = 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)';
 
-/** Clave de `sessionStorage` donde vive la clave de idempotencia de la reserva en curso. */
-const BOOKING_KEY_STORAGE = 'vh-booking-key';
+function readBookingKeyStorage() {
+  try {
+    return window.sessionStorage.getItem('vh-booking-key');
+  } catch {
+    return null;
+  }
+}
+
+function writeBookingKeyStorage(value: string) {
+  try {
+    window.sessionStorage.setItem('vh-booking-key', value);
+  } catch {
+    // Best effort only; a missing storage backend must not break the page.
+  }
+}
+
+function clearBookingKeyStorage() {
+  try {
+    window.sessionStorage.removeItem('vh-booking-key');
+  } catch {
+    // Best effort only; a missing storage backend must not break the page.
+  }
+}
 
 export function PublicReservationPage() {
   const { slug = '' } = useParams();
@@ -56,10 +77,10 @@ export function PublicReservationPage() {
    * pestaña use una clave nueva y no reciba de vuelta la anterior.
    */
   const [idempotencyKey] = useState(() => {
-    const stored = sessionStorage.getItem(BOOKING_KEY_STORAGE);
+    const stored = readBookingKeyStorage();
     if (stored) return stored;
     const key = uuid();
-    sessionStorage.setItem(BOOKING_KEY_STORAGE, key);
+    writeBookingKeyStorage(key);
     return key;
   });
   const [sessionId] = useState(() => uuid());
@@ -144,7 +165,7 @@ export function PublicReservationPage() {
   // Confirmada la reserva, la clave cumplió su función. Liberarla evita que una segunda
   // reserva en la misma pestaña reutilice la clave y reciba de vuelta la primera.
   useEffect(() => {
-    if (submit.data?.id) sessionStorage.removeItem(BOOKING_KEY_STORAGE);
+    if (submit.data?.id) clearBookingKeyStorage();
   }, [submit.data?.id]);
 
   useEffect(() => {

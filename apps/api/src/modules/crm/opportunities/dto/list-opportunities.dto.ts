@@ -5,4 +5,8 @@ export class ListOpportunitiesDto extends PaginationDto {
   @IsOptional()
   @IsUUID()
   leadId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }

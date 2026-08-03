@@ -1,0 +1,14 @@
+{
+  "findings": [],
+  "checks": {
+    "adminHasCircuit": true,
+    "adminHasFlow": true,
+    "capiHasBusinessHero": true,
+    "clientHasClientHero": true
+  },
+  "samples": {
+    "admin": "VITAHUB\nLA VITAMINA\nFASE 1 RESERVAS\nIN\nInicio\nRE\nReservas y formularios\nCO\nComensales y contactos\nCL\nClientes\nCOMERCIAL LA VITAMINA\nPR\nProspectos de agencia\nPI\nPipeline comercial\nAC\nActividad comercial\nMETA E INTEGRACIONES\nEV\nEventos CAPI\nIN\nIntegraciones\nADMINISTRACION\nUS\nUsuarios\nCF\nConfiguracion\n1\nAdministracion Vitamina\nAdmin\nCambiar mi contraseña\nCerrar sesión\nESPACIO DE TRABAJO\nInicio\n? Ayuda\nBuscar o ejecutar\nCtrl K\nAdministracion Vitamina\nVITAHUB FASE 0 + FASE 1\nLa Vitamina controla reservas, comensales y conversiones Meta desde un solo circuito.\n\nEsta vista separa claramente el negocio comercial de la agencia y la operacion diaria de cada cliente: no se mezclan prospectos de La Vitamina con personas que reservan en restaurantes.\n\nGestionar reservas\nRevisar CAPI\nESTADO DEMO\nFase 1 ",
+    "capi": "VITAHUB\nLA VITAMINA\nFASE 1 RESERVAS\nIN\nInicio\nRE\nReservas y formularios\nCO\nComensales y contactos\nCL\nClientes\nCOMERCIAL LA VITAMINA\nPR\nProspectos de agencia\nPI\nPipeline comercial\nAC\nActividad comercial\nMETA E INTEGRACIONES\nEV\nEventos CAPI\nIN\nIntegraciones\nADMINISTRACION\nUS\nUsuarios\nCF\nConfiguracion\n1\nAdministracion Vitamina\nAdmin\nCambiar mi contraseña\nCerrar sesión\nESPACIO DE TRABAJO\nEventos CAPI\n? Ayuda\nBuscar o ejecutar\nCtrl K\nAdministracion Vitamina\nMETA CONVERSIONS API\nDe la reserva real a la medicion de campana.\n\nEsta vista muestra que paso despues del formulario: reserva creada, asistencia confirmada y evento enviado a Meta sin exponer datos personales crudos.\n\nSin tokens\nSin email/tel",
+    "client": "Mi cuenta\nLA VITAMINA\nIN\nInicio\nRS\nReservas\n1\nValentina Casa Nativa\nCliente\nCambiar mi contraseña\nCerrar sesión\nPORTAL CLIENTE\nTu marca, en un solo lugar\nPORTAL CLIENTE FASE 1\nValentina Casa Nativa: tu centro de reservas y comensales.\n\nAqui solo ves la operacion de tu marca: formularios, agenda, reservas recibidas y resultados. El CRM comercial de La Vitamina queda fuera de esta vista.\n\nAbrir reservas\nVer enlace publico\nENLACE PRINCIPAL\na\nhttp://localhost:5173/book/a-2ac94f\nFORMULARIOS VISIBLES\n6\n3 publicados\nRESERVAS REGISTRADAS\n3\nSolo de tu empresa\nALCANCE\nPrivado\nSin mezcla con otros clientes\nOPERACION DIARIA\nProximas reservas\nMaximiliano Barrios\n#4C8FD65678F2 - confirmed\n04-08-26, 10:00 "
+  }
+}

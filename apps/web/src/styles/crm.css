@@ -9,10 +9,25 @@
 .crm-section-nav a.active > span { background: #173f35; color: #d7eb79; }
 .crm-section-nav strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; }
 .crm-section-nav small { overflow: hidden; color: #89958f; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.crm-scope-banner { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 0 0 16px; padding: 18px 20px; border: 1px solid #dce5de; border-radius: 18px; background: linear-gradient(145deg,#fff,#f5f8f4); }
+.crm-scope-banner h1 { margin: 4px 0 6px; color: #173f35; font-size: clamp(24px,3vw,32px); letter-spacing: -.03em; }
+.crm-scope-banner p { max-width: 740px; margin: 0; }
+.crm-scope-banner-meta { display: grid; justify-items: end; gap: 7px; text-align: right; }
+.crm-scope-banner-meta small { max-width: 250px; color: #70817a; font-size: 10px; line-height: 1.4; }
+.crm-scope-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: #eef3ed; color: #24463b; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.crm-scope-banner.is-commercial .crm-scope-pill { background: #fdf1df; color: #7a4a12; }
+.crm-scope-banner.is-operations .crm-scope-pill { background: #e8f3ee; color: #1f6049; }
 .crm-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0 22px; }
 .crm-summary-grid article { min-height: 115px; display: grid; align-content: center; gap: 7px; padding: 20px 22px; border: 1px solid #e0e7df; border-radius: 16px; background: linear-gradient(145deg,#fff,#f7f9f4); box-shadow: 0 12px 32px rgba(25,62,52,.06); }
 .crm-summary-grid span { color: #7b8983; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .crm-summary-grid strong { color: #173f35; font-family: Georgia,serif; font-size: 25px; font-weight: 500; }
+.crm-command-center { display: grid; grid-template-columns: 1.35fr repeat(3,1fr); gap: 10px; margin: 0 0 14px; }
+.crm-command-card { min-height: 104px; display: grid; align-content: center; gap: 5px; padding: 16px; border: 1px solid #dfe7df; border-radius: 17px; background: linear-gradient(145deg,#fff,#f7faf6); box-shadow: 0 12px 28px rgba(23,63,53,.06); }
+.crm-command-card.is-primary { border-color: #c7df72; background: radial-gradient(circle at 94% 0,rgba(215,235,121,.35),transparent 38%),linear-gradient(145deg,#173f35,#245c4a); color: #fff; }
+.crm-command-card.is-muted { background: #f7f5f1; }
+.crm-command-card span { color: inherit; opacity: .72; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.crm-command-card strong { color: inherit; font-family: Georgia,serif; font-size: 32px; font-weight: 500; line-height: 1; }
+.crm-command-card small { color: inherit; opacity: .68; font-size: 11px; line-height: 1.35; }
 .crm-stage { display: inline-flex; padding: 5px 9px; border-radius: 999px; background: #edf2ed; color: #49645a; font-size: 9px; font-weight: 800; }
 .crm-stage.is-won { background: #e7f2e6; color: #28704d; }
 .crm-stage.is-lost { background: #f8e8e4; color: #a24631; }
@@ -92,6 +107,11 @@
 .crm-pipeline-board .lead-score { font-size: 11px; }
 .crm-pipeline-board .kanban-card-info { overflow: hidden; margin-top: 3px; font-size: 11px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
 .crm-pipeline-board .kanban-card-info.is-consent { color: #2d7557; font-weight: 800; }
+.lead-commercial-fields { display: grid; gap: 5px; margin: 10px 0 8px; padding: 9px; border-radius: 11px; background: #f7faf7; }
+.lead-commercial-fields span { min-width: 0; display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 7px; color: #3e5a51; font-size: 11px; line-height: 1.35; }
+.lead-commercial-fields b { color: #8a9691; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.lead-sales-signal { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+.lead-sales-signal span { padding: 4px 7px; border-radius: 999px; background: #eef3ed; color: #536b62; font-size: 10px; font-weight: 800; }
 .crm-pipeline-board .lead-note-preview { display: -webkit-box; overflow: hidden; margin-top: 8px; color: #64736d; font-size: 11px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .crm-pipeline-board .lead-discard-reason { font-size: 11px; line-height: 1.4; }
 .crm-pipeline-board .kanban-card-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
@@ -166,8 +186,11 @@
 
 @media (max-width: 1050px) {
   .crm-bulk-bar { left: 24px; }
+  .crm-command-center { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 760px) {
+  .crm-scope-banner { align-items: flex-start; flex-direction: column; }
+  .crm-scope-banner-meta { justify-items: start; text-align: left; }
   .crm-operations-panel > summary { align-items: flex-start; }
   .crm-operations-panel > summary small { max-width: 58vw; }
   .crm-pipeline-header { min-height: 160px; align-items: flex-start; flex-direction: column; padding: 24px 20px 20px; }
@@ -186,6 +209,7 @@
   .lead-detail-panel .drawer-header { min-height: 112px; padding: 23px 20px; }
   .lead-detail-panel .drawer-content { padding: 13px; }
   .drawer-command-strip { top: -13px; grid-template-columns: 1fr; }
+  .crm-command-center { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .crm-operations-summary-action { font-size: 0; }
@@ -205,6 +229,11 @@
    Cuatro estados del ciclo de reserva como tarjetas-filtro. El color acompana a
    una etiqueta de texto en cada tarjeta: nunca es el unico portador del estado. */
 .contact-status-tiles { display: grid; grid-template-columns: repeat(4,minmax(140px,1fr)); gap: 10px; margin: 0 0 16px; }
+.reservation-ops-strip { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 10px; margin: 0 0 12px; }
+.reservation-ops-strip article { min-height: 88px; display: grid; align-content: center; gap: 4px; padding: 14px 16px; border: 1px solid #dce6df; border-radius: 15px; background: #fff; box-shadow: 0 10px 24px rgba(23,63,53,.05); }
+.reservation-ops-strip span { color: #6f7f78; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.reservation-ops-strip strong { overflow: hidden; color: #173f35; font-family: Georgia,serif; font-size: 25px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.reservation-ops-strip small { color: #75857e; font-size: 10px; line-height: 1.35; }
 .contact-status-tile { --tile-color: #596562; display: grid; gap: 2px; padding: 13px 14px; text-align: left; border: 1px solid #dbe4dc; border-left: 3px solid var(--tile-color); border-radius: 12px; background: #fff; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
 .contact-status-tile:hover { border-color: var(--tile-color); }
 .contact-status-tile:focus-visible { outline: 2px solid var(--tile-color); outline-offset: 2px; }
@@ -219,9 +248,27 @@
 
 .contact-status-cell { display: grid; gap: 5px; justify-items: start; }
 .contact-status-cell .input-sm { min-width: 132px; padding: 4px 7px; font-size: 11px; }
+.commercial-deal-board { gap: 12px; margin-top: 16px; }
+.commercial-deal-board > section { min-height: 520px; border: 1px solid #dbe4dc; border-radius: 18px; background: #f7faf6; box-shadow: inset 0 1px 0 rgba(255,255,255,.8); }
+.commercial-deal-board > section > header { min-height: 104px; display: grid; gap: 7px; padding: 14px; border-bottom: 1px solid #dfe7df; background: linear-gradient(145deg,#fff,#f2f6ef); }
+.commercial-deal-board > section > header div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.commercial-deal-board > section > header strong { color: #173f35; font-size: 12px; }
+.commercial-deal-board > section > header span { min-width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: #e7ede7; color: #49645a; font-size: 10px; font-weight: 900; }
+.commercial-deal-board > section > header small { color: #74837d; font-size: 10px; line-height: 1.35; }
+.commercial-deal-board > section > header em { color: #925d17; font-size: 11px; font-style: normal; font-weight: 900; }
+.commercial-deal-board article { padding: 13px; border-left: 4px solid #7ba090; border-radius: 14px; background: #fff; box-shadow: 0 10px 24px rgba(23,63,53,.07); }
+.commercial-deal-board article.is-overdue { border-left-color: #b5332d; background: #fff8f6; }
+.deal-health-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+.deal-health-row span { padding: 4px 7px; border-radius: 999px; background: #edf2ed; color: #60736b; font-size: 10px; font-weight: 800; }
+.deal-next-action { display: grid; gap: 3px; margin-top: 8px; padding: 10px; border-radius: 11px; background: #f4f7f2; }
+.deal-next-action.is-overdue { background: #fdebe6; }
+.deal-next-action span { color: #7b8983; font-size: 9px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.deal-next-action strong { color: #254b40; font-size: 11px; }
+.deal-next-action small { color: #75857e; font-size: 10px; }
 
 @media (max-width: 900px) {
   .contact-status-tiles { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .reservation-ops-strip { grid-template-columns: 1fr; }
 }
 
 .contact-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 16px 0 4px; }

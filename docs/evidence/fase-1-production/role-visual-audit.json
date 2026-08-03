@@ -1,0 +1,19 @@
+{
+  "findings": [],
+  "adminDashboardBad": [
+    "Producción"
+  ],
+  "adminCapiBad": [],
+  "clientHomeBad": [],
+  "productionUrl": "http://localhost:5173/404",
+  "productionBad": [],
+  "clientGridUrl": "http://localhost:5173/portal/reservations",
+  "clientGridBad": [],
+  "samples": {
+    "adminDashboard": "VITAHUB\nLA VITAMINA\nFASE 1 RESERVAS\nIN\nInicio\nRE\nReservas y formularios\nCO\nComensales y contactos\nCL\nClientes\nCOMERCIAL LA VITAMINA\nPR\nProspectos de agencia\nPI\nPipeline comercial\nAC\nActividad comercial\nMETA E INTEGRACIONES\nEV\nEventos CAPI\nIN\nIntegraciones\nADMINISTRACION\nUS\nUsuarios\nCF\nConfiguracion\n1\nAdministracion Vitamina\nAdmin\nCambiar mi contraseña\nCerrar sesión\nESPACIO DE TRABAJO\nInicio\n? Ayuda\nBuscar o ejecutar\nCtrl K\nAdministracion Vitamina\nCENTRO DE CONTROL\nDashboard\n\nVisión general de la operación.\n\n29 De Julio De 2026\nConfigurar widgets\nMETODOLOGÍA PROPIA · PULSO VITAMINA\nEl pulso de la operación\n\nAvances, bloqueos y próximos pasos.\n\nRequiere atención\n71\n/ 100\n100% de cobertura de datos\nMOMENTO ACTUAL\nOptimización\n\nConvirtiendo evidencia en mejores decisiones.\n\nCOMPROMISOS ABIERTOS\n2\nLa Vitamina\n0\nCliente\nPlanificación\n50\n1/2 grillas del ciclo completadas\nPESO 20%\nProducción\n35\n1 entregas recientes · 3 vencidas\nPESO 20%\nColaboración\n100\n0 aprobaciones pendientes\nPESO 15%\nCadencia estratégica\n63\n5/8 reuniones del ciclo\nPESO 15%\nMedición\n100\nDatos al 22-07-2026\nPESO 15%\nReservas\n100\n1 asistencias · 0 no-show\nPESO 15%\nPRÓXIMA MEJOR ACCIÓN\nQué hacemos ahora\nOrdenado por impact",
+    "adminCapi": "VITAHUB\nLA VITAMINA\nFASE 1 RESERVAS\nIN\nInicio\nRE\nReservas y formularios\nCO\nComensales y contactos\nCL\nClientes\nCOMERCIAL LA VITAMINA\nPR\nProspectos de agencia\nPI\nPipeline comercial\nAC\nActividad comercial\nMETA E INTEGRACIONES\nEV\nEventos CAPI\nIN\nIntegraciones\nADMINISTRACION\nUS\nUsuarios\nCF\nConfiguracion\n1\nAdministracion Vitamina\nAdmin\nCambiar mi contraseña\nCerrar sesión\nESPACIO DE TRABAJO\nEventos CAPI\n? Ayuda\nBuscar o ejecutar\nCtrl K\nAdministracion Vitamina\nEventos CAPI\n\nTrazabilidad segura de reservas y asistencias enviadas a Meta Conversions API.\n\nPENDING\n0\nRETRY\n0\nPROCESSING\n0\nFAILED\n0\nPROCESSED\n0\nTOTAL\n0\nESTADO\nTodos\nPendiente\nReintento\nProcesando\nFallido\nProcesado\nEVENTO\nEVENT ID\nCola Meta\n\n0 eventos registrados. El detalle oculta datos personales.\n\nEVENTO\tESTADO\tINTENTOS\tRESERVA\tACTUALIZADO\tACCIONES\nNo hay eventos CAPI para los filtros actuales.",
+    "clientHome": "Mi cuenta\nLA VITAMINA\nIN\nInicio\nRS\nReservas\n1\nValentina Casa Nativa\nCliente\nCambiar mi contraseña\nCerrar sesión\nPORTAL CLIENTE\nTu marca, en un solo lugar\nPORTAL CLIENTE FASE 1\nBienvenido, Valentina Casa Nativa\n\nTu vista esta acotada a tus propias reservas, formularios y contactos operativos.\n\nCuenta activa\nSin acceso al CRM comercial de La Vitamina\nReservas y agenda\n\nRevisa formularios, enlaces publicos, agenda y reservas recibidas de tu marca.\n\nVer reservas",
+    "production": "404 — Página no encontrada\n\nLa página que buscas no existe.\n\nIr al Dashboard",
+    "clientGrid": "Mi cuenta\nLA VITAMINA\nIN\nInicio\nRS\nReservas\n1\nValentina Casa Nativa\nCliente\nCambiar mi contraseña\nCerrar sesión\nPORTAL CLIENTE\nTu marca, en un solo lugar\nVITAHUB RESERVAS Y FORMULARIOS\nGestión visual de reservas.\n\nFormularios drag & drop por empresa.\n\nMi agenda\nMis reservas\nResultados\nCENTRO DE CAPTURA\nFormularios, encuestas y agendas\n\n6 de 6 activos visibles\n\n6\nTODOS\n3\nPUBLICADOS\n0\nPAUSADOS\n3\nBORRADORES\nTodos los estados\nPublicados\nPausados\nBorradores\nRESERVA\nPublicado\na\n\nhttp://localhost:5173/"
+  }
+}

@@ -10,6 +10,7 @@ import { LeadDetailDrawer } from './components/LeadDetailDrawer';
 import { matchesSearch } from '../../shared/search';
 import { Modal } from '../../shared/Modal';
 import { CrmNav } from './CrmNav';
+import { CrmScopeBanner } from './CrmScopeBanner';
 import { Link, useSearchParams } from 'react-router-dom';
 import { LEAD_PIPELINE_STAGES, LEAD_CLOSING_STAGES } from '@vitahub/shared';
 
@@ -43,6 +44,15 @@ interface Lead {
 const ACTIVE_STATUSES: string[] = [...LEAD_PIPELINE_STAGES];
 const CLOSING_STATUSES: string[] = [...LEAD_CLOSING_STAGES];
 const STATUSES: string[] = [...ACTIVE_STATUSES, ...CLOSING_STATUSES];
+const PIPELINE_STAGE_COPY: Record<string, { label: string; intent: string }> = {
+  new: { label: 'Prospecto nuevo', intent: 'Validar empresa, rubro y canal' },
+  contacted: { label: 'Contactado', intent: 'Conseguir respuesta y dolor real' },
+  meeting_scheduled: { label: 'Reunion agendada', intent: 'Levantar necesidad y presupuesto' },
+  quote_sent: { label: 'Propuesta enviada', intent: 'Esperando decision o ajustes' },
+  negotiation: { label: 'Negociacion', intent: 'Cerrar condiciones y fecha de inicio' },
+  won: { label: 'Cliente ganado', intent: 'Convertir y pasar a onboarding' },
+  lost: { label: 'Perdido', intent: 'Archivar motivo y aprendizaje' },
+};
 const FIT_FILTERS = ['all', 'qualified', 'review', 'discarded'] as const;
 type PipelineView = 'board' | 'list';
 type LeadUpdate = { status?: string; fitStatus?: string; discardReason?: string };
@@ -83,6 +93,11 @@ function leadDate(value?: string): string {
   return value ? new Date(value).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sin fecha';
 }
 
+function leadAgeInDays(value?: string): number | null {
+  if (!value) return null;
+  return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
+}
+
 export function LeadsPage() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -90,7 +105,7 @@ export function LeadsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
-  const [clientFilter, setClientFilter] = useState('');
+  const [clientFilter, setClientFilter] = useState(searchParams.get('clientId') ?? '');
   const [pipelineView, setPipelineView] = useState<PipelineView>('board');
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(() => new Set());
   const [bulkStatus, setBulkStatus] = useState('contacted');
@@ -104,8 +119,8 @@ export function LeadsPage() {
   const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', company: '', source: 'manual', notes: '' });
 
   const { data: leadsResp, isLoading, error, refetch, isFetching } = useQuery<{ data: Lead[] }>({
-    queryKey: ['leads'],
-    queryFn: () => api.get('/crm/leads'),
+    queryKey: ['leads', clientFilter],
+    queryFn: () => api.get(`/crm/leads${clientFilter ? `?clientId=${encodeURIComponent(clientFilter)}` : ''}`),
   });
   const leads = useMemo<Lead[]>(() => (leadsResp as { data: Lead[] } | undefined)?.data ?? [], [leadsResp]);
 
@@ -118,6 +133,7 @@ export function LeadsPage() {
     for (const client of clientsResp?.data ?? []) map.set(client.id, client.name);
     return map;
   }, [clientsResp]);
+  const activeClientName = clientFilter ? (clientNameById.get(clientFilter) ?? 'Cliente no encontrado') : undefined;
   const clientNameOf = (lead: Lead) => (lead.clientId ? clientNameById.get(lead.clientId) ?? 'Cliente no encontrado' : 'Sin cliente');
 
   const visibleLeads = useMemo(() => {
@@ -153,11 +169,15 @@ export function LeadsPage() {
 
   const summary = useMemo(() => {
     const allLeads = leads ?? [];
+    const untouched = allLeads.filter((lead) => ['new', 'contacted'].includes(lead.status) && lead.fitStatus !== 'discarded').length;
+    const readyToClose = allLeads.filter((lead) => ['quote_sent', 'negotiation'].includes(lead.status) && lead.fitStatus === 'qualified').length;
     return {
       total: allLeads.length,
       qualified: allLeads.filter((lead) => lead.fitStatus === 'qualified').length,
       review: allLeads.filter((lead) => lead.fitStatus === 'review').length,
       discarded: allLeads.filter((lead) => lead.fitStatus === 'discarded').length,
+      untouched,
+      readyToClose,
     };
   }, [leads]);
 
@@ -252,25 +272,38 @@ export function LeadsPage() {
   return (
     <div className="page">
       <CrmNav />
-      <div className="page-header"><div><span className="page-eyebrow">CRM COMERCIAL</span><h1>Pipeline comercial</h1><p className="page-subtitle">Pipeline con trazabilidad y evidencia.</p></div><button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button></div>
+      <div className="page-header">
+        <CrmScopeBanner
+          mode="commercial"
+          title="Prospectos y pipeline de La Vitamina"
+          description="Este bloque no corresponde al CRM de reservas del restaurante. Aqui se gestiona la relacion comercial La Vitamina -> empresa prospecto o cliente."
+          clientName={activeClientName}
+          globalLabel="Vista global comercial de la agencia"
+        />
+        <button type="button" className="btn btn-primary" onClick={() => { setFeedback(null); setCreateOpen(true); }}>+ Nuevo lead</button>
+      </div>
 
-      <div className="card-grid">
-        <div className="card">
-          <div className="card-title">Leads totales</div>
-          <div className="card-value">{summary.total}</div>
-        </div>
-        <div className="card">
-          <div className="card-title">Calificados</div>
-          <div className="card-value">{summary.qualified}</div>
-        </div>
-        <div className="card">
-          <div className="card-title">En revision</div>
-          <div className="card-value">{summary.review}</div>
-        </div>
-        <div className="card">
-          <div className="card-title">Descartados</div>
-          <div className="card-value">{summary.discarded}</div>
-        </div>
+      <div className="crm-command-center">
+        <article className="crm-command-card is-primary">
+          <span>Bandeja comercial</span>
+          <strong>{summary.untouched}</strong>
+          <small>Prospectos nuevos o contactados que necesitan primer avance.</small>
+        </article>
+        <article className="crm-command-card">
+          <span>Listos para cierre</span>
+          <strong>{summary.readyToClose}</strong>
+          <small>Propuesta o negociacion con buen encaje.</small>
+        </article>
+        <article className="crm-command-card">
+          <span>Calificados</span>
+          <strong>{summary.qualified}</strong>
+          <small>Negocios utiles para ventas.</small>
+        </article>
+        <article className="crm-command-card is-muted">
+          <span>Descartados</span>
+          <strong>{summary.discarded}</strong>
+          <small>Fuera del pipeline activo.</small>
+        </article>
       </div>
 
       {feedback && <div className={`alert alert-${feedback.tone}`} role={feedback.tone === 'error' ? 'alert' : 'status'}>{feedback.text}</div>}
@@ -298,6 +331,11 @@ export function LeadsPage() {
         <button type="button" className="btn btn-outline btn-sm" disabled={!search && fitFilter === 'all' && !statusFilter && !sourceFilter && !clientFilter} onClick={() => { setSearch(''); setFitFilter('all'); setStatusFilter(''); setSourceFilter(''); setClientFilter(''); }}>Limpiar</button>
         <span className="filter-result-count">{visibleLeads.length} resultado{visibleLeads.length === 1 ? '' : 's'}</span>
       </div>
+      {!clientFilter && (
+        <div className="alert alert-info" role="status">
+          Vista global activa. Usa el filtro de cliente cuando necesites revisar solo la relacion comercial de una cuenta especifica.
+        </div>
+      )}
 
       <details className="crm-operations-panel">
         <summary>
@@ -383,9 +421,9 @@ export function LeadsPage() {
         />
       ) : (
         <>
-          <section className="crm-pipeline-workspace" aria-labelledby="crm-pipeline-heading">
+          <section className="crm-pipeline-workspace commercial-pipeline" aria-labelledby="crm-pipeline-heading">
             <header className="crm-pipeline-header">
-              <div><span className="page-eyebrow">MESA COMERCIAL</span><h2 id="crm-pipeline-heading">Leads en movimiento</h2><p>Selecciona varios prospectos para calificarlos o moverlos de etapa sin perder trazabilidad.</p></div>
+              <div><span className="page-eyebrow">MESA COMERCIAL</span><h2 id="crm-pipeline-heading">Venta de servicios La Vitamina</h2><p>De prospecto a cliente activo: cada tarjeta debe dejar claro a quien contactar, por que vale la pena y cual es el siguiente movimiento.</p></div>
               <div className="crm-view-switch" role="group" aria-label="Vista del pipeline">
                 <button type="button" className={pipelineView === 'board' ? 'active' : ''} aria-pressed={pipelineView === 'board'} onClick={() => setPipelineView('board')}>Tablero</button>
                 <button type="button" className={pipelineView === 'list' ? 'active' : ''} aria-pressed={pipelineView === 'list'} onClick={() => setPipelineView('list')}>Lista</button>
@@ -426,7 +464,10 @@ export function LeadsPage() {
                 }}
               >
                 <div className="kanban-header crm-stage-header">
-                  <div><StatusBadge status={status} /><small>{Math.round(((grouped[status]?.length ?? 0) / visibleLeads.length) * 100)}% visible</small></div>
+                  <div>
+                    <strong>{PIPELINE_STAGE_COPY[status]?.label ?? statusLabel(status)}</strong>
+                    <small>{PIPELINE_STAGE_COPY[status]?.intent ?? `${Math.round(((grouped[status]?.length ?? 0) / visibleLeads.length) * 100)}% visible`}</small>
+                  </div>
                   <span className="kanban-count">{grouped[status]?.length ?? 0}</span>
                 </div>
 
@@ -462,11 +503,15 @@ export function LeadsPage() {
                           Score {lead.qualityScore}
                         </span>
                       </div>
-                      <div className="kanban-card-info">{lead.email || lead.phone || 'Sin canal de contacto'}</div>
-                      <div className="kanban-card-info">Cliente: {clientNameOf(lead)}</div>
-                      <div className="kanban-card-info">{lead.sourceDetail || (lead.source ? SOURCE_LABELS[lead.source] ?? statusLabel(lead.source) : 'Origen no informado')}</div>
-                      {lead.campaignName && <div className="kanban-card-info">Campana: {lead.campaignName}</div>}
-                      <div className="kanban-card-info">Ingreso: {leadDate(lead.createdAt)}</div>
+                      <div className="lead-commercial-fields">
+                        <span><b>Cuenta</b>{clientNameOf(lead)}</span>
+                        <span><b>Canal</b>{lead.email || lead.phone || 'Sin contacto'}</span>
+                        <span><b>Origen</b>{lead.sourceDetail || (lead.source ? SOURCE_LABELS[lead.source] ?? statusLabel(lead.source) : 'No informado')}</span>
+                      </div>
+                      <div className="lead-sales-signal">
+                        <span>{leadAgeInDays(lead.createdAt) ?? '-'} dias en CRM</span>
+                        {lead.campaignName && <span>{lead.campaignName}</span>}
+                      </div>
                       {lead.consentCapturedAt && <div className="kanban-card-info is-consent">Consentimiento registrado</div>}
                       {lead.discardReason && <div className="lead-discard-reason">{lead.discardReason}</div>}
                       {lead.notes && <div className="lead-note-preview">{lead.notes.split('\n')[0]}</div>}

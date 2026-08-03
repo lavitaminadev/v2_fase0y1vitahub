@@ -14,9 +14,12 @@ export class ListOpportunitiesUseCase {
     limit = 20,
     offset = 0,
     leadId?: string,
+    clientId?: string,
   ): Promise<{ data: Opportunity[]; total: number; limit: number; offset: number }> {
+    if (clientId === '__none__') return { data: [], total: 0, limit, offset };
     const where: Record<string, unknown> = { organizationId };
     if (leadId) where.leadId = leadId;
+    if (clientId) where.clientId = clientId;
 
     const [data, total] = await this.repo.findAndCount({
       where,

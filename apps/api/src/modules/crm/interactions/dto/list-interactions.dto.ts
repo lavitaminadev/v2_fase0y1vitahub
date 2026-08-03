@@ -5,4 +5,8 @@ export class ListInteractionsDto extends PaginationDto {
   @IsOptional()
   @IsUUID()
   leadId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }

@@ -31,6 +31,7 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelado',
   meeting_scheduled: 'Reunión agendada',
   quote_sent: 'Cotización enviada',
+  proposal: 'Propuesta',
   negotiation: 'Negociación',
   assigned: 'Asignado',
   correction: 'Corrección',

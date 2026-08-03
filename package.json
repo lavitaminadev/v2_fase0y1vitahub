@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "VITAHUB — Sistema de Gestión de Agencia",
   "private": true,
-  "packageManager": "npm@11.16.0",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
+    "postinstall": "node -e \"console.log('Skipping postinstall build in hosting environment')\"",
     "build:shared": "cd packages/shared && npm run build",
     "build:api": "npm run build:shared && cd apps/api && npm run build",
     "build:web": "npm run build:shared && cd apps/web && npm run build",
@@ -30,7 +30,9 @@
     "validate:env": "node scripts/validate-env.js",
     "deploy:web:cpanel": "powershell -NoProfile -Command \"$dest = Join-Path $HOME 'public_html'; New-Item -ItemType Directory -Force -Path $dest | Out-Null; if (Test-Path (Join-Path $dest 'assets')) { Remove-Item -Recurse -Force (Join-Path $dest 'assets') }; Copy-Item -Recurse -Force apps/web/dist/* $dest\"",
     "migration:run": "cd apps/api && npx typeorm-ts-node-commonjs migration:run -d src/infrastructure/database-data-source.ts",
-    "migration:revert": "cd apps/api && npx typeorm-ts-node-commonjs migration:revert -d src/infrastructure/database-data-source.ts"
+    "migration:revert": "cd apps/api && npx typeorm-ts-node-commonjs migration:revert -d src/infrastructure/database-data-source.ts",
+    "migration:run:compiled": "node scripts/run-compiled-migrations.cjs",
+    "seed:demo-admin": "node scripts/seed-demo-admin.cjs"
   },
   "workspaces": [
     "apps/api",
@@ -38,10 +40,48 @@
     "packages/*"
   ],
   "dependencies": {
+    "@nestjs/axios": "^4.0.1",
+    "@nestjs/common": "11.1.28",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/event-emitter": "^3.1.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "11.1.28",
+    "@nestjs/swagger": "^11.4.5",
+    "@nestjs/throttler": "^6.5.0",
+    "@nestjs/typeorm": "^11.0.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^20.11.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/papaparse": "^5.5.2",
+    "@types/passport-jwt": "^4.0.0",
+    "@vitahub/shared": "file:packages/shared",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.0",
+    "cloudinary": "^2.10.0",
+    "compression": "^1.8.1",
+    "dotenv": "^17.4.1",
+    "helmet": "^8.3.0",
     "lodash": "^4.17.21",
+    "mysql2": "^3.7.0",
+    "nodemailer": "^9.0.3",
+    "papaparse": "^5.5.4",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
     "react-is": "^19.2.8",
     "recharts": "^3.10.0",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.19",
+    "typescript": "^5.5.0",
+    "uuid": "^11.1.1",
+    "zod": "^3.22.0"
   },
   "overrides": {
     "@nestjs/common": "11.1.28",

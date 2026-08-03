@@ -5,6 +5,9 @@ const DB_PORT = parseInt(process.env.DB_PORT || '3306', 10);
 const DB_USERNAME = process.env.DB_USERNAME || 'vitahub';
 const DB_PASSWORD = process.env.DB_PASSWORD || '';
 const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
+const DB_SSL_ENABLED =
+  process.env.DB_SSL === 'true' ||
+  (process.env.NODE_ENV === 'production' && !['localhost', '127.0.0.1'].includes(DB_HOST));
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'mysql',
@@ -20,7 +23,7 @@ export const dataSourceOptions: DataSourceOptions = {
   extra: {
     charset: 'utf8mb4_unicode_ci',
     connectionLimit: 20,
-    ...(process.env.NODE_ENV === 'production' ? { ssl: { rejectUnauthorized: true } } : {}),
+    ...(DB_SSL_ENABLED ? { ssl: { rejectUnauthorized: true } } : {}),
   },
 };
 

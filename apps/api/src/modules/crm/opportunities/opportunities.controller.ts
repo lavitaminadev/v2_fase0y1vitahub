@@ -12,6 +12,7 @@ import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { RequiresFeature } from '../../../core/authorization/requires-feature.decorator';
+import { AccountAccessService } from '../../../core/client-scope/account-access.service';
 
 @Controller('crm/opportunities')
 @UseGuards(AuthGuard('jwt'))
@@ -24,6 +25,7 @@ export class OpportunitiesController {
     private getOpportunity: GetOpportunityUseCase,
     private updateOpportunity: UpdateOpportunityUseCase,
     private removeOpportunity: RemoveOpportunityUseCase,
+    private readonly accountAccess: AccountAccessService,
   ) {}
 
   @Post()
@@ -33,8 +35,12 @@ export class OpportunitiesController {
   }
 
   @Get()
-  findAll(@Query() query: ListOpportunitiesDto, @Req() req: AuthenticatedRequest) {
-    return this.listOpportunities.execute(req.organizationId, query.limit, query.offset, query.leadId);
+  async findAll(@Query() query: ListOpportunitiesDto, @Req() req: AuthenticatedRequest) {
+    const allowedClientIds = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    const clientScope = allowedClientIds === undefined
+      ? query.clientId
+      : (query.clientId ? (allowedClientIds.includes(query.clientId) ? query.clientId : '__none__') : undefined);
+    return this.listOpportunities.execute(req.organizationId, query.limit, query.offset, query.leadId, clientScope);
   }
 
   @Get(':id')

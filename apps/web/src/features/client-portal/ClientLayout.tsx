@@ -9,26 +9,32 @@ import { PwaInstallButton } from '../../shared/PwaInstallButton';
 const CLIENT_NAV = [
   { label: 'Inicio', path: '/portal', icon: 'IN' },
   { label: 'Reservas', path: '/portal/reservations', icon: 'RS' },
-  { label: 'Grilla', path: '/portal/grid', icon: 'GR' },
-  { label: 'Aprobaciones', path: '/portal/approvals', icon: 'AP' },
-  { label: 'Reuniones', path: '/portal/meetings', icon: 'RE' },
-  { label: 'Informes', path: '/portal/reports', icon: 'RP' },
+  { label: 'Calendario', path: '/portal/calendar', icon: 'CA' },
+  { label: 'Disponibilidad', path: '/portal/availability', icon: 'DI' },
 ];
 
 export function ClientLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [compact, setCompact] = useState(() => window.localStorage.getItem('vitahub:sidebar:compact') === 'true');
+  const toggleCompact = () => {
+    setCompact((current) => {
+      const next = !current;
+      window.localStorage.setItem('vitahub:sidebar:compact', String(next));
+      return next;
+    });
+  };
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${compact ? 'sidebar-compact' : ''}`}>
       <button className="sidebar-toggle" onClick={() => setOpen(!open)} aria-label="Abrir navegación" aria-expanded={open}>☰</button>
       <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <div className="sidebar-header"><BrandMark decorative /><div><h2>Mi cuenta</h2><span>La Vitamina</span></div></div>
+        <div className="sidebar-header"><BrandMark decorative /><div><h2>Mi cuenta</h2><span>La Vitamina</span></div><button type="button" className="sidebar-collapse-button" onClick={toggleCompact} aria-label={compact ? 'Expandir menu' : 'Achicar menu'} title={compact ? 'Expandir menu' : 'Achicar menu'}>{compact ? '>' : '<'}</button></div>
         <nav className="sidebar-nav">
           {CLIENT_NAV.map((item) => {
             const active = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(`${item.path}/`));
             return (
-              <Link key={item.path} to={item.path} className={`nav-item ${active ? 'active' : ''}`} onClick={() => setOpen(false)}>
+              <Link key={item.path} to={item.path} className={`nav-item ${active ? 'active' : ''}`} onClick={() => setOpen(false)} title={item.label} aria-label={item.label}>
                 <NavGlyph label={item.label} />
                 <span className="nav-label">{item.label}</span>
               </Link>

@@ -583,7 +583,15 @@ export class ReservationsService {
         client_ip_address: booking.clientIpAddress ?? undefined,
         client_user_agent: booking.clientUserAgent ?? undefined,
       },
-      customData: { contentIds: [form.id], contentType: 'reservation' }, eventId: `${eventName.toLowerCase()}:${booking.id}`,
+      customData: {
+        contentIds: [form.id],
+        contentType: 'reservation',
+        clientId: form.clientId,
+        formId: form.id,
+        reservationId: booking.id,
+        referenceCode: booking.referenceCode,
+      },
+      eventId: `${eventName.toLowerCase()}:${booking.id}`,
     });
   }
 

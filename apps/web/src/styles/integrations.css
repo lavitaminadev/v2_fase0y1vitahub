@@ -111,6 +111,402 @@
   font-size: 13px;
 }
 
+.capi-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.capi-stat-card {
+  background: linear-gradient(135deg, #fffaf4, #edf7f3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+
+.capi-stat-card span {
+  display: block;
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.capi-stat-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 26px;
+  color: var(--text-dark);
+}
+
+.capi-filter-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.capi-filter-card label {
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.capi-filter-card .input {
+  margin-top: 5px;
+}
+
+.capi-detail-card {
+  margin-top: 16px;
+}
+
+.capi-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.capi-detail-grid div {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+
+.capi-detail-grid dt {
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.capi-detail-grid dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.capi-safe-payload {
+  background: #17201d;
+  color: #e7f5ee;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  overflow-x: auto;
+}
+
+/* Fase 0/1 presentation layer */
+.fase-dashboard,
+.client-home-v2,
+.capi-events-page {
+  --phase-ink: #0d2f28;
+  --phase-cream: #fbf7ed;
+  --phase-lime: #d7eb79;
+  --phase-coral: #ea0f63;
+}
+
+.compact-page-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  background: rgba(255,255,255,.78);
+  box-shadow: var(--shadow);
+}
+
+.compact-page-head h1 {
+  margin: 2px 0 0;
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -.035em;
+}
+
+.compact-page-head p {
+  margin: 2px 0 0;
+  color: var(--text-light);
+}
+
+.compact-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.compact-head-status {
+  min-width: 150px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #173f35;
+  color: #fff;
+  text-align: right;
+}
+
+.compact-head-status strong,
+.compact-head-status span {
+  display: block;
+}
+
+.compact-head-status span {
+  color: rgba(255,255,255,.72);
+  font-size: 12px;
+}
+
+.fase-flow,
+.capi-business-flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.fase-flow article,
+.capi-business-flow article {
+  min-height: 106px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(23, 63, 53, .08);
+  box-shadow: var(--shadow);
+}
+
+.fase-flow b,
+.capi-business-flow b {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: #173f35;
+  color: #d7eb79;
+  font-size: 11px;
+}
+
+.fase-flow strong,
+.capi-business-flow strong {
+  display: block;
+  color: var(--text-dark);
+  font-size: 17px;
+}
+
+.fase-flow p,
+.capi-business-flow span {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--text-light);
+  font-size: 13px;
+}
+
+.fase-metrics-grid,
+.client-home-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 14px;
+  margin: 14px 0;
+}
+
+.fase-metrics-grid article,
+.client-home-metrics article {
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fff, #f6f8f1);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow);
+}
+
+.fase-metrics-grid span,
+.client-home-metrics span,
+.fase-focus-card span,
+.client-home-card > span {
+  display: block;
+  color: #bd4527;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+
+.fase-metrics-grid strong,
+.client-home-metrics strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-dark);
+  font-size: 32px;
+}
+
+.fase-metrics-grid small,
+.client-home-metrics small {
+  color: var(--text-light);
+}
+
+.fase-focus-grid,
+.client-home-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 14px;
+  margin: 14px 0;
+}
+
+.fase-focus-card,
+.client-home-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 150px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow);
+  color: inherit;
+}
+
+.fase-focus-card:hover {
+  transform: translateY(-2px);
+  text-decoration: none;
+  box-shadow: 0 24px 60px rgba(23, 63, 53, .14);
+}
+
+.fase-focus-card strong,
+.client-home-card h2 {
+  color: var(--text-dark);
+  font-size: 22px;
+}
+
+.fase-focus-card p,
+.client-home-card p {
+  color: var(--text);
+  margin: 0;
+}
+
+.fase-focus-card b {
+  margin-top: auto;
+  color: var(--primary);
+}
+
+.fase-two-column {
+  display: grid;
+  grid-template-columns: minmax(260px, .75fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.fase-story-card {
+  padding: 22px;
+  border-radius: 24px;
+  background: #fff7ee;
+  border: 1px solid #f0dcc9;
+  box-shadow: var(--shadow);
+}
+
+.fase-story-card p {
+  margin: 10px 0 0;
+}
+
+.client-home-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+}
+
+.client-home-card.is-guidance {
+  background: linear-gradient(145deg, #173f35, #245b49);
+}
+
+.client-home-card.is-guidance h2,
+.client-home-card.is-guidance p {
+  color: #fff;
+}
+
+.client-home-card.is-guidance span {
+  color: #d7eb79;
+}
+
+.client-reservation-list {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.client-reservation-list div {
+  padding: 12px;
+  border-radius: 14px;
+  background: #f6f8f1;
+  border: 1px solid var(--border-light);
+}
+
+.client-reservation-list strong,
+.client-reservation-list span,
+.client-reservation-list small {
+  display: block;
+}
+
+.client-reservation-list span,
+.client-reservation-list small {
+  color: var(--text-light);
+}
+
+.capi-privacy-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.capi-privacy-strip span {
+  padding: 8px 11px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  font-size: 12px;
+}
+
+.capi-business-flow {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.capi-stat-card small {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-light);
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  .compact-page-head,
+  .fase-two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-head-actions {
+    justify-content: flex-start;
+  }
+
+  .fase-flow,
+  .capi-business-flow,
+  .fase-focus-grid,
+  .fase-metrics-grid,
+  .client-home-metrics,
+  .client-home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .fase-flow,
+  .capi-business-flow,
+  .fase-focus-grid,
+  .fase-metrics-grid,
+  .client-home-metrics,
+  .client-home-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .page-subtitle {
   color: var(--text-light);
   margin: 4px 0 0;
@@ -291,4 +687,3 @@
   border-radius: 4px;
   transition: width 0.3s;
 }
-
