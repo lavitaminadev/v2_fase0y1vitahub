@@ -18,7 +18,7 @@ const FIELD_LIBRARY = [
   ['text', 'Texto corto'], ['textarea', 'Texto largo'], ['email', 'Correo'],
   ['phone', 'Teléfono'], ['select', 'Selector'], ['multi_select', 'Selección múltiple'],
   ['number', 'Número'], ['date', 'Fecha'], ['consent', 'Aceptación'],
-  ['coupon', 'Cupón promocional'],
+  ['rating', 'Calificación'], ['coupon', 'Cupón promocional'],
 ] as const;
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -37,7 +37,7 @@ const DESIGN_TEMPLATES: Array<{ name: string; config: Record<string, string> }> 
   { name: 'Editorial', config: { primaryColor: '#222222', accentColor: '#c56d3d', backgroundColor: '#f4eee5', textColor: '#37332f', fontFamily: 'Georgia, serif', backgroundMode: 'gradient', backgroundGradient: 'linear-gradient(145deg, #f4eee5 0%, #e5d3bf 100%)', backgroundOpacity: '84', backgroundPosition: 'center', buttonRadius: '4', fieldRadius: '4' } },
   { name: 'Energía', config: { primaryColor: '#40205f', accentColor: '#ff4f87', backgroundColor: '#f8f2ff', textColor: '#332541', fontFamily: 'Inter, sans-serif', backgroundMode: 'gradient', backgroundGradient: 'linear-gradient(135deg, #fff0f6 0%, #eee5ff 100%)', backgroundOpacity: '82', backgroundPosition: 'center', buttonRadius: '999', fieldRadius: '16' } },
 ];
-const RECOMMENDED_FIELDS = new Set(['text', 'phone', 'email', 'number', 'consent']);
+const RECOMMENDED_FIELDS = new Set(['text', 'phone', 'email', 'number', 'consent', 'rating']);
 const DEFAULT_BACKGROUND_GRADIENT = 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)';
 const BACKGROUND_POSITIONS = [
   ['left top', 'Arriba izquierda'], ['center top', 'Arriba centro'], ['right top', 'Arriba derecha'],
@@ -460,6 +460,18 @@ function DesignAdvancedControls({
         <div className="design-templates">{DESIGN_TEMPLATES.map((template) => <button type="button" key={template.name} onClick={() => onChange({ ...design, ...template.config })}>{template.name}</button>)}</div>
       </div>
       <label>Mensaje de confirmación<textarea className="input" rows={3} value={design.confirmationMessage || ''} onChange={(event) => update({ confirmationMessage: event.target.value })} placeholder="Tu reserva quedó registrada. Te esperamos." /></label>
+      <div className="design-control-group">
+        <span>Calendario del visitante</span>
+        <label className="toggle-row"><input type="checkbox" checked={design.calendarSaveEnabled !== 'false'} onChange={(event) => update({ calendarSaveEnabled: String(event.target.checked) })} /> Ofrecer guardar la reserva en calendario</label>
+        <textarea className="input" rows={2} value={design.calendarSaveText || 'Al tocar una opción, tu dispositivo abrirá su calendario y te pedirá confirmar antes de guardar.'} onChange={(event) => update({ calendarSaveText: event.target.value })} />
+      </div>
+      <div className="design-control-group">
+        <span>Encuesta y reseñas</span>
+        <label>Título de encuesta<input className="input" value={design.surveyTitle || ''} onChange={(event) => update({ surveyTitle: event.target.value })} placeholder="Cuéntanos cómo fue tu experiencia" /></label>
+        <label>Ayuda de encuesta<textarea className="input" rows={2} value={design.surveyHelpText || ''} onChange={(event) => update({ surveyHelpText: event.target.value })} placeholder="Tus respuestas ayudan al local a mejorar cada visita." /></label>
+        <label>URL de reseña en Google<input className="input" value={design.googleReviewUrl || ''} onChange={(event) => update({ googleReviewUrl: event.target.value })} placeholder="https://g.page/r/..." /></label>
+        <label>Destacar Google desde ({design.googleReviewMinRating || '4'} estrellas)<input type="range" min="1" max="5" value={design.googleReviewMinRating || '4'} onChange={(event) => update({ googleReviewMinRating: event.target.value })} /></label>
+      </div>
       <label>Tipo de fondo<select className="input" value={design.backgroundMode || (design.backgroundImage ? 'image' : 'color')} onChange={(event) => update({ backgroundMode: event.target.value, ...(event.target.value === 'gradient' && !design.backgroundGradient ? { backgroundGradient: DEFAULT_BACKGROUND_GRADIENT } : {}) })}><option value="color">Color plano</option><option value="gradient">Degradado</option><option value="image">Imagen</option></select></label>
       <label>Degradado<input className="input" value={design.backgroundGradient || DEFAULT_BACKGROUND_GRADIENT} onChange={(event) => update({ backgroundGradient: event.target.value })} /></label>
       <div className="color-controls"><label>Principal<input type="color" value={design.primaryColor || '#173f35'} onChange={(event) => update({ primaryColor: event.target.value })} /></label><label>Acento<input type="color" value={design.accentColor || '#ea0f63'} onChange={(event) => update({ accentColor: event.target.value })} /></label><label>Fondo<input type="color" value={design.backgroundColor || '#f3f5ef'} onChange={(event) => update({ backgroundColor: event.target.value })} /></label><label>Color de letras<input type="color" value={design.textColor || '#3f4e49'} onChange={(event) => update({ textColor: event.target.value })} /></label></div>

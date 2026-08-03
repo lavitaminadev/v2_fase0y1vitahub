@@ -5,7 +5,7 @@ export class CreateReservationFormDto {
   @IsUUID() clientId: string;
   @IsString() @MaxLength(180) name: string;
   @IsOptional() @IsString() @MaxLength(190) publicSlug?: string;
-  @IsOptional() @IsIn(['appointment', 'group', 'request']) mode?: string;
+  @IsOptional() @IsIn(['appointment', 'group', 'request', 'survey']) mode?: string;
 }
 export class UpdateReservationFormDto {
   @IsOptional() @IsString() @MaxLength(180) name?: string;
@@ -57,6 +57,20 @@ export class PublicReservationDto {
 }
 export class UpdateReservationDto { @IsOptional() @IsIn(['pending','confirmed','rescheduled','cancelled_client','cancelled_business','attended','no_show','waitlist']) status?: string; @IsOptional() @IsString() @MaxLength(10000) internalNotes?: string; @IsOptional() @IsDateString() startsAt?: string; }
 export class PublicFormEventDto { @IsIn(['view','start']) type: string; @IsOptional() @IsString() @MaxLength(80) sessionId?: string; @IsOptional() @IsString() @MaxLength(120) utmSource?: string; @IsOptional() @IsString() @MaxLength(180) utmCampaign?: string; }
+export class PublicSurveyResponseDto {
+  @IsString() @MaxLength(180) guestName: string;
+  @IsOptional() @IsEmail() guestEmail?: string;
+  @IsOptional() @IsString() @MaxLength(50) guestPhone?: string;
+  @IsObject() answers: Record<string, unknown>;
+  @IsString() @MaxLength(80) idempotencyKey: string;
+  @IsOptional() @IsString() @MaxLength(120) utmSource?: string;
+  @IsOptional() @IsString() @MaxLength(180) utmCampaign?: string;
+  @IsOptional() @IsString() @MaxLength(255) clickId?: string;
+  @IsOptional() @IsString() @MaxLength(255) fbc?: string;
+  @IsOptional() @IsString() @MaxLength(255) fbp?: string;
+  @IsOptional() @IsString() @MaxLength(2048) eventSourceUrl?: string;
+  @IsOptional() @IsString() @MaxLength(200) website?: string;
+}
 export class CreateCouponDto {
   @IsString() @MaxLength(80) code: string;
   @IsOptional() @IsIn(['percentage','fixed']) discountType?: string;

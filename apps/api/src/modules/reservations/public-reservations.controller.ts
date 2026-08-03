@@ -4,7 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { Public } from '../../core/auth/decorators/public.decorator';
 import { ReservationsService } from './application/reservations.service';
-import { CouponValidateDto, PublicFormEventDto, PublicReservationDto } from './dto/reservation.dto';
+import { CouponValidateDto, PublicFormEventDto, PublicReservationDto, PublicSurveyResponseDto } from './dto/reservation.dto';
 
 @Public()
 @ApiTags('Reservas pÃºblicas')
@@ -42,6 +42,22 @@ export class PublicReservationsController {
     const code = dto.code?.trim();
     if (!code) throw new BadRequestException('CÃ³digo requerido');
     return this.service.validatePublicCoupon(slug, code);
+  }
+
+  @Post(':slug/survey')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  survey(
+    @Param('slug') slug: string,
+    @Body() dto: PublicSurveyResponseDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string | undefined,
+    @Req() req: Request,
+  ) {
+    const publicOrigin = (process.env.APP_PUBLIC_URL || '').replace(/\/$/, '');
+    const eventSourceUrl = dto.eventSourceUrl
+      || (typeof req.headers.referer === 'string' ? req.headers.referer : undefined)
+      || (publicOrigin ? `${publicOrigin}/book/${encodeURIComponent(slug)}` : undefined);
+    return this.service.createPublicSurveyResponse(slug, dto, ipAddress, userAgent, eventSourceUrl);
   }
 
   @Post(':slug')

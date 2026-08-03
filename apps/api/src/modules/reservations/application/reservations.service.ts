@@ -10,7 +10,7 @@ import { ReservationEvent } from '../domain/reservation-event.entity';
 import { ReservationFormEvent } from '../domain/reservation-form-event.entity';
 import { ReservationCoupon } from '../domain/reservation-coupon.entity';
 import { addPlainDays, assertTimeZone, localToUtc, plainDateParts, zonedParts } from '../domain/timezone';
-import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, PublicFormEventDto, PublicReservationDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from '../dto/reservation.dto';
+import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, PublicFormEventDto, PublicReservationDto, PublicSurveyResponseDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from '../dto/reservation.dto';
 import { LeadIntakeService } from '../../crm/leads/lead-intake.service';
 import { GoogleCalendarService } from '../../integrations/google/google-calendar.service';
 import { MetaConversionOutboxService } from '../../integrations/meta/meta-conversion-outbox.service';
@@ -48,7 +48,7 @@ type DesignConfig = {
   fontFamily?: string;
 };
 
-const FIELD_TYPES = new Set(['text', 'textarea', 'email', 'phone', 'select', 'multi_select', 'number', 'date', 'consent', 'coupon']);
+const FIELD_TYPES = new Set(['text', 'textarea', 'email', 'phone', 'select', 'multi_select', 'number', 'date', 'consent', 'coupon', 'rating']);
 // Solo las reservas que aún tienen un turno futuro consumen capacidad.
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'rescheduled'];
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -154,6 +154,7 @@ export class ReservationsService {
       if (typeof value === 'string' && value.length > 5000) throw new BadRequestException(`La respuesta de ${field.label} es demasiado extensa`);
       if (Array.isArray(value) && (value.length > 100 || value.some((entry) => typeof entry !== 'string' || entry.length > 500))) throw new BadRequestException(`La respuesta de ${field.label} no es válida`);
       if (field.type === 'number' && (typeof value !== 'number' && typeof value !== 'string' || !Number.isFinite(Number(value)))) throw new BadRequestException(`La respuesta de ${field.label} debe ser numérica`);
+      if (field.type === 'rating' && (!Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > 5)) throw new BadRequestException(`La respuesta de ${field.label} debe estar entre 1 y 5`);
       if (field.type === 'consent' && typeof value !== 'boolean') throw new BadRequestException(`La respuesta de ${field.label} debe ser una aceptación`);
     }
   }
@@ -188,10 +189,26 @@ export class ReservationsService {
     await this.assertClientOwnership(organizationId, dto.clientId);
     const capabilities = await this.clientCapabilities(organizationId, dto.clientId);
     if (!capabilities.reservations) throw new ForbiddenException('Reservas no está habilitado para esta empresa');
+    const isSurvey = ['request', 'survey'].includes(dto.mode || '');
+    const fieldSchema = isSurvey
+      ? [
+        { id: 'name', type: 'text', label: 'Nombre', required: true, system: true, placeholder: 'Nombre completo' },
+        { id: 'email', type: 'email', label: 'Email (aquí enviaremos tu regalo)', required: true, system: true, placeholder: 'Email' },
+        { id: 'phone', type: 'phone', label: 'WhatsApp', required: true, system: true, placeholder: '+56 9 ...' },
+        { id: 'birthday', type: 'date', label: '¿Cuál es tu fecha de cumpleaños?', required: true },
+        { id: 'consent', type: 'consent', label: 'Acepto los términos y condiciones proporcionados por la empresa. Al proporcionar mi número de WhatsApp acepto recibir promociones esporádicas.', required: true },
+        { id: 'ad_influenced', type: 'select', label: '¿Viste algún anuncio publicitario que influyó en tu decisión de visitarnos?', required: true, options: ['Sí', 'No'] },
+        { id: 'source', type: 'select', label: '¿Cómo nos conociste?', required: true, options: ['Recomendación de alguien', 'Vi un anuncio publicitario en Facebook/Instagram', 'Los vi mientras caminaba y entré', 'Ya los conocía, soy cliente'] },
+        { id: 'served_by', type: 'text', label: '¿Podrías indicarnos quien te atendió durante tu visita?', required: true, placeholder: 'Ej: Juan' },
+        { id: 'rating', type: 'rating', label: 'De 1 a 5 ¿Cómo calificarías la experiencia?', required: true },
+      ]
+      : [{ id: 'name', type: 'text', label: 'Nombre completo', required: true, system: true }, { id: 'email', type: 'email', label: 'Correo', required: false, system: true }, { id: 'phone', type: 'phone', label: 'Teléfono', required: true, system: true }, { id: 'consent', type: 'consent', label: 'Acepto el tratamiento de mis datos para gestionar esta reserva.', required: true }];
     const form = this.forms.create({
       organizationId, clientId: dto.clientId, createdBy: userId, name: dto.name.trim(), publicSlug: await this.uniqueSlug(dto.publicSlug || dto.name), mode: dto.mode || 'appointment',
-      fieldSchema: [{ id: 'name', type: 'text', label: 'Nombre completo', required: true, system: true }, { id: 'email', type: 'email', label: 'Correo', required: false, system: true }, { id: 'phone', type: 'phone', label: 'Teléfono', required: true, system: true }, { id: 'consent', type: 'consent', label: 'Acepto el tratamiento de mis datos para gestionar esta reserva.', required: true }],
-      designConfig: { primaryColor: '#173f35', accentColor: '#ea0f63', backgroundColor: '#f3f5ef', textColor: '#3f4e49', title: dto.name, welcome: 'Elige el horario que mejor te acomode.', backgroundMode: 'gradient', backgroundGradient: 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)', backgroundOpacity: '88', backgroundPosition: 'center', buttonRadius: '12', fieldRadius: '10', fontFamily: 'system-ui' },
+      fieldSchema,
+      designConfig: isSurvey
+        ? { primaryColor: '#1f5b2d', accentColor: '#d79b3a', backgroundColor: '#f5eedf', textColor: '#263241', title: dto.name, welcome: 'Gracias por ser parte de nuestra experiencia. Tu opinión es fundamental para seguir mejorando.', confirmationMessage: 'Gracias por tu tiempo. Tu respuesta fue registrada.', backgroundMode: 'image', backgroundOpacity: '82', backgroundPosition: 'center', backgroundSize: 'cover', layoutPosition: 'center', buttonRadius: '6', fieldRadius: '6', fontFamily: 'Inter, sans-serif', showFacts: 'false', showSecureBadge: 'false', showPoweredBy: 'false', googleReviewUrl: '', googleReviewMinRating: '4' }
+        : { primaryColor: '#173f35', accentColor: '#ea0f63', backgroundColor: '#f3f5ef', textColor: '#3f4e49', title: dto.name, welcome: 'Elige el horario que mejor te acomode.', backgroundMode: 'gradient', backgroundGradient: 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)', backgroundOpacity: '88', backgroundPosition: 'center', buttonRadius: '12', fieldRadius: '10', fontFamily: 'system-ui' },
       scheduleConfig: { windows: [1,2,3,4,5].map((day) => ({ day, start: '09:00', end: '18:00' })) }, servicesConfig: [], resourcesConfig: [], crmEnabled: capabilities.crm, calendarEnabled: false, metaCapiEnabled: false,
     });
     this.validateConfiguration(form); return this.forms.save(form);
@@ -452,6 +469,44 @@ export class ReservationsService {
     return this.formEvents.save(this.formEvents.create({ organizationId: form.organizationId, clientId: form.clientId, formId: form.id, type: dto.type, sessionId: dto.sessionId, utmSource: dto.utmSource, utmCampaign: dto.utmCampaign }));
   }
 
+  async createPublicSurveyResponse(slug: string, dto: PublicSurveyResponseDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
+    if (dto.website) throw new BadRequestException('Solicitud inválida');
+    const form = await this.publishedForm(slug);
+    if (!['request', 'survey'].includes(form.mode)) throw new BadRequestException('Este enlace requiere selección de horario');
+    this.validateAnswers(form, dto.answers);
+    const existing = await this.formEvents.findOne({ where: { formId: form.id, type: 'submit', sessionId: dto.idempotencyKey } });
+    if (existing) return existing;
+    const response = await this.formEvents.save(this.formEvents.create({
+      organizationId: form.organizationId,
+      clientId: form.clientId,
+      formId: form.id,
+      type: 'submit',
+      sessionId: dto.idempotencyKey,
+      utmSource: dto.utmSource,
+      utmCampaign: dto.utmCampaign,
+      metadata: {
+        guestName: dto.guestName.trim(),
+        guestEmail: dto.guestEmail?.trim().toLowerCase(),
+        guestPhone: dto.guestPhone?.replace(/[^\d+]/g, ''),
+        answers: dto.answers,
+        clickId: dto.clickId,
+        fbc: dto.fbc,
+        fbp: dto.fbp,
+        clientIpAddress: ipAddress,
+        clientUserAgent: userAgent,
+      },
+    }));
+    const capabilities = await this.clientCapabilities(form.organizationId, form.clientId);
+    if (form.metaCapiEnabled && capabilities.metaConversions) {
+      try {
+        await this.enqueueMetaSurveyConversion(response, form, dto, ipAddress, userAgent, eventSourceUrl);
+      } catch (err) {
+        this.logger.warn(`Meta CAPI survey enqueue failed for response ${response.id}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    return response;
+  }
+
   private async validateEmailDomain(email?: string): Promise<void> {
     if (!email) return;
     const domain = email.split('@')[1];
@@ -703,6 +758,43 @@ export class ReservationsService {
         client_user_agent: booking.clientUserAgent ?? undefined,
       },
       customData: { contentIds: [form.id], contentType: 'reservation' }, eventId: `${eventName.toLowerCase()}:${booking.id}`,
+    });
+  }
+
+  private async enqueueMetaSurveyConversion(response: ReservationFormEvent, form: ReservationForm, dto: PublicSurveyResponseDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
+    const { pixelId, accessToken } = await this.getClientMetaConfig(form.clientId, form.organizationId);
+    if (!pixelId || !accessToken) throw new Error('Meta pixel or CAPI token is not configured');
+    const fallbackUrl = process.env.APP_PUBLIC_URL ? `${process.env.APP_PUBLIC_URL.replace(/\/$/, '')}/book/${encodeURIComponent(form.publicSlug)}` : undefined;
+    const [firstName, ...lastNameParts] = (dto.guestName ?? '').trim().split(/\s+/);
+    const lastName = lastNameParts.join(' ');
+    const phone = dto.guestPhone?.replace(/[^\d+]/g, '');
+    const location = inferLocationFromPhone(phone);
+    const rating = Number((dto.answers || {}).rating ?? (dto.answers || {}).experience_rating);
+    await this.metaOutbox.enqueue(form.organizationId, pixelId, {
+      eventName: 'Lead',
+      eventTime: Math.floor(response.createdAt.getTime() / 1000),
+      actionSource: 'website',
+      eventSourceUrl: eventSourceUrl || fallbackUrl || undefined,
+      userData: {
+        em: dto.guestEmail ? [dto.guestEmail] : undefined,
+        ph: phone ? [phone] : undefined,
+        fn: firstName ? [firstName] : undefined,
+        ln: lastName ? [lastName] : undefined,
+        externalId: [response.id],
+        ct: location.city ? [location.city] : undefined,
+        st: location.region ? [location.region] : undefined,
+        country: location.country ? [location.country] : undefined,
+        fbc: dto.fbc ?? undefined,
+        fbp: dto.fbp ?? undefined,
+        client_ip_address: ipAddress ?? undefined,
+        client_user_agent: userAgent ?? undefined,
+      },
+      customData: {
+        contentIds: [form.id],
+        contentType: 'survey',
+        ...(Number.isFinite(rating) ? { value: rating } : {}),
+      },
+      eventId: `lead:${response.id}`,
     });
   }
 

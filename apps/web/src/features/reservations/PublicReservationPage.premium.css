@@ -13,6 +13,47 @@
   --border-color: #e5e7eb;
 }
 
+/* Encuesta / experiencia post-visita */
+.public-booking-card.is-survey {
+  max-width: 680px;
+  margin-inline: auto;
+  background: rgba(255, 248, 229, 0.88);
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 26px 70px rgba(47, 59, 43, 0.18);
+}
+
+.public-radio-group {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  padding: 0;
+  border: 0;
+}
+
+.public-radio-group legend {
+  margin-bottom: 4px;
+  color: var(--booking-text);
+  font-weight: 800;
+}
+
+.public-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--booking-text);
+  font-weight: 600;
+}
+
+.public-radio-group input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--booking-primary);
+}
+
+.public-rating {
+  padding-top: 8px;
+}
+
 /*
  * De esta hoja solo siguen en uso las pantallas de exito y de error; el formulario usa el
  * layout de marca de `pulse-reservations-intro.css`.

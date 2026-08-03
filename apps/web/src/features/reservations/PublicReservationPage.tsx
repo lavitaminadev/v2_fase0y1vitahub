@@ -15,7 +15,7 @@ import { imageOverlayAlpha, safeDesignChoice, safeNumber, uuid, visible, slotDat
 import { safeUrl } from '../../core/safe-url';
 
 interface Slot { startsAt: string; available: number }
-interface Created { id: string; referenceCode: string; status: string; startsAt: string; couponCode?: string }
+interface Created { id: string; referenceCode?: string; status?: string; startsAt?: string; couponCode?: string; createdAt?: string }
 const DEFAULT_BACKGROUND_GRADIENT = 'linear-gradient(135deg, #f3f5ef 0%, #dce9df 100%)';
 
 /** Clave de `sessionStorage` donde vive la clave de idempotencia de la reserva en curso. */
@@ -71,6 +71,11 @@ export function PublicReservationPage() {
   const utmCampaign = params.get('utm_campaign') || undefined;
 
   const { data: form, isLoading, error } = useQuery<ReservationForm>({ queryKey: ['public-form', slug], queryFn: () => api.get(`/public/reservations/${slug}`), retry: false });
+  const isSurvey = form ? ['request', 'survey'].includes(form.mode) : false;
+
+  useEffect(() => {
+    if (isSurvey) setStep(2);
+  }, [isSurvey]);
 
   const from = form ? plainDateInZone(new Date(), form.timezone) : new Date().toISOString().slice(0, 10);
   const fromDate = useMemo(() => {
@@ -82,7 +87,7 @@ export function PublicReservationPage() {
   }, [from, monthOffset, form]);
 
   const slotParams = new URLSearchParams({ from: fromDate, days: String(slotDays), ...(serviceId ? { serviceId } : {}), ...(resourceId ? { resourceId } : {}) });
-  const { data: availability, isFetching: loadingSlots } = useQuery<{ slots: Slot[]; fullDays: string[] }>({ queryKey: ['public-slots', slug, fromDate, slotDays, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form), staleTime: 30_000, gcTime: 60_000 });
+  const { data: availability, isFetching: loadingSlots } = useQuery<{ slots: Slot[]; fullDays: string[] }>({ queryKey: ['public-slots', slug, fromDate, slotDays, serviceId, resourceId], queryFn: () => api.get(`/public/reservations/${slug}/slots?${slotParams}`), enabled: Boolean(form) && !isSurvey, staleTime: 30_000, gcTime: 60_000 });
   const slots = useMemo(() => availability?.slots ?? [], [availability]);
   /** Dias que alcanzaron el tope diario: se muestran completos, no cerrados. */
   const fullDays = useMemo(() => new Set(availability?.fullDays ?? []), [availability]);
@@ -127,15 +132,20 @@ export function PublicReservationPage() {
   const submit = useMutation({
     mutationFn: () => {
       const meta = readMetaMatchData();
-      return api.post<Created>(`/public/reservations/${slug}`, {
-        startsAt: selected, serviceId: serviceId || undefined, resourceId: resourceId || undefined,
-        ...guest, answers, idempotencyKey, website, renderedAt, consentVersion: 'v1',
-        couponCode: couponCode.trim() || undefined,
+      const baseBody = {
+        ...guest, answers, idempotencyKey, website,
         eventSourceUrl: window.location.href,
-        utmSource, utmMedium: params.get('utm_medium') || undefined,
-        utmCampaign, utmContent: params.get('utm_content') || undefined,
+        utmSource, utmCampaign,
         clickId: params.get('gclid') || meta.fbclid || undefined,
         fbc: meta.fbc, fbp: meta.fbp,
+      };
+      if (isSurvey) return api.post<Created>(`/public/reservations/${slug}/survey`, baseBody);
+      return api.post<Created>(`/public/reservations/${slug}`, {
+        startsAt: selected, serviceId: serviceId || undefined, resourceId: resourceId || undefined,
+        ...baseBody, renderedAt, consentVersion: 'v1',
+        couponCode: couponCode.trim() || undefined,
+        utmMedium: params.get('utm_medium') || undefined,
+        utmContent: params.get('utm_content') || undefined,
       });
     },
   });
@@ -171,18 +181,20 @@ export function PublicReservationPage() {
     const errs: Record<string, string> = {};
     if (!guest.guestName.trim()) errs.name = 'El nombre es obligatorio';
     if (systemFields.phone?.required && !guest.guestPhone.trim()) errs.phone = 'El teléfono es obligatorio';
-    if (systemFields.email?.required && guest.guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.guestEmail)) errs.email = 'Correo inválido';
+    if (systemFields.email?.required && !guest.guestEmail.trim()) errs.email = 'El correo es obligatorio';
+    else if (guest.guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.guestEmail)) errs.email = 'Correo inválido';
     for (const field of customFields) {
       if (field.required && field.type === 'consent' && !answers[field.id]) errs[field.id] = 'Debes aceptar';
-      if (field.required && ['text', 'textarea', 'phone', 'email', 'select'].includes(field.type) && !answers[field.id]) errs[field.id] = 'Campo obligatorio';
+      if (field.required && ['text', 'textarea', 'phone', 'email', 'select', 'date', 'rating'].includes(field.type) && !answers[field.id]) errs[field.id] = 'Campo obligatorio';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const goToConfirm = () => {
-    if (!selected) return;
+    if (!isSurvey && !selected) return;
     if (!validate()) return;
+    if (isSurvey) { submit.mutate(); return; }
     confirmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setStep(3);
   };
@@ -332,20 +344,25 @@ export function PublicReservationPage() {
 
   // Página de éxito
   if (submit.data) {
+    const googleReviewUrl = safeUrl(design.googleReviewUrl || '');
+    const rating = Number(answers.rating || answers.experience_rating || 0);
+    const reviewMinRating = safeNumber(design.googleReviewMinRating, 4, 1, 5);
+    if (isSurvey) return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{design.surveySuccessTitle || 'Gracias por tu opinión'}</h1><p>{design.confirmationMessage || 'Tu respuesta fue registrada correctamente.'}</p>{Number.isFinite(rating) && rating > 0 && <p className="success-datetime">Calificación recibida: {rating}/5</p>}<div className="success-actions">{googleReviewUrl ? <a className="btn btn-primary" href={googleReviewUrl} target="_blank" rel="noopener noreferrer">{rating >= reviewMinRating ? 'Dejar reseña en Google' : 'Ir a Google si quieres opinar públicamente'}</a> : null}<Link className="btn btn-outline" to={`/book/${slug}`}>Enviar otra respuesta</Link></div><small className="success-note">La reseña en Google es opcional y queda a tu criterio.</small></section></main>;
     const svcDuration = serviceId ? (form.servicesConfig || []).find((s) => s.id === serviceId)?.durationMinutes : null;
     const icsDuration = (svcDuration || form.durationMinutes || 60) * 60000;
-    const startDate = new Date(submit.data.startsAt);
+    const startDate = new Date(submit.data.startsAt!);
     const endDate = new Date(startDate.getTime() + icsDuration);
     const formatIcsDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const icsBody = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${formatIcsDate(startDate)}\nDTEND:${formatIcsDate(endDate)}\nSUMMARY:${form.name}\nDESCRIPTION:Reserva ${submit.data.referenceCode}\nEND:VEVENT\nEND:VCALENDAR`;
     const gcalUrl = safeUrl(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(form.name)}&dates=${formatIcsDate(startDate)}/${formatIcsDate(endDate)}&details=${encodeURIComponent('Reserva ' + submit.data.referenceCode)}`);
     const icsBlob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
     const icsUrl = URL.createObjectURL(icsBlob);
-    return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div>{submit.data.couponCode && <p className="success-coupon">🎫 Cupón <strong>{submit.data.couponCode}</strong> aplicado a esta reserva</p>}<small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions">
-      {gcalUrl ? <a className="btn btn-outline" href={gcalUrl} target="_blank" rel="noopener noreferrer">📅 Google Calendar</a> : null}
-      <a className="btn btn-outline" href={icsUrl} download={`reserva-${submit.data.referenceCode}.ics`}>📥 Descargar .ics</a>
+    const calendarSaveEnabled = design.calendarSaveEnabled !== 'false';
+    return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><section className="booking-success"><span className="success-icon">✓</span><h1>{submit.data.status === 'pending' ? 'Solicitud recibida' : 'Reserva confirmada'}</h1><p>{design.confirmationMessage || 'Tu reserva quedó registrada. Te esperamos.'}</p><p className="success-datetime">{new Date(submit.data.startsAt!).toLocaleString('es-CL', { dateStyle: 'full', timeStyle: 'short', timeZone: form.timezone })}</p><div className="success-code"><strong>Código {submit.data.referenceCode}</strong></div>{submit.data.couponCode && <p className="success-coupon">🎫 Cupón <strong>{submit.data.couponCode}</strong> aplicado a esta reserva</p>}<small className="success-note">Guarda este código para cualquier cambio o consulta.</small><div className="success-actions">
+      {calendarSaveEnabled && gcalUrl ? <a className="btn btn-outline" href={gcalUrl} target="_blank" rel="noopener noreferrer">Android / Google Calendar</a> : null}
+      {calendarSaveEnabled ? <a className="btn btn-outline" href={icsUrl} download={`reserva-${submit.data.referenceCode}.ics`}>iPhone / Apple Calendar</a> : null}
       {submit.data.status === 'pending' ? <small>Recibirás una confirmación pronto.</small> : <Link className="btn btn-outline" to={`/book/${slug}`}>Volver al inicio</Link>}
-    </div></section></main>;
+    </div>{calendarSaveEnabled && <small className="success-note">{design.calendarSaveText || 'Al tocar una opción, tu dispositivo abrirá su calendario y te pedirá confirmar antes de guardar.'}</small>}</section></main>;
   }
 
   if (form.status === 'paused') return <main className="public-booking" style={style}><MetaPixel pixelId={form?.pixelId} /><Ga4Tag measurementId={form?.ga4MeasurementId} /><section className="booking-success"><h1>Formulario en mantenimiento</h1><p>Este formulario no acepta reservas en este momento. Vuelve más tarde o contacta al establecimiento.</p></section></main>;
@@ -356,7 +373,7 @@ export function PublicReservationPage() {
     {(visible(design.showPoweredBy) || visible(design.showSecureBadge)) && <header>{visible(design.showPoweredBy) ? <div className="public-brand"><BrandMark decorative /><small>{poweredByText.split('\n').map((line) => <Fragment key={line}>{line}<br /></Fragment>)}</small></div> : <span />}{visible(design.showSecureBadge) && <em>{badgeText}</em>}</header>}
     <div className="public-booking-layout">
       <section className="public-booking-intro">{design.logoUrl && visible(design.showLogo) && <img className="public-booking-logo" src={design.logoUrl} alt="Logo de la empresa" />}{visible(design.showEyebrow) && <span>{eyebrowText}</span>}<h1>{design.title || form.name}</h1>{visible(design.showWelcome) && <p>{design.welcome || 'Elige el horario que mejor te acomode.'}</p>}{visible(design.showFacts) && <div className="public-booking-facts"><div><strong>{selectedService?.durationMinutes || form.durationMinutes}</strong><span>{durationLabel}</span></div><div><strong>{form.confirmationMode === 'automatic' ? (design.automaticLabel || 'Directa') : (design.manualLabel || 'Manual')}</strong><span>{confirmationLabel}</span></div><div><strong>{design.timezoneValue || form.timezone.split('/').pop()?.replaceAll('_', ' ')}</strong><span>{timezoneLabel}</span></div></div>}</section>
-      <form className="public-booking-card" onSubmit={(event) => { event.preventDefault(); if (step === 3) { submit.mutate(); } else if (step === 2) { goToConfirm(); } else { goToForm(); } }}>
+      <form className={`public-booking-card ${isSurvey ? 'is-survey' : ''}`} onSubmit={(event) => { event.preventDefault(); if (step === 3) { submit.mutate(); } else if (step === 2) { goToConfirm(); } else { goToForm(); } }}>
         {/* Se oculta desplazándolo fuera de pantalla y no con `display:none`, que los bots
             reconocen como campo técnico y omiten. `aria-hidden` y `tabIndex={-1}` lo dejan
             fuera del alcance de lectores de pantalla y de la navegación con teclado. */}
@@ -370,7 +387,7 @@ export function PublicReservationPage() {
           autoComplete="off"
           aria-hidden="true"
         />
-        <div className="booking-steps"><div className={`booking-step-dot ${step >= 1 ? 'active' : ''}`}><span>1</span><small>Fecha</small></div><div className={`booking-step-dot ${step >= 2 ? 'active' : ''}`}><span>2</span><small>Datos</small></div><div className={`booking-step-dot ${step >= 3 ? 'active' : ''}`}><span>3</span><small>Confirmar</small></div></div>
+        <div className="booking-steps">{isSurvey ? <><div className="booking-step-dot active"><span>1</span><small>Experiencia</small></div><div className={`booking-step-dot ${submit.isSuccess ? 'active' : ''}`}><span>2</span><small>Gracias</small></div></> : <><div className={`booking-step-dot ${step >= 1 ? 'active' : ''}`}><span>1</span><small>Fecha</small></div><div className={`booking-step-dot ${step >= 2 ? 'active' : ''}`}><span>2</span><small>Datos</small></div><div className={`booking-step-dot ${step >= 3 ? 'active' : ''}`}><span>3</span><small>Confirmar</small></div></>}</div>
 
         {step === 1 && <div>
           <div className="booking-step-title"><span>01</span><div><strong>Selecciona fecha</strong><small>Elige un día disponible en el calendario.</small></div></div>
@@ -400,7 +417,7 @@ export function PublicReservationPage() {
         </div>}
 
         {step === 2 && <div ref={formRef}>
-          <div className="booking-step-title"><span>02</span><div><strong>Tus datos</strong><small>Se usarán solo para gestionar tu atención.</small></div></div>
+          <div className="booking-step-title"><span>{isSurvey ? '01' : '02'}</span><div><strong>{isSurvey ? (design.surveyTitle || 'Cuéntanos cómo fue tu experiencia') : 'Tus datos'}</strong><small>{isSurvey ? (design.surveyHelpText || 'Tus respuestas ayudan al local a mejorar cada visita.') : 'Se usarán solo para gestionar tu atención.'}</small></div></div>
           <div className="booking-selected-slot">{selected && <div className="selected-slot-badge"><span>📅</span><strong>{new Date(selected).toLocaleString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: form.timezone })}</strong><button type="button" className="btn btn-outline btn-xs" onClick={goBackToSlots}>Cambiar</button></div>}</div>
           <div className="public-form-fields">
             {systemFields.name && <div className={`public-field ${errors.name ? 'has-error' : ''}`}><label>{systemFields.name.label} {systemFields.name.required ? <span className="required-star">*</span> : null}<input ref={nameInputRef} className={errors.name ? 'input-error' : ''} type="text" required={systemFields.name.required} placeholder={systemFields.name.placeholder || 'Tu nombre completo'} value={guest.guestName} onChange={(event) => setGuest({ ...guest, guestName: event.target.value })} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'error-name' : undefined} /></label>{errors.name && <span className="field-error" id="error-name" role="alert">{errors.name}</span>}</div>}
@@ -410,7 +427,8 @@ export function PublicReservationPage() {
             {customFields.map((field) => <Fragment key={field.id}>{renderField(field, answers[field.id] as string | undefined, (value) => setAnswers({ ...answers, [field.id]: value }), errors[field.id])}</Fragment>)}
             {form.designConfig?.couponEnabled && <div className="public-field"><label>Cupón de descuento<div className="public-coupon-row"><input className={couponValid === false ? 'input-error' : ''} type="text" placeholder="Código opcional" value={couponCode} onChange={(event) => { setCouponCode(event.target.value); setCouponValid(null); setCouponMsg(''); }} /><button type="button" className="btn btn-outline btn-sm" disabled={!couponCode.trim() || validateCoupon.isPending} onClick={() => validateCoupon.mutate()}>{validateCoupon.isPending ? '...' : 'Aplicar'}</button></div>{couponMsg && <small className={couponValid ? 'success-text' : 'error-text'}>{couponMsg}</small>}</label></div>}
           </div>
-          <button className="public-submit" type="submit"><span>Continuar →</span></button>
+          <button className="public-submit" type="submit" disabled={submit.isPending}><span>{isSurvey ? (submit.isPending ? 'Enviando...' : 'Enviar') : 'Continuar →'}</span></button>
+          {isSurvey && submit.isError && <div className="alert alert-error"><p>{submit.error instanceof Error ? submit.error.message : 'Error al enviar la respuesta'}</p></div>}
         </div>}
 
         {step === 3 && <div ref={confirmRef}>
@@ -436,7 +454,9 @@ function renderField(field: FormField, value: string | undefined, onChange: (v: 
   if (field.type === 'coupon') return null;
   const errorId = `error-${field.id}`;
   if (field.type === 'consent') return <div className={`public-consent ${error ? 'has-error' : ''}`}><label><input type="checkbox" required={field.required} checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} /><span>{field.label} <span className="required-star">*</span></span></label>{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</div>;
+  if (field.type === 'rating') return <fieldset className={`public-radio-group public-rating ${error ? 'has-error' : ''}`}><legend>{field.label}{field.required && <span className="required-star"> *</span>}</legend>{[1, 2, 3, 4, 5].map((rating) => <label key={rating}><input type="radio" name={field.id} required={field.required} checked={String(value || '') === String(rating)} onChange={() => onChange(String(rating))} /> <span>{rating}</span></label>)}{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</fieldset>;
+  if (field.type === 'select' && (field.display === 'radio' || (field.options?.length || 0) <= 5)) return <fieldset className={`public-radio-group ${error ? 'has-error' : ''}`}><legend>{field.label}{field.required && <span className="required-star"> *</span>}</legend>{field.options?.map((option) => <label key={option}><input type="radio" name={field.id} required={field.required} checked={String(value || '') === option} onChange={() => onChange(option)} /> <span>{option}</span></label>)}{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</fieldset>;
   if (field.type === 'select') return <label>{field.label}{field.required && <span className="required-star"> *</span>}<select className={error ? 'input-error' : ''} required={field.required} value={String(value || '')} onChange={(event) => onChange(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}><option value="">Selecciona</option>{field.options?.map((option) => <option key={option}>{option}</option>)}</select>{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</label>;
   if (field.type === 'textarea') return <label>{field.label}{field.required && <span className="required-star"> *</span>}<textarea className={error ? 'input-error' : ''} required={field.required} value={String(value || '')} onChange={(event) => onChange(event.target.value)} placeholder={field.placeholder} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} />{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</label>;
-  return <div className={`public-field ${error ? 'has-error' : ''}`}><label>{field.label} {field.required ? <span className="required-star">*</span> : null}<input className={error ? 'input-error' : ''} type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'} required={field.required} placeholder={field.placeholder} value={String(value || '')} onChange={(event) => onChange(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} /></label>{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</div>;
+  return <div className={`public-field ${error ? 'has-error' : ''}`}><label>{field.label} {field.required ? <span className="required-star">*</span> : null}<input className={error ? 'input-error' : ''} type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'} required={field.required} placeholder={field.placeholder} value={String(value || '')} onChange={(event) => onChange(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} /></label>{error && <span className="field-error" id={errorId} role="alert">{error}</span>}</div>;
 }

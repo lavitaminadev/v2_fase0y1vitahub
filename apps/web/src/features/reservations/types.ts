@@ -1,4 +1,4 @@
-export interface FormField { id: string; type: string; label: string; required: boolean; placeholder?: string; options?: string[]; system?: boolean }
+export interface FormField { id: string; type: string; label: string; required: boolean; placeholder?: string; options?: string[]; system?: boolean; display?: string }
 export interface DesignConfig {
   primaryColor?: string; accentColor?: string; backgroundColor?: string; textColor?: string;
   title?: string; welcome?: string; confirmationMessage?: string;
@@ -9,6 +9,7 @@ export interface DesignConfig {
   showEyebrow?: string; eyebrowText?: string; showWelcome?: string; showFacts?: string;
   titleSize?: string; welcomeSize?: string; durationLabel?: string; confirmationLabel?: string;
   timezoneLabel?: string; automaticLabel?: string; manualLabel?: string; timezoneValue?: string;
+  calendarSaveEnabled?: string; calendarSaveText?: string;
   buttonRadius?: string; fieldRadius?: string; fontFamily?: string; couponEnabled?: string;
   [key: string]: string | undefined;
 }

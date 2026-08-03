@@ -12,5 +12,6 @@ export class ReservationFormEvent {
   @Column({ name: 'session_id', type: 'varchar', length: 80, nullable: true }) sessionId?: string;
   @Column({ name: 'utm_source', type: 'varchar', length: 120, nullable: true }) utmSource?: string;
   @Column({ name: 'utm_campaign', type: 'varchar', length: 180, nullable: true }) utmCampaign?: string;
+  @Column({ type: 'json', nullable: true }) metadata?: Record<string, unknown>;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
 }
