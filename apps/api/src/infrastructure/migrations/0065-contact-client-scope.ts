@@ -28,12 +28,16 @@ export class ContactClientScope1724164100000 implements MigrationInterface {
     }
 
     // Relleno histórico: el cliente se hereda del lead que originó el contacto.
-    await queryRunner.query(`
-      UPDATE crm_contacts c
-      INNER JOIN crm_leads l ON l.id = c.lead_id
-      SET c.client_id = l.client_id
-      WHERE c.client_id IS NULL AND l.client_id IS NOT NULL
-    `);
+    // En bases locales antiguas puede existir `crm_contacts` sin `crm_leads`; en ese caso
+    // la columna queda nullable y se completa cuando exista el lead/captura correspondiente.
+    if (await queryRunner.hasTable('crm_leads')) {
+      await queryRunner.query(`
+        UPDATE crm_contacts c
+        INNER JOIN crm_leads l ON l.id = c.lead_id
+        SET c.client_id = l.client_id
+        WHERE c.client_id IS NULL AND l.client_id IS NOT NULL
+      `);
+    }
 
     const indexExists = await queryRunner.query(
       `SELECT COUNT(*) AS total FROM information_schema.statistics

@@ -165,3 +165,44 @@
 .meta-readiness.is-ok { background: #e7f2e6; color: #1f7a46; }
 .meta-readiness.is-warn { background: #fff2df; color: #925d17; }
 .meta-readiness.is-off { background: #eef1ee; color: #6b7a73; }
+
+.measurement-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dbe6dc;
+  border-radius: 14px;
+  background: #f8fbf6;
+}
+.measurement-card strong { color: #173f35; font-size: 13px; }
+.measurement-card p { margin: 0; color: #476258; font-size: 12px; }
+.measurement-card small { color: #925d17; font-size: 11px; }
+.measurement-card.is-ready { border-color: #b9d7bf; background: #f3fbf2; }
+.measurement-card.is-muted { border-color: #e3e7e3; background: #f7f8f6; }
+.measurement-card .toggle-row { margin: 0; align-items: center; gap: 8px; color: #294b40; font-size: 12px; font-weight: 700; }
+.measurement-card .toggle-row input { width: 16px; height: 16px; accent-color: #1f7a46; }
+
+.measurement-center { display: grid; gap: 18px; }
+.measurement-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.measurement-list { display: grid; gap: 10px; }
+.measurement-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 74px 74px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e1e8e2;
+  border-radius: 14px;
+  background: #fff;
+}
+.measurement-row > div:first-child { display: grid; gap: 2px; }
+.measurement-row strong { color: #173f35; font-size: 13px; }
+.measurement-row span,
+.measurement-row small { color: #66736f; font-size: 11px; }
+.measurement-row b { display: block; color: #173f35; font-size: 18px; line-height: 1; }
+.measurement-row > small { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+  .measurement-grid { grid-template-columns: 1fr; }
+  .measurement-row { grid-template-columns: 1fr 70px 70px; }
+  .measurement-row .meta-readiness { grid-column: 1 / -1; justify-self: start; }
+}

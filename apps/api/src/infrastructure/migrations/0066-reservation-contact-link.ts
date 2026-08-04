@@ -30,31 +30,33 @@ export class ReservationContactLink1724164200000 implements MigrationInterface {
       }));
     }
 
-    // Coincidencia exacta por identificador externo: es la más segura, porque la captura escribe
-    // `reservation:{id}` al crear el lead. Solo alcanza a la última reserva de cada contacto,
-    // ya que el valor se sobreescribe cuando el lead se reutiliza.
-    await queryRunner.query(`
-      UPDATE reservations r
-      INNER JOIN crm_leads l ON l.external_lead_id = CONCAT('reservation:', r.id)
-      INNER JOIN crm_contacts c ON c.lead_id = l.id
-      SET r.contact_id = c.id
-      WHERE r.contact_id IS NULL
-    `);
+    if (await queryRunner.hasTable('crm_leads')) {
+      // Coincidencia exacta por identificador externo: es la más segura, porque la captura escribe
+      // `reservation:{id}` al crear el lead. Solo alcanza a la última reserva de cada contacto,
+      // ya que el valor se sobreescribe cuando el lead se reutiliza.
+      await queryRunner.query(`
+        UPDATE reservations r
+        INNER JOIN crm_leads l ON l.external_lead_id = CONCAT('reservation:', r.id)
+        INNER JOIN crm_contacts c ON c.lead_id = l.id
+        SET r.contact_id = c.id
+        WHERE r.contact_id IS NULL
+      `);
 
-    // Resto de las reservas: se emparejan por teléfono o correo dentro del mismo cliente.
-    await queryRunner.query(`
-      UPDATE reservations r
-      INNER JOIN crm_leads l
-        ON l.client_id = r.client_id
-       AND l.source = 'vitahub_reservations'
-       AND (
-             (l.phone IS NOT NULL AND r.guest_phone IS NOT NULL AND l.phone = r.guest_phone)
-          OR (l.email IS NOT NULL AND r.guest_email IS NOT NULL AND l.email = r.guest_email)
-           )
-      INNER JOIN crm_contacts c ON c.lead_id = l.id
-      SET r.contact_id = c.id
-      WHERE r.contact_id IS NULL
-    `);
+      // Resto de las reservas: se emparejan por teléfono o correo dentro del mismo cliente.
+      await queryRunner.query(`
+        UPDATE reservations r
+        INNER JOIN crm_leads l
+          ON l.client_id = r.client_id
+         AND l.source = 'vitahub_reservations'
+         AND (
+               (l.phone IS NOT NULL AND r.guest_phone IS NOT NULL AND l.phone = r.guest_phone)
+            OR (l.email IS NOT NULL AND r.guest_email IS NOT NULL AND l.email = r.guest_email)
+             )
+        INNER JOIN crm_contacts c ON c.lead_id = l.id
+        SET r.contact_id = c.id
+        WHERE r.contact_id IS NULL
+      `);
+    }
 
     const indexExists = await queryRunner.query(
       `SELECT COUNT(*) AS total FROM information_schema.statistics

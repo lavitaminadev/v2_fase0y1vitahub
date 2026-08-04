@@ -22,6 +22,15 @@ import { safeUrl } from '../../core/safe-url';
 
 interface Client { id: string; name: string }
 interface PixelBinding { clientId: string; pixelId: string | null; pixelName: string | null; tokenConfigured: boolean }
+interface PixelCatalog { bindings: PixelBinding[]; pixels: Array<{ pixelId: string; pixelNames: string[]; usageCount: number; tokenConfigured: boolean }> }
+
+function hasReadyPixel(binding?: PixelBinding) {
+  return Boolean(binding?.pixelId && binding.tokenConfigured);
+}
+
+function flowName(mode: string) {
+  return mode === 'survey' ? 'Opiniones' : 'Reserva';
+}
 
 /**
  * Resume en una etiqueta si un formulario está en condiciones de reportar conversiones.
@@ -110,7 +119,20 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [clientFilter, setClientFilter] = useState(initialClientId);
-  const [formData, setFormData] = useState({ clientId: initialClientId, name: '', mode: 'appointment', calendarSaveEnabled: true });
+  const [formData, setFormData] = useState({
+    clientId: initialClientId,
+    name: '',
+    mode: 'appointment',
+    calendarSaveEnabled: true,
+    metaCapiEnabled: false,
+    ga4MeasurementId: '',
+    googleReviewUrl: '',
+    pixelMode: 'manual' as 'manual' | 'existing' | 'none',
+    pixelId: '',
+    pixelName: '',
+    pixelAccessToken: '',
+    existingPixelId: '',
+  });
   const [formFilters, setFormFilters] = useState({ search: '', status: '' });
   const [filters, setFilters] = useState({ search: searchParams.get('search') ?? '', status: '', formId: '', from: '', to: '' });
   const search = useDeferredValue(filters.search.trim());
@@ -123,8 +145,40 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
   // El catálogo de Pixels está restringido a administración, operaciones y dirección
   // comercial; el resto de los roles no ve la etiqueta de estado.
   const canReadPixels = !clientView && ['admin', 'operations_director', 'commercial_director'].includes(user?.role ?? '');
-  const { data: pixelCatalog } = useQuery<{ bindings: PixelBinding[] }>({ queryKey: ['meta-client-pixels'], queryFn: () => api.get('/integrations/meta/client-pixels/catalog'), enabled: canReadPixels });
+  const { data: pixelCatalog } = useQuery<PixelCatalog>({ queryKey: ['meta-client-pixels'], queryFn: () => api.get('/integrations/meta/client-pixels/catalog'), enabled: canReadPixels });
   const pixelByClient = new Map((pixelCatalog?.bindings ?? []).map((binding) => [binding.clientId, binding]));
+  const selectedPixel = pixelByClient.get(formData.clientId);
+  const selectedPixelReady = hasReadyPixel(selectedPixel);
+  const measurementLabel = formData.mode === 'survey' ? 'Lead / Feedback' : 'Schedule / Reserva';
+  const ga4Options = Array.from(new Map(forms
+    .filter((form) => form.ga4MeasurementId)
+    .map((form) => [form.ga4MeasurementId!, {
+      measurementId: form.ga4MeasurementId!,
+      label: `${form.ga4MeasurementId} - ${form.name}${clients.find((client) => client.id === form.clientId)?.name ? ` / ${clients.find((client) => client.id === form.clientId)?.name}` : ''}`,
+    }])).values());
+  const canSetupMeta = formData.pixelMode === 'none'
+    || (formData.pixelMode === 'existing' && Boolean(formData.existingPixelId))
+    || (formData.pixelMode === 'manual' && Boolean(formData.pixelId.trim()) && Boolean(formData.pixelName.trim()) && Boolean(formData.pixelAccessToken.trim()));
+  const updateCreateClient = (clientId: string) => {
+    const binding = pixelByClient.get(clientId);
+    setFormData((current) => ({
+      ...current,
+      clientId,
+      metaCapiEnabled: hasReadyPixel(binding),
+      pixelMode: binding?.pixelId ? 'existing' : 'manual',
+      existingPixelId: binding?.pixelId || '',
+      pixelId: '',
+      pixelName: binding?.pixelName || '',
+      pixelAccessToken: '',
+    }));
+  };
+  const updateCreateMode = (mode: string) => {
+    setFormData((current) => ({
+      ...current,
+      mode,
+      calendarSaveEnabled: ['appointment', 'group'].includes(mode) ? current.calendarSaveEnabled : false,
+    }));
+  };
   // `to` se envía al final del día para que el rango incluya la fecha elegida: el backend
   // compara contra `starts_at`, y una fecha suelta se interpreta como su medianoche.
   const dateRange = { ...(filters.from ? { from: filters.from } : {}), ...(filters.to ? { to: `${filters.to}T23:59:59` } : {}) };
@@ -152,13 +206,32 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      let metaReadyForFlow = selectedPixelReady;
+      if (!selectedPixelReady && formData.metaCapiEnabled && formData.pixelMode !== 'none') {
+        await api.post('/integrations/meta/client-pixels/setup', {
+          clientId: formData.clientId,
+          mode: formData.pixelMode,
+          pixelId: formData.pixelMode === 'manual' ? formData.pixelId.trim() : undefined,
+          pixelName: formData.pixelName.trim() || undefined,
+          accessToken: formData.pixelMode === 'manual' ? formData.pixelAccessToken.trim() : undefined,
+          existingPixelId: formData.pixelMode === 'existing' ? formData.existingPixelId : undefined,
+        });
+        metaReadyForFlow = true;
+      }
       const created = await api.post<ReservationForm>('/reservations/forms', { clientId: formData.clientId, name: formData.name, mode: formData.mode });
-      if (['appointment', 'group'].includes(formData.mode) && !formData.calendarSaveEnabled) {
-        return api.patch<ReservationForm>(`/reservations/forms/${created.id}`, { designConfig: { ...created.designConfig, calendarSaveEnabled: 'false' } });
+      const patch: Partial<ReservationForm> & { designConfig?: Record<string, unknown> } = {};
+      if (metaReadyForFlow) patch.metaCapiEnabled = formData.metaCapiEnabled;
+      if (formData.ga4MeasurementId.trim()) patch.ga4MeasurementId = formData.ga4MeasurementId.trim();
+      const designConfig = { ...created.designConfig };
+      if (['appointment', 'group'].includes(formData.mode) && !formData.calendarSaveEnabled) designConfig.calendarSaveEnabled = 'false';
+      if (formData.mode === 'survey' && formData.googleReviewUrl.trim()) designConfig.googleReviewUrl = formData.googleReviewUrl.trim();
+      if (designConfig.calendarSaveEnabled || designConfig.googleReviewUrl) patch.designConfig = designConfig;
+      if (Object.keys(patch).length > 0) {
+        return api.patch<ReservationForm>(`/reservations/forms/${created.id}`, patch);
       }
       return created;
     },
-    onSuccess: (created) => { qc.invalidateQueries({ queryKey: ['reservation-forms'] }); setCreateOpen(false); triggerToast('Formulario creado'); navigate(`/reservations/forms/${created.id}`); },
+    onSuccess: (created) => { qc.invalidateQueries({ queryKey: ['reservation-forms'] }); qc.invalidateQueries({ queryKey: ['meta-client-pixels'] }); setCreateOpen(false); triggerToast(`${flowName(created.mode)} creado`); navigate(`/reservations/forms/${created.id}`); },
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: { status?: string; startsAt?: string; internalNotes?: string } }) => api.patch<Reservation>(`/reservations/${id}`, body),
@@ -256,7 +329,7 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
     </nav>
 
     {tab === 'forms' && <section>
-      <div className="reservation-section-head"><div><span className="page-eyebrow">CENTRO DE CAPTURA</span><h1>Formularios, encuestas y agendas</h1></div><div className="reservation-actions"><p>{visibleForms.length} de {clientForms.length} activos visibles</p>{!clientView && <button className="btn reservation-cta" onClick={() => { setFormData((current) => ({ ...current, clientId: clientFilter })); setCreateOpen(true); }}>Crear formulario</button>}</div></div>
+      <div className="reservation-section-head"><div><span className="page-eyebrow">CENTRO DE CAPTURA</span><h1>Formularios, encuestas y agendas</h1></div><div className="reservation-actions"><p>{visibleForms.length} de {clientForms.length} activos visibles</p>{!clientView && <button className="btn reservation-cta" onClick={() => { setFormData((current) => ({ ...current, clientId: clientFilter })); setCreateOpen(true); }}>Reservas y Opiniones</button>}</div></div>
       <div className="reservation-status-summary" aria-label="Resumen de formularios"><button className={!formFilters.status ? 'active' : ''} onClick={() => setFormFilters((current) => ({ ...current, status: '' }))}><strong>{clientForms.length}</strong><span>Todos</span></button><button className={formFilters.status === 'published' ? 'active' : ''} onClick={() => setFormFilters((current) => ({ ...current, status: 'published' }))}><strong>{formCounts.published || 0}</strong><span>Publicados</span></button><button className={formFilters.status === 'paused' ? 'active' : ''} onClick={() => setFormFilters((current) => ({ ...current, status: 'paused' }))}><strong>{formCounts.paused || 0}</strong><span>Pausados</span></button><button className={formFilters.status === 'draft' ? 'active' : ''} onClick={() => setFormFilters((current) => ({ ...current, status: 'draft' }))}><strong>{formCounts.draft || 0}</strong><span>Borradores</span></button></div>
       <div className="reservation-form-filters"><input className="input" type="search" aria-label="Buscar formulario" placeholder="Buscar por nombre o enlace" value={formFilters.search} onChange={(event) => setFormFilters((current) => ({ ...current, search: event.target.value }))} />{!clientView && <select className="input" aria-label="Filtrar formularios por cliente" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}><option value="">Todos los clientes</option>{clients.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}</select>}<select className="input" aria-label="Filtrar formularios por estado" value={formFilters.status} onChange={(event) => setFormFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Todos los estados</option><option value="published">Publicados</option><option value="paused">Pausados</option><option value="draft">Borradores</option></select><button type="button" className="btn btn-outline btn-sm" disabled={!formFilters.search && !formFilters.status && !clientFilter} onClick={() => { setFormFilters({ search: '', status: '' }); setClientFilter(''); }}>Limpiar</button><span className="filter-result-count">{visibleForms.length} formulario{visibleForms.length === 1 ? '' : 's'}</span></div>
       {visibleForms.length === 0 ? <div className="reservation-empty"><strong>Crea tu primera experiencia de reserva</strong><p>Configura campos, agenda y diseño.</p>{!clientView && <button className="btn btn-primary" onClick={() => { setFormData((current) => ({ ...current, clientId: clientFilter })); setCreateOpen(true); }}>Comenzar creación guiada</button>}</div> : <div className="reservation-form-grid">
@@ -336,7 +409,41 @@ export function ReservationsPage({ clientView = false }: { clientView?: boolean 
       {viewingCouponCode && <div className="coupon-usages"><div className="reservation-section-head"><div><span className="page-eyebrow">USOS DE {viewingCouponCode}</span><h2>Reservas que usaron este cupón</h2></div><button className="btn btn-outline btn-sm" onClick={() => setViewingCouponCode('')}>Cerrar</button></div>{couponUsages.length === 0 ? <EmptyState icon="🎫" title="Sin usos" description="Este cupón aún no ha sido utilizado en ninguna reserva." /> : <div className="booking-list">{couponUsages.map((item) => <article className="booking-row" key={item.id}><div className="booking-date"><strong>{new Date(item.startsAt).getDate()}</strong><span>{new Date(item.startsAt).toLocaleDateString('es-CL', { month: 'short' })}</span></div><div className="booking-guest"><strong>{item.guestName}</strong><span>{item.guestPhone || item.guestEmail || '-'}</span><small>#{item.referenceCode}</small></div><StatusBadge status={item.status} /></article>)}</div>}</div>}
     </section>}
 
-    <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Crear reserva o encuesta"><form className="modal-form" onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}><p className="page-subtitle">Elige agenda con disponibilidad o encuesta/post-visita con rating y CAPI.</p><label>Empresa o cliente<select className="input" required value={formData.clientId} onChange={(event) => setFormData({ ...formData, clientId: event.target.value })}><option value="">Selecciona un cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label><label>Nombre del formulario<input className="input" required value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} placeholder="Ej. Evaluación inicial" /></label><label>Tipo de flujo<select className="input" value={formData.mode} onChange={(event) => setFormData({ ...formData, mode: event.target.value })}><option value="appointment">Reserva con hora individual</option><option value="group">Reserva/inscripción grupal</option><option value="survey">Encuesta/post-visita sin calendario</option></select></label>{['appointment', 'group'].includes(formData.mode) && <label className="toggle-row"><input type="checkbox" checked={formData.calendarSaveEnabled} onChange={(event) => setFormData({ ...formData, calendarSaveEnabled: event.target.checked })} /> Al finalizar, ofrecer guardar en calendario iPhone/Android</label>}{createMutation.error && <div className="alert alert-error">{createMutation.error.message}</div>}<button className="btn btn-primary btn-block" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creando...' : 'Crear y abrir constructor'}</button></form></Modal>
+    <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Crear reserva / opiniones">
+      <form className="modal-form" onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}>
+        <p className="page-subtitle">Crea el flujo publico y deja la medicion inicial lista. Despues puedes editar diseno, campos y medicion desde el constructor.</p>
+        <label>Empresa o cliente<select className="input" required value={formData.clientId} onChange={(event) => updateCreateClient(event.target.value)}><option value="">Selecciona un cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+        <label>{formData.mode === 'survey' ? 'Nombre de opiniones' : 'Nombre de la reserva'}<input className="input" required value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} placeholder={formData.mode === 'survey' ? 'Ej. Opiniones post-visita' : 'Ej. Reserva terraza noche'} /></label>
+        <label>Tipo de flujo<select className="input" value={formData.mode} onChange={(event) => updateCreateMode(event.target.value)}><option value="appointment">Reserva con hora individual</option><option value="group">Reserva / inscripcion grupal</option><option value="survey">Opiniones / encuesta post-visita</option></select></label>
+        <div className={`measurement-card ${selectedPixelReady ? 'is-ready' : 'is-muted'}`}>
+          <strong>Medicion Meta Pixel + CAPI</strong>
+          <p>{selectedPixel?.pixelId ? `${selectedPixel.pixelName || 'Pixel guardado'} - ${selectedPixel.pixelId}` : 'Este cliente no tiene Pixel guardado. El flujo se creara sin Meta.'}</p>
+          {selectedPixel?.pixelId && !selectedPixel.tokenConfigured && <small>Falta token CAPI: no se activara automaticamente hasta completar la integracion.</small>}
+          <label className="toggle-row"><input type="checkbox" checked={formData.metaCapiEnabled} disabled={!selectedPixelReady && !canSetupMeta} onChange={(event) => setFormData({ ...formData, metaCapiEnabled: event.target.checked })} /> Usar Meta CAPI guardado para medir {measurementLabel}</label>
+          {!selectedPixelReady && <div className="pixel-mode-grid">
+            {([
+              ['manual', 'Agregar Pixel', 'Guardar Pixel ID, nombre y token CAPI para esta empresa.'],
+              ['existing', 'Usar existente', 'Reutilizar un Pixel ya guardado en otra empresa.'],
+              ['none', 'Sin Meta', 'Crear el flujo sin enviar conversiones a Meta.'],
+            ] as const).map(([mode, label, description]) => <button type="button" key={mode} className={formData.pixelMode === mode ? 'active' : ''} onClick={() => setFormData({ ...formData, pixelMode: mode, metaCapiEnabled: mode !== 'none' })}><strong>{label}</strong><small>{description}</small></button>)}
+          </div>}
+          {!selectedPixelReady && formData.pixelMode === 'manual' && <div className="form-row">
+            <label>Pixel ID<input className="input" inputMode="numeric" pattern="[0-9]+" value={formData.pixelId} onChange={(event) => setFormData({ ...formData, pixelId: event.target.value.replace(/\D/g, '') })} placeholder="123456789012345" /></label>
+            <label>Nombre del Pixel<input className="input" value={formData.pixelName} onChange={(event) => setFormData({ ...formData, pixelName: event.target.value })} placeholder="Pixel Restaurante Centro" /></label>
+            <label>Token CAPI<input className="input" type="password" autoComplete="new-password" value={formData.pixelAccessToken} onChange={(event) => setFormData({ ...formData, pixelAccessToken: event.target.value })} placeholder="EAAB..." /></label>
+          </div>}
+          {!selectedPixelReady && formData.pixelMode === 'existing' && <div className="form-row">
+            <label>Pixel existente<select className="input" value={formData.existingPixelId} onChange={(event) => setFormData({ ...formData, existingPixelId: event.target.value })}><option value="">Selecciona Pixel</option>{pixelCatalog?.pixels.map((pixel) => <option key={pixel.pixelId} value={pixel.pixelId}>{pixel.pixelNames[0] || 'Pixel'} - {pixel.pixelId} / {pixel.usageCount} empresa(s)</option>)}</select></label>
+            <label>Nombre para esta empresa<input className="input" value={formData.pixelName} onChange={(event) => setFormData({ ...formData, pixelName: event.target.value })} placeholder="Nombre visible opcional" /></label>
+          </div>}
+        </div>
+        <label>ID de medicion Google Analytics 4<input className="input" list="reservation-ga4-options" value={formData.ga4MeasurementId} onChange={(event) => setFormData({ ...formData, ga4MeasurementId: event.target.value.trim() })} placeholder="G-XXXXXXXXXX" /><datalist id="reservation-ga4-options">{ga4Options.map((option) => <option key={option.measurementId} value={option.measurementId}>{option.label}</option>)}</datalist><small>Opcional. Puedes escribir uno nuevo o reutilizar un ID usado antes en otro flujo.</small></label>
+        {formData.mode === 'survey' && <label>Link de Google Reviews<input className="input" type="url" value={formData.googleReviewUrl} onChange={(event) => setFormData({ ...formData, googleReviewUrl: event.target.value })} placeholder="https://g.page/r/..." /><small>Opcional. Al finalizar la opinion, la persona decide si quiere ir a Google a evaluar el local.</small></label>}
+        {['appointment', 'group'].includes(formData.mode) && <label className="toggle-row"><input type="checkbox" checked={formData.calendarSaveEnabled} onChange={(event) => setFormData({ ...formData, calendarSaveEnabled: event.target.checked })} /> Al finalizar, ofrecer guardar en calendario iPhone/Android</label>}
+        {createMutation.error && <div className="alert alert-error">{createMutation.error.message}</div>}
+        <button className="btn btn-primary btn-block" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creando...' : 'Crear y abrir constructor'}</button>
+      </form>
+    </Modal>
 
     <Modal open={couponCreateOpen} onClose={() => setCouponCreateOpen(false)} title="Nuevo cupón"><form className="modal-form" onSubmit={(event) => { event.preventDefault(); couponCreate.mutate(); }}><label>Código<input className="input" required value={couponForm.code} onChange={(event) => setCouponForm({ ...couponForm, code: event.target.value })} placeholder="Ej. BIENVENIDA20" /></label><div className="form-row"><label>Tipo<select className="input" value={couponForm.discountType} onChange={(event) => setCouponForm({ ...couponForm, discountType: event.target.value })}><option value="percentage">Porcentaje</option><option value="fixed">Fijo</option></select></label><label>Valor<input className="input" type="number" min="0" value={couponForm.value} onChange={(event) => setCouponForm({ ...couponForm, value: Number(event.target.value) })} /></label></div><label>Usos máximos (0 = ilimitado)<input className="input" type="number" min="0" value={couponForm.maxUses} onChange={(event) => setCouponForm({ ...couponForm, maxUses: Number(event.target.value) })} /></label><div className="form-row"><label>Válido desde<input className="input" type="date" value={couponForm.validFrom} onChange={(event) => setCouponForm({ ...couponForm, validFrom: event.target.value })} /></label><label>Válido hasta<input className="input" type="date" value={couponForm.validUntil} onChange={(event) => setCouponForm({ ...couponForm, validUntil: event.target.value })} /></label></div><label>Formularios donde aplica<small>Sin marcar ninguno, el cupón vale para todos.</small><div className="coupon-form-picker">{forms.length === 0 ? <em>Aún no hay formularios.</em> : forms.map((form) => { const selected = couponForm.formIds.split(',').map((id) => id.trim()).filter(Boolean); const checked = selected.includes(form.id); return <label key={form.id} className="coupon-form-option"><input type="checkbox" checked={checked} onChange={(event) => { const next = event.target.checked ? [...selected, form.id] : selected.filter((id) => id !== form.id); setCouponForm({ ...couponForm, formIds: next.join(',') }); }} /><span>{form.name}</span></label>; })}</div></label><div className="form-row"><label>Válido desde la hora<small>De la reserva, no de cuándo se pide. Vacío = cualquier hora.</small><input className="input" type="time" value={couponForm.validFromTime} onChange={(event) => setCouponForm({ ...couponForm, validFromTime: event.target.value })} /></label><label>Válido hasta la hora<input className="input" type="time" value={couponForm.validUntilTime} onChange={(event) => setCouponForm({ ...couponForm, validUntilTime: event.target.value })} /></label></div><label>Días de la semana válidos (opcional, ninguno = todos)<div className="day-checkboxes">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((label, index) => { const jsDay = [1,2,3,4,5,6,0][index]; return <label key={index} className="day-checkbox"><input type="checkbox" checked={couponForm.validDaysOfWeek.includes(jsDay)} onChange={(event) => setCouponForm({ ...couponForm, validDaysOfWeek: event.target.checked ? [...couponForm.validDaysOfWeek, jsDay] : couponForm.validDaysOfWeek.filter((d) => d !== jsDay) })} />{label}</label>; })}</div></label>{couponCreate.error && <div className="alert alert-error">{couponCreate.error.message}</div>}<div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setCouponCreateOpen(false)}>Cancelar</button><button className="btn btn-primary" disabled={couponCreate.isPending}>{couponCreate.isPending ? 'Guardando...' : 'Crear cupón'}</button></div></form></Modal>
 

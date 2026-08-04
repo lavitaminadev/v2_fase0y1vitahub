@@ -4,6 +4,7 @@ import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { CloudinaryConfigModal } from '../settings/CloudinaryConfigModal';
 import { MetaConnectCard } from './MetaConnectCard';
+import { MeasurementCenter } from './MeasurementCenter';
 
 interface Integration {
   id: string;
@@ -32,6 +33,9 @@ export function IntegrationsPage() {
     <div className="page">
       <h1>Integraciones de conversiones</h1>
       <p className="page-subtitle">Conexion Meta y reservas para conversiones.</p>
+
+      <h2>Centro de medicion</h2>
+      <MeasurementCenter />
 
       <h2>Meta Pixel y Conversions API</h2>
       <MetaConnectCard integration={metaIntegration} />
