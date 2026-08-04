@@ -20,6 +20,7 @@ interface ClientOption { id: string; name: string }
 interface Contact { [key: string]: unknown; id: string; name: string; email?: string; phone?: string; position?: string; notes?: string; leadId?: string; createdAt: string }
 interface Opportunity { [key: string]: unknown; id: string; name: string; amount?: number; stage: string; probability: number; expectedCloseDate?: string; nextAction?: string; nextActionAt?: string; leadId?: string; clientId?: string; createdAt: string }
 interface Interaction { id: string; type: string; description?: string; date: string; leadId?: string; contactId?: string }
+interface ContactSegment { id: string; label: string; count: number }
 
 const EMPTY_OPPORTUNITY = { name: '', amount: '', stage: 'new', probability: '20', expectedCloseDate: '', nextAction: '', nextActionAt: '', leadId: '', clientId: '' };
 const EMPTY_INTERACTION = { type: 'call', description: '', date: '', leadId: '', contactId: '' };
@@ -132,6 +133,13 @@ export function ContactsPage() {
     [countsQuery.data],
   );
   const attendanceRate = attendanceRateOf(statusCounts.attended, statusCounts.no_show);
+  // Segmentos calculados en el backend sobre el total de contactos (no solo la página cargada).
+  const segmentsQuery = useQuery<ContactSegment[]>({
+    queryKey: ['crm-contact-segments', clientFilter],
+    queryFn: () => api.get(`/crm/contacts/segments${clientFilter ? `?clientId=${encodeURIComponent(clientFilter)}` : ''}`),
+  });
+  const segments = segmentsQuery.data ?? [];
+  const segmentTotal = segments.find((segment) => segment.id === 'total')?.count ?? 0;
   const updateFilter = (key: 'clientId' | 'status', value: string) => {
     setSearchParams((current) => { const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); return next; });
     if (key === 'clientId') setClientFilter(value);
@@ -148,6 +156,18 @@ export function ContactsPage() {
 
   return <div className="page">
   <div className="page-header"><div><span className="crm-scope is-client">CRM de los clientes</span><span className="page-eyebrow">CONTACTOS DE CAMPAÑAS</span><h1>Contactos</h1><p className="page-subtitle">Personas que llegaron desde las campañas de cada cliente, incluidas las que reservaron. Es el CRM que la agencia opera para sus clientes; los prospectos propios de La Vitamina están en Comercial.</p></div></div>
+
+  <div className="segment-cards" role="group" aria-label="Segmentos de contactos">
+    {segmentsQuery.isLoading && <LoadingSpinner text="Cargando segmentos..." />}
+    {segmentsQuery.error && <div className="alert alert-error">{segmentsQuery.error.message}</div>}
+    {!segmentsQuery.isLoading && !segmentsQuery.error && segments.map((segment) => (
+      <div key={segment.id} className="segment-card">
+        <span className="segment-card-label">{segment.label}</span>
+        <strong>{segment.count}</strong>
+        <small>{segmentTotal > 0 ? `${Math.round((segment.count / segmentTotal) * 100)}% del total` : '—'}</small>
+      </div>
+    ))}
+  </div>
 
   <div className="status-tiles" role="group" aria-label="Filtrar por estado del ciclo de reserva">
     {CONTACT_STATUS_OPTIONS.map(({ value: status, color }) => (

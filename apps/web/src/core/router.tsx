@@ -26,6 +26,10 @@ const MeetingsPage = lazy(() => import('../features/meetings/MeetingsPage').then
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
+const AgendaPage = lazy(() => import('../features/reservations/AgendaPage').then(m => ({ default: m.AgendaPage })));
+const AvailabilityCalendarPage = lazy(() => import('../features/reservations/AvailabilityCalendarPage').then(m => ({ default: m.AvailabilityCalendarPage })));
+const WaitlistPage = lazy(() => import('../features/reservations/WaitlistPage').then(m => ({ default: m.WaitlistPage })));
+const ReservationsAnalyticsPage = lazy(() => import('../features/reservations/ReservationsAnalyticsPage').then(m => ({ default: m.ReservationsAnalyticsPage })));
 const MetaOAuthCallbackPage = lazy(() => import('../features/integrations/OAuthCallbackPage').then(m => ({ default: () => <m.OAuthCallbackPage provider="meta" /> })));
 const OperationsPage = lazy(() => import('../features/operations/OperationsPage').then(m => ({ default: m.OperationsPage })));
 const DirectionPage = lazy(() => import('../features/direction/DirectionPage').then(m => ({ default: m.DirectionPage })));
@@ -110,6 +114,10 @@ export function AppRouter() {
           <Route path="/knowledge" element={<ProtectedRoute path="/knowledge"><SafeSuspense><KnowledgePage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/reservations" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationsPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/reservations/forms/:id" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationBuilderPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/agenda" element={<ProtectedRoute path="/reservations/agenda"><SafeSuspense><AgendaPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/calendar" element={<ProtectedRoute path="/reservations/calendar"><SafeSuspense><AvailabilityCalendarPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/waitlist" element={<ProtectedRoute path="/reservations/waitlist"><SafeSuspense><WaitlistPage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/reservations/analytics" element={<ProtectedRoute path="/reservations/analytics"><SafeSuspense><ReservationsAnalyticsPage /></SafeSuspense></ProtectedRoute>} />
         </Route>
         <Route path="/portal" element={<ClientRoute><SafeSuspense><ClientLayout /></SafeSuspense></ClientRoute>}>
           <Route index element={<SafeSuspense><ClientDashboard /></SafeSuspense>} />

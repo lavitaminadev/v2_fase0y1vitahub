@@ -216,7 +216,17 @@
 
 .contact-status-cell { display: grid; justify-items: start; }
 
+/* Tarjetas de segmentos de contactos (frecuentes, VIP, inactivos), sobre la tabla
+   de contactos. Reutilizan la paleta teal de `.status-tile` sin el color de estado
+   variable, ya que los segmentos no representan un estado del ciclo de reserva. */
+.segment-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 10px; margin: 0 0 16px; }
+.segment-card { display: grid; gap: 2px; padding: 13px 14px; text-align: left; border: 1px solid #dbe4dc; border-left: 3px solid var(--cian); border-radius: 12px; background: #fff; }
+.segment-card-label { color: #52605b; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.segment-card strong { color: var(--cian-dark); font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.segment-card small { color: #75857e; font-size: 10px; font-weight: 700; }
+
 @media (max-width: 900px) {
   .status-tiles { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .segment-cards { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 

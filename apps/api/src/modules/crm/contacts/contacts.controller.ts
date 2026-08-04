@@ -25,6 +25,11 @@ export class ContactsController {
     return this.service.findAll(req.organizationId, query.limit, query.offset, clientId);
   }
 
+  @Get('segments')
+  segments(@Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
+    return this.service.segments(req.organizationId, clientId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.findOne(id, req.organizationId);

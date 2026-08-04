@@ -900,9 +900,36 @@ export class ReservationsService {
     const scoped = this.sqlClientScope(clientId, clientIds); const params = [organizationId, ...scoped.params]; const scope = scoped.clause;
     const daysNum = Math.min(Math.max(Number(days) || 30, 1), 365);
     params.push(daysNum as never);
-    const [totals, daily, sources, funnel] = await Promise.all([this.dataSource.query(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='confirmed') confirmed, SUM(status='attended') attended, SUM(status='no_show') no_show, SUM(status='waitlist') waitlist, SUM(status LIKE 'cancelled%') cancelled FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params), this.dataSource.query(`SELECT DATE(starts_at) day, COUNT(*) total, SUM(status='attended') attended, SUM(status='no_show') no_show FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY day ORDER BY day`, params), this.dataSource.query(`SELECT COALESCE(utm_source,'direct') source, COALESCE(utm_campaign,'Sin campaña') campaign, COUNT(*) total, SUM(status='attended') attended FROM reservations WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY source,campaign ORDER BY total DESC LIMIT 20`, params), this.dataSource.query(`SELECT SUM(type='view') views, SUM(type='start') starts FROM reservation_form_events WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params)]);
+    const [totals, daily, sources, funnel, areas] = await Promise.all([this.dataSource.query(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='confirmed') confirmed, SUM(status='attended') attended, SUM(status='no_show') no_show, SUM(status='waitlist') waitlist, SUM(status LIKE 'cancelled%') cancelled FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params), this.dataSource.query(`SELECT DATE(starts_at) day, COUNT(*) total, SUM(status='attended') attended, SUM(status='no_show') no_show FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY day ORDER BY day`, params), this.dataSource.query(`SELECT COALESCE(utm_source,'direct') source, COALESCE(utm_campaign,'Sin campaña') campaign, COUNT(*) total, SUM(status='attended') attended FROM reservations WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY source,campaign ORDER BY total DESC LIMIT 20`, params), this.dataSource.query(`SELECT SUM(type='view') views, SUM(type='start') starts FROM reservation_form_events WHERE organization_id = ?${scope} AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`, params), this.dataSource.query(`SELECT COALESCE(NULLIF(resource_id,''),'Sin área') area, COUNT(*) total FROM reservations WHERE organization_id = ?${scope} AND starts_at >= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY area ORDER BY total DESC LIMIT 10`, params)]);
     const total = Number(totals[0]?.total || 0); const views = Number(funnel[0]?.views || 0);
-    return { totals: totals[0] || {}, daily, sources, funnel: { views, starts: Number(funnel[0]?.starts || 0), completed: total, conversionRate: views ? Math.round(total * 1000 / views) / 10 : null }, days: daysNum };
+    return { totals: totals[0] || {}, daily, sources, areas, funnel: { views, starts: Number(funnel[0]?.starts || 0), completed: total, conversionRate: views ? Math.round(total * 1000 / views) / 10 : null }, days: daysNum };
+  }
+
+  /**
+   * Ocupación diaria de un mes: reservas del día vs. el tope diario del cliente.
+   *
+   * El tope es por cliente (no por formulario, ver `clientDailyCap`), así que el porcentaje
+   * es el mismo sin importar qué formulario haya generado la reserva.
+   */
+  async occupancyCalendar(organizationId: string, month: string, clientId?: string, clientIds?: string[]) {
+    if (!clientId) throw new BadRequestException('Selecciona un cliente para ver su ocupación');
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new BadRequestException('Formato de mes inválido, usa YYYY-MM');
+    if (clientIds !== undefined && !clientIds.includes(clientId)) throw new ForbiddenException('No tienes acceso a este cliente');
+    const capacity = await this.clientDailyCap(this.dataSource, clientId);
+    const rows = await this.dataSource.query(
+      `SELECT DATE(starts_at) day, COUNT(*) total FROM reservations
+       WHERE organization_id = ? AND client_id = ? AND status NOT LIKE 'cancelled%'
+         AND DATE_FORMAT(starts_at, '%Y-%m') = ?
+       GROUP BY day ORDER BY day`,
+      [organizationId, clientId, month],
+    );
+    return {
+      month, capacity,
+      days: (rows as Array<{ day: string; total: number }>).map((row) => ({
+        date: row.day, count: Number(row.total),
+        pct: capacity > 0 ? Math.min(100, Math.round((Number(row.total) / capacity) * 100)) : null,
+      })),
+    };
   }
   async exportCsv(organizationId: string, clientId?: string, clientIds?: string[], from?: string, to?: string, limit?: number) {
     const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId });

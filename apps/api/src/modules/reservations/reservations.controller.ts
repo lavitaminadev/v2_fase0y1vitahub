@@ -265,4 +265,11 @@ export class ReservationsController {
     const scope = await this.requestedScope(req, query.clientId);
     return this.service.metrics(req.organizationId, scope.clientId, scope.clientIds, query.days ? String(query.days) : '30');
   }
+
+  @Get('analytics/occupancy')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
+  async occupancy(@Req() req: AuthenticatedRequest, @Query('month') month: string, @Query() query: ReservationScopeDto) {
+    const scope = await this.requestedScope(req, query.clientId);
+    return this.service.occupancyCalendar(req.organizationId, month, scope.clientId, scope.clientIds);
+  }
 }

@@ -27,7 +27,7 @@ export const NAVIGATION_SECTIONS: Array<{ id: string; label: string; paths: stri
   {
     id: 'crm',
     label: 'CRM',
-    paths: ['/reservations', '/crm/contacts'],
+    paths: ['/reservations', '/reservations/agenda', '/reservations/calendar', '/reservations/waitlist', '/reservations/analytics', '/crm/contacts'],
   },
   {
     id: 'pipeline',
@@ -165,6 +165,10 @@ const PATH_FEATURE: Record<string, string> = {
   '/settings': 'settings',
   '/integrations': 'integrations',
   '/reservations': 'reservations',
+  '/reservations/agenda': 'reservations',
+  '/reservations/calendar': 'reservations',
+  '/reservations/waitlist': 'reservations',
+  '/reservations/analytics': 'reservations',
   '/crm/contacts': 'crm',
   '/crm/leads': 'commercialPipeline',
   '/crm/opportunities': 'commercialPipeline',
