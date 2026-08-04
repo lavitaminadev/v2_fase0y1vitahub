@@ -88,7 +88,6 @@ export function ReservationsAnalyticsPage({ clientId }: { clientId?: string } = 
   const attended = Number(totals.attended ?? 0);
   const noShow = Number(totals.no_show ?? 0);
   const resolved = attended + noShow;
-  const attendanceRate = resolved > 0 ? Math.round((attended / resolved) * 100) : null;
 
   const daily = useMemo(
     () => (data?.daily ?? []).map((row) => ({
