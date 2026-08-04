@@ -11,8 +11,8 @@ export class GoogleConversionOutbox1724247500000 implements MigrationInterface {
     await queryRunner.createTable(new Table({
       name: 'google_conversion_outbox',
       columns: [
-        { name: 'id', type: 'uuid', isPrimary: true, generationStrategy: 'uuid' },
-        { name: 'organization_id', type: 'uuid' },
+        { name: 'id', type: 'varchar', length: '36', isPrimary: true, isGenerated: true, generationStrategy: 'uuid' },
+        { name: 'organization_id', type: 'varchar', length: '36' },
         { name: 'event_id', type: 'varchar', length: '255' },
         { name: 'customer_id', type: 'varchar', length: '32' },
         { name: 'conversion_action', type: 'varchar', length: '255' },
