@@ -5,6 +5,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import type { Response } from 'express';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
+import { AuditService } from '../../core/audit/audit.service';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { ReservationsService } from './application/reservations.service';
@@ -20,6 +21,7 @@ export class ReservationsController {
     private readonly service: ReservationsService,
     private readonly accountAccess: AccountAccessService,
     private readonly bulkImport: ReservationsBulkImportService,
+    private readonly audit: AuditService,
   ) {}
 
   private publicOrigin(): string | undefined {
@@ -211,7 +213,8 @@ export class ReservationsController {
   @Patch('coupons/:id')
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR)
   async updateCoupon(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() dto: UpdateCouponDto) {
-    return this.service.updateCoupon(req.organizationId, id, dto);
+    const scope = await this.scope(req);
+    return this.service.updateCoupon(req.organizationId, id, dto, scope.clientIds);
   }
 
   @Get('export/csv')
@@ -219,6 +222,13 @@ export class ReservationsController {
   async exportCsv(@Req() req: AuthenticatedRequest, @Query() query: ReservationScopeDto, @Res() res: Response) {
     const scope = await this.requestedScope(req, query.clientId);
     const csv = await this.service.exportCsv(req.organizationId, scope.clientId, scope.clientIds, query.from, query.to, query.limit);
+    // GET no pasa por AuditInterceptor (solo intercepta verbos mutantes) y esto mueve PII en
+    // bloque fuera del sistema, así que se audita explícitamente en vez de quedar sin rastro.
+    void this.audit.log({
+      organizationId: req.organizationId, actorId: req.user.id, entityType: 'reservations',
+      action: 'export_csv', reason: `clientId=${scope.clientId ?? 'all'} from=${query.from ?? ''} to=${query.to ?? ''}`,
+      ipAddress: req.ip,
+    }).catch(() => {});
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send(`\uFEFF${csv}`);

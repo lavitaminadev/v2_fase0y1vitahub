@@ -36,6 +36,13 @@ export class DefensiveFksChargeNotesCycles1721766500000 implements MigrationInte
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     for (const candidate of this.candidates) {
+      const table = await queryRunner.getTable(candidate.table);
+      const alreadyExists = table?.foreignKeys.some(
+        (key) => key.columnNames.includes(candidate.column) && key.referencedTableName === candidate.referencedTable,
+      );
+      // Defensiva también en este chequeo: un deploy interrumpido a mitad de esta misma migración
+      // puede dejar la constraint creada en la base pero la migración sin marcar como ejecutada.
+      if (alreadyExists) continue;
       const nullClause = candidate.nullable ? `AND t.${candidate.column} IS NOT NULL` : '';
       const orphanRows: Array<{ orphans: number }> = await queryRunner.query(
         `SELECT COUNT(*) as orphans FROM ${candidate.table} t

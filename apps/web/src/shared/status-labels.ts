@@ -54,6 +54,12 @@ const STATUS_LABELS: Record<string, string> = {
   waitlist: 'Lista de espera',
   open: 'Pendiente',
   done: 'Completado',
+  // Estados de la cola de envío a Meta CAPI (meta_conversion_outbox.status).
+  processed: 'Enviado',
+  processing: 'Enviando',
+  retry: 'Reintentando',
+  failed: 'Falló',
+  expired: 'Expirado',
 };
 
 export function statusLabel(status: string): string {

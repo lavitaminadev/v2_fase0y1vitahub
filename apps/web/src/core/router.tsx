@@ -53,6 +53,7 @@ const ReservationBuilderPage = lazy(() => import('../features/reservations/Reser
 const PublicReservationPage = lazy(() => import('../features/reservations/PublicReservationPage').then(m => ({ default: m.PublicReservationPage })));
 const AudiovisualPage = lazy(() => import('../features/audiovisual/AudiovisualPage').then(m => ({ default: m.AudiovisualPage })));
 const GovernancePage = lazy(() => import('../features/governance/GovernancePage').then(m => ({ default: m.GovernancePage })));
+const SecurityPage = lazy(() => import('../features/security/SecurityPage').then(m => ({ default: m.SecurityPage })));
 
 function SafeSuspense({ children }: { children: React.ReactNode }) {
   return <ErrorBoundary><Suspense fallback={<LoadingSpinner text="Preparando tu espacio..." />}>{children}</Suspense></ErrorBoundary>;
@@ -110,6 +111,7 @@ export function AppRouter() {
           <Route path="/onboarding" element={<ProtectedRoute path="/onboarding"><SafeSuspense><OnboardingPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute path="/users"><SafeSuspense><UsersPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/governance" element={<ProtectedRoute path="/governance"><SafeSuspense><GovernancePage /></SafeSuspense></ProtectedRoute>} />
+          <Route path="/security" element={<ProtectedRoute path="/security"><SafeSuspense><SecurityPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/catalog" element={<ProtectedRoute path="/catalog"><SafeSuspense><CatalogPage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/knowledge" element={<ProtectedRoute path="/knowledge"><SafeSuspense><KnowledgePage /></SafeSuspense></ProtectedRoute>} />
           <Route path="/reservations" element={<ProtectedRoute path="/reservations"><SafeSuspense><ReservationsPage /></SafeSuspense></ProtectedRoute>} />
@@ -161,3 +163,4 @@ import '../features/users/feature.manifest';
 import '../features/settings/feature.manifest';
 import '../features/audiovisual/feature.manifest';
 import '../features/governance/feature.manifest';
+import '../features/security/feature.manifest';

@@ -98,7 +98,15 @@ Tareas instaladas:
 
 - `*/5 * * * *` procesa el outbox de conversiones Meta CAPI pendientes.
 - `0 * * * *` ejecuta diagnostico de Meta CAPI.
+- `10 * * * *` detecta piezas estancadas (`/cron/stale-pieces`).
+- `20 * * * *` escanea alertas operativas (`/cron/operational-alerts`).
+- `0 */6 * * *` cierra periodos de XP semanales (`/cron/xp-periods`).
+- `10 3 * * *` genera ciclos mensuales de cuenta (`/cron/monthly-cycles`).
+- `20 3 * * *` envia emails de cobranza de facturas vencidas (`/cron/collection-emails`).
+- `30 3 * * *` revisa retencion de datos y anonimiza leads/reservas expirados (`/cron/data-retention`).
 - `0 3 * * *` genera backup diario de MySQL (`mysqldump` comprimido) a `$HOME/vitahub_backups` y retiene 30 dias localmente. Sigue pendiente definir almacenamiento externo u offsite.
+
+Estos endpoints son un respaldo del scheduler interno en memoria (`ENABLE_INTERNAL_SCHEDULER=true`): Passenger puede reciclar el proceso Node periodicamente, y un job que solo vive en `setInterval` puede no llegar a ejecutarse nunca en ese ciclo. Cada endpoint usa el mismo lock en memoria que el scheduler interno para evitar solapes dentro del mismo proceso; si ambos mecanismos llegan a correr en procesos distintos al mismo tiempo, cada job esta escrito para tolerarlo (busca por estado/fingerprint antes de actuar), salvo el envio de emails de cobranza, donde una coincidencia exacta en el mismo instante podria duplicar un envio antes de que el primero marque la factura como `overdue`.
 
 Verificar con `crontab -l`. Los logs quedan en `$APP_DIR/logs/`.
 

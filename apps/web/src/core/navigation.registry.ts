@@ -48,7 +48,7 @@ export const NAVIGATION_SECTIONS: Array<{ id: string; label: string; paths: stri
   {
     id: 'admin',
     label: 'Administración',
-    paths: ['/users', '/settings', '/integrations', '/governance', '/operations', '/knowledge'],
+    paths: ['/users', '/settings', '/integrations', '/governance', '/operations', '/knowledge', '/security'],
   },
 ];
 

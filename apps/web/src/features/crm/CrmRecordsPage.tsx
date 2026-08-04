@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../core/api';
@@ -72,6 +72,7 @@ const CONTACTS_PAGE_SIZE = 50;
 
 export function ContactsPage() {
   const user = useAuth((state) => state.user);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
@@ -96,6 +97,17 @@ export function ContactsPage() {
     queryFn: () => api.get(`/crm/leads/${historyContact!.id}/reservations`),
     enabled: Boolean(historyContact),
   });
+  // Un enlace externo (p. ej. desde la bandeja de reservas) puede llegar con `?id=<contactId>`
+  // para abrir directamente el detalle de ese contacto, sin depender de que esté en la página cargada.
+  const linkedContactId = searchParams.get('id');
+  const { data: linkedContact } = useQuery<ReservationContact>({
+    queryKey: ['crm-reservation-contact', linkedContactId],
+    queryFn: () => api.get(`/crm/leads/${linkedContactId}`),
+    enabled: Boolean(linkedContactId),
+  });
+  useEffect(() => {
+    if (linkedContact) setHistoryContact(linkedContact);
+  }, [linkedContact]);
   const tagMutation = useMutation({
     mutationFn: ({ id, tags }: { id: string; tags: string[] }) => api.put(`/crm/leads/${id}`, { tags }),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['crm-reservation-contacts'] }); setFeedback({ tone: 'success', text: 'Etiquetas actualizadas.' }); },
@@ -203,7 +215,7 @@ export function ContactsPage() {
     <button type="button" className="btn btn-outline btn-sm" disabled={page >= totalPages || contactsQuery.isFetching} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Siguientes →</button>
   </nav>}
   <Modal open={Boolean(tagging)} onClose={() => setTagging(null)} title={tagging ? `Etiquetas de ${tagging.name}` : 'Etiquetas'}>{tagging && <div className="modal-form"><label>Etiquetas (separadas por coma)<input className="input" autoFocus value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="VIP, alergia, cumpleaños..." /></label><div className="modal-actions"><button type="button" className="btn btn-outline" onClick={() => setTagging(null)}>Cancelar</button><button type="button" className="btn btn-primary" disabled={tagMutation.isPending} onClick={() => saveTags(tagging)}>{tagMutation.isPending ? 'Guardando...' : 'Guardar etiquetas'}</button></div></div>}</Modal>
-  <Modal open={Boolean(historyContact)} onClose={() => setHistoryContact(null)} title={historyContact ? `Historial de ${historyContact.name}` : 'Historial'}>{historyContact && <div className="modal-form"><h4>Reservas vinculadas</h4>{historyLoading ? <p>Cargando...</p> : historyReservations.length === 0 ? <p>Sin reservas previas registradas.</p> : <div className="reservation-history">{historyReservations.map((reservation) => <div key={reservation.id}><span>Reserva #{reservation.referenceCode}</span><small>{new Date(reservation.startsAt).toLocaleString('es-CL')} · {CONTACT_STATUSES[reservation.status] || reservation.status}</small><em>{reservation.partySize} persona(s)</em></div>)}</div>}</div>}</Modal>
+  <Modal open={Boolean(historyContact)} onClose={() => setHistoryContact(null)} title={historyContact ? `Historial de ${historyContact.name}` : 'Historial'}>{historyContact && <div className="modal-form"><h4>Reservas vinculadas</h4>{historyLoading ? <p>Cargando...</p> : historyReservations.length === 0 ? <p>Sin reservas previas registradas.</p> : <div className="reservation-history">{historyReservations.map((reservation) => <button type="button" key={reservation.id} className="link-button reservation-history-link" onClick={() => navigate(`/reservations?tab=bookings&search=${encodeURIComponent(reservation.referenceCode)}`)}><span>Reserva #{reservation.referenceCode}</span><small>{new Date(reservation.startsAt).toLocaleString('es-CL')} · {CONTACT_STATUSES[reservation.status] || reservation.status}</small><em>{reservation.partySize} persona(s)</em></button>)}</div>}</div>}</Modal>
   </div>;
 }
 

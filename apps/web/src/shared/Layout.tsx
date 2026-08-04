@@ -3,7 +3,7 @@
  * basada en roles.
  */
 
-import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../core/auth';
 import { getNavigation, getNavigationSections } from '../core/navigation.registry';
@@ -15,6 +15,14 @@ import { CommandPalette } from './CommandPalette';
 import { PwaInstallButton } from './PwaInstallButton';
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { ContextHelpDrawer } from './help/ContextHelpDrawer';
+import { useFocusTrap } from './useFocusTrap';
+
+/**
+ * Breakpoint en el que el sidebar pasa de fijo (desktop) a drawer superpuesto
+ * (móvil). Debe coincidir con el `max-width: 768px` de `styles/direction.css`,
+ * que es lo que efectivamente decide el layout visual.
+ */
+const MOBILE_BREAKPOINT_QUERY = '(max-width: 768px)';
 
 /**
  * Secciones del menú lateral.
@@ -40,7 +48,39 @@ export function Layout(): JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches);
+  const sidebarRef = useRef<HTMLElement>(null);
   useEffect(() => { const updateConnection = () => setOnline(navigator.onLine); window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection); return () => { window.removeEventListener('online', updateConnection); window.removeEventListener('offline', updateConnection); }; }, []);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+    updateIsMobile();
+    mediaQuery.addEventListener('change', updateIsMobile);
+    return () => mediaQuery.removeEventListener('change', updateIsMobile);
+  }, []);
+
+  // El sidebar es un drawer solo en móvil: ahí necesita comportarse como el
+  // Modal (foco atrapado, Escape cierra, scroll del body bloqueado). En
+  // desktop es fijo y siempre visible, así que este trap nunca debe activarse
+  // aunque `sidebarOpen` quede en true de una sesión móvil previa.
+  const sidebarTrapActive = sidebarOpen && isMobile;
+  useFocusTrap(sidebarRef, sidebarTrapActive);
+  useEffect(() => {
+    if (!sidebarTrapActive) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sidebarTrapActive]);
 
   // Calcula la navegación una vez por cambio de rol para evitar filtrar en cada render.
   const navItems = useMemo(() => getNavigation(user?.role, user?.features, user?.permissions), [user?.role, user?.features, user?.permissions]);
@@ -64,7 +104,7 @@ export function Layout(): JSX.Element {
       <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Abrir navegación" aria-expanded={sidebarOpen}>
         ☰
       </button>
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside ref={sidebarRef} className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <BrandMark decorative />
           <div><h2>VITAHUB</h2><span>La Vitamina</span></div>

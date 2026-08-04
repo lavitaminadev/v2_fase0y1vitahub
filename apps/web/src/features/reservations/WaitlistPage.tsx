@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { QueryErrorState } from '../../shared/QueryErrorState';
+import { ForbiddenState } from '../../shared/ForbiddenState';
+import { isForbiddenError } from '../../core/api';
 import { EmptyState } from '../../shared/EmptyState';
 import type { Reservation } from './types';
 
@@ -81,7 +83,7 @@ export function WaitlistPage() {
       <button type="button" className="btn btn-outline btn-sm" disabled={!clientFilter && !dateFilter && !searchInput} onClick={() => { setClientFilter(''); setDateFilter(''); setSearchInput(''); }}>Limpiar</button>
     </div>
 
-    {error ? <QueryErrorState title="No pudimos cargar la lista de espera" message={error.message} onRetry={() => void refetch()} retrying={isFetching} />
+    {error ? (isForbiddenError(error) ? <ForbiddenState /> : <QueryErrorState title="No pudimos cargar la lista de espera" message={error.message} onRetry={() => void refetch()} retrying={isFetching} />)
       : isFetching && !waitlistPage ? <LoadingSpinner text="Buscando reservas en espera..." />
       : items.length === 0 ? <EmptyState icon="⏳" title="Sin reservas en espera" description="Las solicitudes que queden en lista de espera aparecerán aquí." />
       : <div className="crm-table-container">

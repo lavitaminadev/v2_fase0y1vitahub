@@ -13,6 +13,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { QueryErrorState } from '../../shared/QueryErrorState';
+import { ForbiddenState } from '../../shared/ForbiddenState';
+import { isForbiddenError } from '../../core/api';
 import { EmptyState } from '../../shared/EmptyState';
 import { CYCLE_COLORS, RESERVATION_STATUS_OPTIONS, findStatusOption } from '../../shared/status-palette';
 import type { Reservation, ReservationForm } from './types';
@@ -75,7 +77,7 @@ export function AgendaPage() {
     refetch: refetchReservations,
   } = useQuery<ReservationPage>({
     queryKey: ['agenda-reservations', clientId, effectiveFormId, dateFilter],
-    queryFn: () => api.get(`/reservations?${new URLSearchParams({ clientId, formId: effectiveFormId, from: dayFrom, to: dayTo, pageSize: '200' })}`),
+    queryFn: () => api.get(`/reservations?${new URLSearchParams({ clientId, formId: effectiveFormId, from: dayFrom, to: dayTo, pageSize: '100' })}`),
     enabled: Boolean(clientId && effectiveFormId),
   });
   const reservations = Array.isArray(reservationPage?.items) ? reservationPage!.items : [];
@@ -110,7 +112,7 @@ export function AgendaPage() {
 
   const isLoading = loadingClients || (Boolean(clientId) && loadingForms);
   if (isLoading) return <LoadingSpinner text="Preparando la agenda del servicio..." />;
-  if (clientsError) return <QueryErrorState title="No pudimos abrir la agenda" message={clientsError.message} onRetry={() => void refetchClients()} />;
+  if (clientsError) return isForbiddenError(clientsError) ? <ForbiddenState /> : <QueryErrorState title="No pudimos abrir la agenda" message={clientsError.message} onRetry={() => void refetchClients()} />;
 
   const goToReservation = (reservation: Reservation) => {
     navigate(`/reservations?tab=bookings&search=${encodeURIComponent(reservation.referenceCode)}`);
@@ -156,7 +158,7 @@ export function AgendaPage() {
           </div>
 
           {reservationsError
-            ? <QueryErrorState title="No pudimos cargar las reservas del día" message={reservationsError.message} onRetry={() => void refetchReservations()} retrying={fetchingReservations} />
+            ? (isForbiddenError(reservationsError) ? <ForbiddenState /> : <QueryErrorState title="No pudimos cargar las reservas del día" message={reservationsError.message} onRetry={() => void refetchReservations()} retrying={fetchingReservations} />)
             : loadingReservations
               ? <LoadingSpinner text="Cargando reservas del día..." />
               : <>

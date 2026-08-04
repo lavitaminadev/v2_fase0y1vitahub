@@ -139,11 +139,11 @@ export class LeadIntakeService {
 
     return transactionManager.transaction(async (manager) => {
       const leadsRepo = manager.getRepository(Lead);
-      const existing = await this.findExistingLead(normalized, leadsRepo, domain);
+      const match = await this.findExistingLead(normalized, leadsRepo, domain);
       const qualification = this.qualifyLead(normalized, domain);
       const retentionReviewAt = this.buildRetentionReviewDate();
 
-      const lead = existing ?? leadsRepo.create({ organizationId: normalized.organizationId });
+      const lead = match.lead ?? leadsRepo.create({ organizationId: normalized.organizationId });
 
       Object.assign(lead, {
         ...normalized,
@@ -152,9 +152,10 @@ export class LeadIntakeService {
         discardReason: qualification.discardReason,
         retentionReviewAt: normalized.retentionReviewAt ?? retentionReviewAt,
         metadata: {
-          ...(existing?.metadata ?? {}),
+          ...(match.lead?.metadata ?? {}),
           ...(normalized.metadata ?? {}),
           scoringSignals: qualification.scoringSignals,
+          ...(match.conflict ? { identityConflict: { ...match.conflict, detectedAt: new Date().toISOString() } } : {}),
         },
       });
 
@@ -169,11 +170,11 @@ export class LeadIntakeService {
     input: LeadCaptureInput & { retentionReviewAt?: Date },
     domain: LeadDomain,
   ): Promise<{ lead: Lead; contact: Contact | null }> {
-    const existing = await this.findExistingLead(input, this.repo, domain);
+    const match = await this.findExistingLead(input, this.repo, domain);
     const qualification = this.qualifyLead(input, domain);
     const retentionReviewAt = this.buildRetentionReviewDate();
 
-    const lead = existing ?? this.repo.create({ organizationId: input.organizationId });
+    const lead = match.lead ?? this.repo.create({ organizationId: input.organizationId });
 
     Object.assign(lead, {
       ...input,
@@ -182,9 +183,10 @@ export class LeadIntakeService {
       discardReason: qualification.discardReason,
       retentionReviewAt: input.retentionReviewAt ?? retentionReviewAt,
       metadata: {
-        ...(existing?.metadata ?? {}),
+        ...(match.lead?.metadata ?? {}),
         ...(input.metadata ?? {}),
         scoringSignals: qualification.scoringSignals,
+        ...(match.conflict ? { identityConflict: { ...match.conflict, detectedAt: new Date().toISOString() } } : {}),
       },
     });
 
@@ -258,33 +260,51 @@ export class LeadIntakeService {
    * La búsqueda queda acotada al cliente cuando hay uno: el mismo teléfono en dos restaurantes
    * son dos personas distintas a efectos de datos, y deben quedar separadas.
    */
+  /**
+   * Busca un lead existente por teléfono/email, sin fusionar automáticamente ante ambigüedad.
+   *
+   * Si teléfono y correo apuntan a leads DISTINTOS, no hay forma segura de saber cuál es el
+   * correcto — fusionar el que llegue primero sobrescribiría datos de una persona con los de
+   * otra. En ese caso se trata como "sin coincidencia segura" (se crea un lead nuevo) y se deja
+   * la ambigüedad registrada en `metadata.identityConflict` para revisión manual, en vez de
+   * adivinar.
+   */
   private async findExistingLead(
     input: LeadCaptureInput,
     repo: Repository<Lead> = this.repo,
     domain: LeadDomain = 'commercial',
-  ): Promise<Lead | null> {
+  ): Promise<{ lead: Lead | null; matchedBy?: 'externalLeadId' | 'phone' | 'email'; conflict?: { otherLeadId: string; otherMatchedBy: 'phone' | 'email' } }> {
     if (input.externalLeadId) {
       const byExternalId = await repo.findOne({
         where: { organizationId: input.organizationId, externalLeadId: input.externalLeadId },
       });
-      if (byExternalId) return byExternalId;
+      if (byExternalId) return { lead: byExternalId, matchedBy: 'externalLeadId' };
     }
 
     const baseWhere: FindOptionsWhere<Lead> = { organizationId: input.organizationId };
     if (input.clientId) baseWhere.clientId = input.clientId;
 
-    const byEmail = async () =>
-      input.email ? repo.findOne({ where: { ...baseWhere, email: input.email } }) : null;
-    const byPhone = async () =>
-      input.phone ? repo.findOne({ where: { ...baseWhere, phone: input.phone } }) : null;
+    const [byPhone, byEmail] = await Promise.all([
+      input.phone ? repo.findOne({ where: { ...baseWhere, phone: input.phone } }) : Promise.resolve(null),
+      input.email ? repo.findOne({ where: { ...baseWhere, email: input.email } }) : Promise.resolve(null),
+    ]);
 
-    const signals = domain === 'audience' ? [byPhone, byEmail] : [byEmail, byPhone];
-    for (const lookup of signals) {
-      const found = await lookup();
-      if (found) return found;
+    if (byPhone && byEmail && byPhone.id !== byEmail.id) {
+      return {
+        lead: null,
+        conflict: { otherLeadId: (domain === 'audience' ? byEmail : byPhone).id, otherMatchedBy: domain === 'audience' ? 'email' : 'phone' },
+      };
     }
 
-    return null;
+    if (domain === 'audience') {
+      if (byPhone) return { lead: byPhone, matchedBy: 'phone' };
+      if (byEmail) return { lead: byEmail, matchedBy: 'email' };
+    } else {
+      if (byEmail) return { lead: byEmail, matchedBy: 'email' };
+      if (byPhone) return { lead: byPhone, matchedBy: 'phone' };
+    }
+
+    return { lead: null };
   }
 
   private qualifyLead(input: LeadCaptureInput, domain: LeadDomain = 'commercial'): LeadQualificationResult {

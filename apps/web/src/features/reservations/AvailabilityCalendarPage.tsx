@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { QueryErrorState } from '../../shared/QueryErrorState';
+import { ForbiddenState } from '../../shared/ForbiddenState';
+import { isForbiddenError } from '../../core/api';
 import { EmptyState } from '../../shared/EmptyState';
 import './AvailabilityCalendarPage.css';
 
@@ -97,7 +99,7 @@ export function AvailabilityCalendarPage() {
     ) : isLoading ? (
       <LoadingSpinner text="Calculando ocupación..." />
     ) : error ? (
-      <QueryErrorState title="No pudimos cargar la ocupación" message={error.message} onRetry={() => void refetch()} retrying={isFetching} />
+      isForbiddenError(error) ? <ForbiddenState /> : <QueryErrorState title="No pudimos cargar la ocupación" message={error.message} onRetry={() => void refetch()} retrying={isFetching} />
     ) : <>
       <div className="availability-calendar" role="table" aria-label="Calendario mensual de ocupación">
         <div className="availability-weekday-row" role="row">

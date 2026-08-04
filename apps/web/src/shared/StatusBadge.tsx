@@ -39,6 +39,12 @@ const STATUS_COLORS: Record<string, string> = {
   lost: '#b5332d',
   in_progress: '#1f6fb2',
   on_hold: '#9a5a00',
+  // Estados de la cola de envío a Meta CAPI (meta_conversion_outbox.status).
+  processed: '#1f7a46',
+  processing: '#9a5a00',
+  retry: '#9a5a00',
+  failed: '#b5332d',
+  expired: '#b5332d',
   // El ciclo de reserva se define en un solo lugar porque lo comparten la bandeja,
   // el CRM de contactos y esta insignia.
   ...CYCLE_COLORS,

@@ -1018,9 +1018,10 @@ export class ReservationsService {
     return this.coupons.save(coupon);
   }
 
-  async updateCoupon(organizationId: string, id: string, dto: UpdateCouponDto) {
+  async updateCoupon(organizationId: string, id: string, dto: UpdateCouponDto, clientIds?: string[]) {
     const coupon = await this.coupons.findOne({ where: { id, organizationId } });
     if (!coupon) throw new NotFoundException('Cupón no encontrado');
+    if (clientIds !== undefined && (!coupon.clientId || !clientIds.includes(coupon.clientId))) throw new ForbiddenException('No tienes acceso a este cupón');
     const update: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(dto).filter(([, value]) => value !== undefined)) {
       if (key === 'validDaysOfWeek') update.validDaysOfWeek = Array.isArray(value) ? (value as unknown[]).filter((d: unknown): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6) : value;

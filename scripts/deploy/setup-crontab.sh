@@ -59,6 +59,24 @@ echo "  Directorio: $APP_DIR"
 # VitaHub — Meta CAPI diagnostics (cada hora a minuto 0)
 0 * * * * curl -s "$CRON_URL/meta-capi/diagnostics" -H "x-cron-secret: $SECRET" -m 30 >> $APP_DIR/logs/cron-meta-capi-diag.log 2>&1
 
+# VitaHub — Piezas estancadas (cada hora a minuto 10)
+10 * * * * curl -s -X POST "$CRON_URL/stale-pieces" -H "x-cron-secret: $SECRET" -m 60 >> $APP_DIR/logs/cron-stale-pieces.log 2>&1
+
+# VitaHub — Alertas operativas (cada hora a minuto 20)
+20 * * * * curl -s -X POST "$CRON_URL/operational-alerts" -H "x-cron-secret: $SECRET" -m 60 >> $APP_DIR/logs/cron-operational-alerts.log 2>&1
+
+# VitaHub — Periodos de XP semanales (cada 6 horas)
+0 */6 * * * curl -s -X POST "$CRON_URL/xp-periods" -H "x-cron-secret: $SECRET" -m 60 >> $APP_DIR/logs/cron-xp-periods.log 2>&1
+
+# VitaHub — Ciclos mensuales de cuenta (diario, 03:10)
+10 3 * * * curl -s -X POST "$CRON_URL/monthly-cycles" -H "x-cron-secret: $SECRET" -m 120 >> $APP_DIR/logs/cron-monthly-cycles.log 2>&1
+
+# VitaHub — Emails de cobranza (diario, 03:20)
+20 3 * * * curl -s -X POST "$CRON_URL/collection-emails" -H "x-cron-secret: $SECRET" -m 120 >> $APP_DIR/logs/cron-collection-emails.log 2>&1
+
+# VitaHub — Retencion de datos / anonimizacion (diario, 03:30)
+30 3 * * * curl -s -X POST "$CRON_URL/data-retention" -H "x-cron-secret: $SECRET" -m 120 >> $APP_DIR/logs/cron-data-retention.log 2>&1
+
 # VitaHub — Backup diario de la base de datos (03:00, retiene 30 dias localmente)
 # Guarda en \$HOME/vitahub_backups (fuera de public_html, mismo criterio que vitahub_storage/vitahub_uploads).
 # Pendiente: decidir almacenamiento externo/offsite — ver docs/decisions/pending-business-decisions.md #15.

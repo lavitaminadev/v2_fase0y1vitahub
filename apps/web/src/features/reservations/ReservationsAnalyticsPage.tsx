@@ -7,6 +7,8 @@ import {
 import { api } from '../../core/api';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 import { QueryErrorState } from '../../shared/QueryErrorState';
+import { ForbiddenState } from '../../shared/ForbiddenState';
+import { isForbiddenError } from '../../core/api';
 import { EmptyState } from '../../shared/EmptyState';
 
 /**
@@ -118,7 +120,9 @@ export function ReservationsAnalyticsPage({ clientId }: { clientId?: string } = 
 
   if (isLoading) return <LoadingSpinner text="Cargando analíticas de reservas..." />;
   if (error) {
-    return (
+    return isForbiddenError(error) ? (
+      <ForbiddenState />
+    ) : (
       <QueryErrorState
         title="No pudimos cargar las analíticas de reservas"
         message={error.message}

@@ -34,6 +34,29 @@ export interface ApiErrorEventDetail {
 }
 
 /**
+ * Error lanzado por los helpers de `api` para requests fallidos. Conserva el
+ * status HTTP (cuando lo hay) para que las vistas puedan distinguir, por
+ * ejemplo, un 403 de un fallo genérico de red.
+ */
+export class ApiError extends Error {
+  readonly status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/**
+ * Indica si un error capturado de un request de `api` corresponde a un 403
+ * (el usuario está autenticado pero no tiene permiso para ver el recurso).
+ */
+export function isForbiddenError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403;
+}
+
+/**
  * Instancia global de axios configurada con la URL base de la API,
  * headers JSON y un timeout defensivo de request.
  */
@@ -227,7 +250,7 @@ apiClient.interceptors.response.use(
         detail: describeApiError(error, message),
       }));
     }
-    return Promise.reject(new Error(message));
+    return Promise.reject(new ApiError(message, error.response?.status));
   },
 );
 

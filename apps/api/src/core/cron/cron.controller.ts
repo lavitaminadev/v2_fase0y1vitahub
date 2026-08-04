@@ -5,6 +5,12 @@ import { Public } from '../auth/decorators/public.decorator';
 import { SkipTenancy } from '../tenancy/skip-tenancy.decorator';
 import { MetaConversionOutboxService } from '../../modules/integrations/meta/meta-conversion-outbox.service';
 import { GoogleConversionOutboxService } from '../../modules/integrations/google/google-conversion-outbox.service';
+import { DetectStalePiecesJob } from '../jobs/cron/detect-stale-pieces.job';
+import { OperationalAlertsJob } from '../jobs/cron/operational-alerts.job';
+import { CreateMonthlyCyclesJob } from '../jobs/cron/create-monthly-cycles.job';
+import { CollectionEmailsJob } from '../jobs/cron/collection-emails.job';
+import { PurgeExpiredLeadsJob } from '../jobs/cron/purge-expired-leads.job';
+import { CloseXpPeriodsJob } from '../jobs/cron/close-xp-periods.job';
 
 @Controller('cron')
 @Public()
@@ -15,6 +21,12 @@ export class CronController {
   constructor(
     private readonly capiOutbox: MetaConversionOutboxService,
     private readonly googleOutbox: GoogleConversionOutboxService,
+    private readonly stale: DetectStalePiecesJob,
+    private readonly operationalAlerts: OperationalAlertsJob,
+    private readonly cycles: CreateMonthlyCyclesJob,
+    private readonly collections: CollectionEmailsJob,
+    private readonly purge: PurgeExpiredLeadsJob,
+    private readonly xp: CloseXpPeriodsJob,
   ) {}
 
   private verifySecret(secret?: string): void {
@@ -101,5 +113,100 @@ export class CronController {
     this.verifySecret(secret);
     const result = await this.capiOutbox.cleanup(olderThanDays ?? 7);
     return { ok: true, ...result, timestamp: new Date().toISOString() };
+  }
+
+  private async runLocked(lockKey: string, task: () => Promise<void>) {
+    if (this.running.has(lockKey)) return { ok: true, skipped: 'already_running' };
+    this.running.add(lockKey);
+    try {
+      await task();
+      return { ok: true, timestamp: new Date().toISOString() };
+    } finally {
+      this.running.delete(lockKey);
+    }
+  }
+
+  @Post('stale-pieces')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processStalePiecesPost(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('stale-pieces', () => this.stale.handle());
+  }
+
+  @Get('stale-pieces')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processStalePieces(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('stale-pieces', () => this.stale.handle());
+  }
+
+  @Post('operational-alerts')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processOperationalAlertsPost(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('operational-alerts', () => this.operationalAlerts.handle());
+  }
+
+  @Get('operational-alerts')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processOperationalAlerts(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('operational-alerts', () => this.operationalAlerts.handle());
+  }
+
+  @Post('monthly-cycles')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async processMonthlyCyclesPost(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('monthly-cycles', () => this.cycles.handle());
+  }
+
+  @Get('monthly-cycles')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async processMonthlyCycles(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('monthly-cycles', () => this.cycles.handle());
+  }
+
+  @Post('collection-emails')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async processCollectionEmailsPost(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('collection-emails', () => this.collections.handle());
+  }
+
+  @Get('collection-emails')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async processCollectionEmails(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('collection-emails', () => this.collections.handle());
+  }
+
+  @Post('data-retention')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async processDataRetentionPost(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('data-retention', () => this.purge.handle());
+  }
+
+  @Get('data-retention')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async processDataRetention(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('data-retention', () => this.purge.handle());
+  }
+
+  @Post('xp-periods')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processXpPeriodsPost(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('xp-periods', () => this.xp.handle());
+  }
+
+  @Get('xp-periods')
+  @Throttle({ default: { limit: 6, ttl: 60000 } })
+  async processXpPeriods(@Headers('x-cron-secret') secret: string) {
+    this.verifySecret(secret);
+    return this.runLocked('xp-periods', () => this.xp.handle());
   }
 }

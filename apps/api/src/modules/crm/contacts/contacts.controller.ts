@@ -6,13 +6,17 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { PaginationDto } from '../../../shared/dto/pagination.dto';
 import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
+import { AccountAccessService } from '../../../core/client-scope/account-access.service';
 import type { AuthenticatedRequest } from '@shared/types/request';
 
 @Controller('crm/contacts')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
 export class ContactsController {
-  constructor(private service: ContactsService) {}
+  constructor(
+    private service: ContactsService,
+    private readonly accountAccess: AccountAccessService,
+  ) {}
 
   @Post()
   @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
@@ -21,12 +25,14 @@ export class ContactsController {
   }
 
   @Get()
-  findAll(@Query() query: PaginationDto, @Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
+  async findAll(@Query() query: PaginationDto, @Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
+    await this.accountAccess.assertClient(req.organizationId, req.user, clientId);
     return this.service.findAll(req.organizationId, query.limit, query.offset, clientId);
   }
 
   @Get('segments')
-  segments(@Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
+  async segments(@Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
+    await this.accountAccess.assertClient(req.organizationId, req.user, clientId);
     return this.service.segments(req.organizationId, clientId);
   }
 
