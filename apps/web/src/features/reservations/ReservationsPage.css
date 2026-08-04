@@ -1,0 +1,235 @@
+/**
+ * Rediseño visual de la bandeja de reservas (pestaña "bookings"): la pantalla más usada
+ * del producto, donde el equipo revisa el día y marca asistencia. Usa las variables de
+ * shared/theme-colors.css como única fuente de color de marca; los colores de estado
+ * (badges, semáforo) siguen viniendo de shared/status-palette.ts sin modificarse aquí.
+ */
+
+/* ===== Contenedor y cabecera de sección ===== */
+.reservation-module {
+  background: var(--gray);
+}
+
+.reservation-module .reservation-section-head {
+  align-items: flex-end;
+}
+
+.reservation-module .reservation-section-head h1 {
+  color: var(--txt);
+}
+
+.reservation-module .page-eyebrow {
+  color: var(--cian-dark);
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+/* ===== Pestañas ===== */
+.reservation-module .reservation-tabs {
+  border-color: var(--line);
+  background: var(--blanco);
+  border-radius: 12px;
+}
+
+.reservation-module .reservation-tabs button {
+  border-radius: 8px;
+  color: var(--txt-secondary);
+  transition: background .15s ease, color .15s ease;
+}
+
+.reservation-module .reservation-tabs button:hover {
+  background: var(--gray);
+  color: var(--txt);
+}
+
+.reservation-module .reservation-tabs button:focus-visible {
+  outline: 2px solid var(--cian);
+  outline-offset: 2px;
+}
+
+.reservation-module .reservation-tabs button.active {
+  background: var(--cian);
+  color: var(--blanco);
+}
+
+.reservation-module .reservation-tabs button.active span {
+  background: rgba(255, 255, 255, .25);
+  color: var(--blanco);
+}
+
+/* ===== Tarjetas resumen de estado (bandeja) ===== */
+.reservation-module .status-tiles {
+  gap: 12px;
+}
+
+.reservation-module .status-tile {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--tile-color, var(--cian));
+  border-radius: 10px;
+  background: var(--blanco);
+  box-shadow: 0 1px 2px rgba(11, 11, 12, .04);
+  transition: box-shadow .15s ease, border-color .15s ease, transform .1s ease;
+}
+
+.reservation-module .status-tile:hover {
+  box-shadow: 0 4px 12px rgba(11, 11, 12, .07);
+}
+
+.reservation-module .status-tile:focus-visible {
+  outline: 2px solid var(--cian);
+  outline-offset: 2px;
+}
+
+.reservation-module .status-tile.is-active {
+  background: color-mix(in srgb, var(--tile-color, var(--cian)) 8%, var(--blanco));
+  box-shadow: inset 0 0 0 1px var(--tile-color, var(--cian));
+}
+
+.reservation-module .status-tile strong {
+  color: var(--txt);
+}
+
+/* ===== Filtros ===== */
+.reservation-module .reservation-filters {
+  background: var(--blanco);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.reservation-module .reservation-filters .input {
+  border-radius: 8px;
+}
+
+.reservation-module .reservation-filters .input:focus-visible,
+.reservation-module .reservation-filters .input:focus {
+  outline: 2px solid var(--cian);
+  outline-offset: 1px;
+  border-color: var(--cian);
+}
+
+/* ===== Lista de reservas (tarjetas blancas, radios 8-12px, sombra sutil) ===== */
+.reservation-module .booking-list {
+  gap: 10px;
+}
+
+.reservation-module .booking-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--blanco);
+  box-shadow: 0 1px 2px rgba(11, 11, 12, .04);
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+.reservation-module .booking-row:hover {
+  border-color: var(--cian);
+  box-shadow: 0 4px 14px rgba(11, 11, 12, .08);
+}
+
+.reservation-module .booking-date {
+  border-right-color: var(--line);
+}
+
+.reservation-module .booking-date strong {
+  color: var(--cian-dark);
+}
+
+.reservation-module .booking-guest-button:hover strong,
+.reservation-module .booking-guest-button:focus-visible strong {
+  color: var(--cian-dark);
+}
+
+.reservation-module .booking-guest-button:focus-visible {
+  outline: 2px solid var(--cian);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Botones de asistencia: gesto principal de la bandeja, en el color de marca. */
+.reservation-module .attendance-quick .btn {
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.reservation-module .btn-attended {
+  border-color: var(--cian-dark);
+  background: var(--cian);
+  color: var(--blanco);
+}
+
+.reservation-module .btn-attended:hover:not(:disabled) {
+  background: var(--cian-dark);
+}
+
+.reservation-module .btn-attended:focus-visible,
+.reservation-module .btn-no-show:focus-visible {
+  outline: 2px solid var(--cian);
+  outline-offset: 2px;
+}
+
+.reservation-module .btn-no-show {
+  border-color: var(--line);
+  background: var(--blanco);
+  color: var(--error);
+}
+
+.reservation-module .btn-no-show:hover:not(:disabled) {
+  border-color: var(--error);
+  background: #fdf1f0;
+}
+
+/* ===== Paginación ===== */
+.reservation-module .reservation-pagination {
+  margin-top: 14px;
+}
+
+/* ===== Estados vacío / carga / error de la bandeja ===== */
+.reservation-module .query-error-state,
+.reservation-module .empty-state {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--blanco);
+}
+
+/* ===== Móvil: la fila se convierte en tarjeta apilada, sin scroll horizontal forzoso ===== */
+@media (max-width: 700px) {
+  .reservation-module .booking-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .reservation-module .booking-date {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 0 0 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .reservation-module .booking-date strong {
+    font-size: 18px;
+  }
+
+  .reservation-module .booking-status-cell {
+    grid-column: auto;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .reservation-module .attendance-quick {
+    width: 100%;
+  }
+
+  .reservation-module .attendance-quick .btn {
+    flex: 1;
+  }
+}
+
+/* Listas con muchas columnas (cupones) permiten scroll horizontal en vez de romper layout. */
+@media (max-width: 700px) {
+  .reservation-module .crm-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

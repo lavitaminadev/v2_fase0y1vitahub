@@ -74,8 +74,19 @@
 }
 
 .nav-item.active {
-  background: var(--accent);
+  /* --nav-active-bg/--nav-active-text están pensados para navegación sobre fondo blanco;
+     este sidebar sigue con fondo teal sólido, así que aquí usamos un realce claro en vez de
+     esos tokens (aplicarlos tal cual daría texto teal sobre fondo teal, ilegible). */
+  background: rgba(255,255,255,0.18);
   color: #fff;
+  font-weight: 600;
+}
+
+.nav-item:focus-visible,
+.sidebar-toggle:focus-visible,
+.workspace-command:focus-visible {
+  outline: var(--focus-ring, 2px solid #0EC6B8);
+  outline-offset: 2px;
 }
 
 .nav-label { font-size: 13px; }

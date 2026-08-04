@@ -82,6 +82,7 @@ export function Layout(): JSX.Element {
                     className={`nav-item ${active ? 'active' : ''}`}
                     onClick={closeSidebar}
                     aria-label={item.label}
+                    aria-current={active ? 'page' : undefined}
                   >
                     <NavGlyph label={item.label} />
                     <span className="nav-label">{item.label}</span>
@@ -109,8 +110,53 @@ export function Layout(): JSX.Element {
       {sidebarOpen && <button className="sidebar-backdrop" onClick={closeSidebar} aria-label="Cerrar navegación" />}
       <div className="app-workspace">
         <header className="workspace-header">
-          <div className="workspace-heading"><span>Espacio de trabajo</span><strong>{currentItem?.label ?? 'VITAHUB'}</strong></div>
-          <div className="workspace-header-actions"><button className="workspace-command" onClick={() => setHelpOpen(true)} title="Ayuda"><span>? Ayuda</span></button><button className="workspace-command" onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}><span>Buscar o ejecutar</span><kbd>Ctrl K</kbd></button><div className="workspace-user"><span className="online-dot" />{user?.name}</div></div>
+          <div className="workspace-heading" aria-label="Vista actual">
+            <span>Espacio de trabajo</span>
+            <strong>{currentItem?.label ?? 'VITAHUB'}</strong>
+          </div>
+          <div className="workspace-header-actions">
+            <button
+              type="button"
+              className="workspace-command workspace-search"
+              onClick={() => window.dispatchEvent(new Event('vitahub:open-command'))}
+              aria-label="Buscar o ejecutar una acción"
+            >
+              <span aria-hidden="true">🔍</span>
+              <span>Buscar o ejecutar</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+            <button
+              type="button"
+              className="workspace-command"
+              style={{ minWidth: 0, padding: '7px 9px' }}
+              onClick={() => setHelpOpen(true)}
+              aria-label="Abrir ayuda"
+              title="Ayuda"
+            >
+              <span aria-hidden="true">?</span>
+            </button>
+            <div className="workspace-user" aria-label={`Sesión de ${user?.name ?? 'usuario'}`}>
+              <span className="online-dot" aria-hidden="true" />
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: 'var(--nav-active-bg)',
+                  color: 'var(--nav-active-text)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                {(user?.name ?? 'U').trim().charAt(0).toUpperCase()}
+              </span>
+              <span>{user?.name}</span>
+            </div>
+          </div>
         </header>
         <main className="main-content"><Outlet /></main>
         <ContextHelpDrawer open={helpOpen} onClose={() => setHelpOpen(false)} />
