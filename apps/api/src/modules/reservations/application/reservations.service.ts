@@ -1009,7 +1009,7 @@ export class ReservationsService {
     return this.coupons.find({ where, order: { createdAt: 'DESC' } });
   }
 
-  async validatePublicCoupon(slug: string, code: string) {
+  async validatePublicCoupon(slug: string, code: string, startsAt?: Date) {
     const form = await this.publishedForm(slug);
     const coupon = await this.coupons.findOne({ where: { organizationId: form.organizationId, code: code.trim().toUpperCase(), active: true } });
     if (!coupon) throw new BadRequestException('Cupón no válido');
@@ -1019,8 +1019,11 @@ export class ReservationsService {
     if (coupon.maxUses > 0 && coupon.usageCount >= coupon.maxUses) throw new BadRequestException('El cupón ya no tiene usos disponibles');
     if (coupon.formIds && coupon.formIds.length > 0 && !coupon.formIds.includes(form.id)) throw new BadRequestException('El cupón no aplica para este formulario');
     if (coupon.validDaysOfWeek && coupon.validDaysOfWeek.length > 0) {
-      const today = new Date(new Date().toLocaleString('en-US', { timeZone: form.timezone })).getDay();
-      if (!coupon.validDaysOfWeek.includes(today)) throw new BadRequestException('El cupón no es válido para el día de hoy');
+      // El día de la semana describe cuándo se consume el beneficio (turno reservado),
+      // no cuándo se consulta la vista previa; ver validateCoupon.
+      const reference = startsAt ?? now;
+      const weekday = new Date(reference.toLocaleString('en-US', { timeZone: form.timezone })).getDay();
+      if (!coupon.validDaysOfWeek.includes(weekday)) throw new BadRequestException('El cupón no es válido para el día de la reserva');
     }
     return { valid: true, discountType: coupon.discountType, value: coupon.value };
   }
@@ -1059,7 +1062,7 @@ export class ReservationsService {
       const minutes = Number(local.hour) * 60 + Number(local.minute);
       const from = coupon.validFromTime ? this.minutes(coupon.validFromTime) : 0;
       const until = coupon.validUntilTime ? this.minutes(coupon.validUntilTime) : 24 * 60;
-      if (minutes < from || minutes > until) {
+      if (minutes < from || minutes >= until) {
         throw new BadRequestException(`El cupón solo aplica entre ${coupon.validFromTime ?? '00:00'} y ${coupon.validUntilTime ?? '23:59'}`);
       }
     }

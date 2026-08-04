@@ -104,7 +104,11 @@ export function LeadsPage() {
 
   const { data: leadsResp, isLoading, error, refetch, isFetching } = useQuery<{ data: Lead[] }>({
     queryKey: ['leads'],
-    queryFn: () => api.get('/crm/leads'),
+    // Sin `limit` el backend pagina con el default (20), lo que ocultaba en silencio leads mas
+    // antiguos del tablero y descuadraba el resumen de totales apenas la organizacion superaba
+    // esa cifra. El maximo que acepta el endpoint (100) sigue siendo una cota informal: si el
+    // volumen de leads crece mas alla de eso, esta pagina necesita paginacion real.
+    queryFn: () => api.get('/crm/leads?limit=100'),
   });
   const leads = useMemo<Lead[]>(() => (leadsResp as { data: Lead[] } | undefined)?.data ?? [], [leadsResp]);
 

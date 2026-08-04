@@ -9,6 +9,7 @@ import { Lead } from '../crm/leads/lead.entity';
 
 @Entity('quotes')
 @Index('UQ_quotes_org_number', ['organizationId', 'number'], { unique: true })
+@Index('IDX_quotes_org_created', ['organizationId', 'createdAt'])
 export class Quote {
   @PrimaryGeneratedColumn('uuid')
   id: string;

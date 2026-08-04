@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Organization } from '../../organizations/organization.entity';
 import { Lead } from '../leads/lead.entity';
 
 @Entity('crm_contacts')
+@Index('IDX_crm_contacts_org_client_created', ['organizationId', 'clientId', 'createdAt'])
 export class Contact {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId: string;

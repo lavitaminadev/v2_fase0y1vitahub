@@ -60,6 +60,10 @@ export class MetaLeadAdsService {
     const changes = this.extractLeadgenChanges(payload);
     let createdOrUpdated = 0;
 
+    if (changes.length === 0) {
+      return { accepted: 0, createdOrUpdated: 0 };
+    }
+
     // Carga en batch: obtiene todos los pageIds únicos
     const pageIds = [...new Set(changes.map(c => c.pageId))];
     const pageAccountsMap = new Map<string, IntegrationAccount[]>();

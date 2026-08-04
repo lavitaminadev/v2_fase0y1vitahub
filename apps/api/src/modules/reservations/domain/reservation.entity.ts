@@ -4,6 +4,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index('IDX_reservations_form_start', ['formId', 'startsAt'])
 @Index('UQ_reservations_form_idempotency', ['formId', 'idempotencyKey'], { unique: true })
 @Index('IDX_reservations_contact', ['contactId'])
+@Index('IDX_reservations_org_client_starts', ['organizationId', 'clientId', 'startsAt'])
 export class Reservation {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId: string;

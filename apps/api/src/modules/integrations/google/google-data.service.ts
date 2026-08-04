@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { Integration } from '../integration.entity';
 import { IntegrationProvider } from '../integration-provider.enum';
 import { IntegrationAccount } from '../integration-account.entity';
@@ -64,41 +65,53 @@ export class GoogleDataService {
     if (!accounts.some((item) => item.metadata?.selected)) {
       throw new BadRequestException('Asigna al menos una cuenta de Google a un cliente antes de sincronizar');
     }
-    let synced = 0; const skipped: string[] = [];
+    let synced = 0; const skipped: string[] = []; const failed: string[] = [];
     for (const account of accounts.filter((item) => item.metadata?.selected)) {
       const clientId = typeof account.metadata?.clientId === 'string' ? account.metadata.clientId : undefined;
       if (!clientId) { skipped.push(account.externalName); continue; }
-      if (account.accountType === IntegrationAccountType.AD_ACCOUNT) synced += await this.syncAdsAccount(account, organizationId, clientId, token);
-      if (account.accountType === IntegrationAccountType.ANALYTICS_PROPERTY) synced += await this.syncAnalyticsProperty(account, organizationId, clientId, token);
+      try {
+        if (account.accountType === IntegrationAccountType.AD_ACCOUNT) synced += await this.syncAdsAccount(account, organizationId, clientId, token);
+        if (account.accountType === IntegrationAccountType.ANALYTICS_PROPERTY) synced += await this.syncAnalyticsProperty(account, organizationId, clientId, token);
+      } catch {
+        failed.push(account.externalName);
+      }
     }
-    return { synced, skippedUnassignedAccounts: skipped };
+    return { synced, skippedUnassignedAccounts: skipped, failedAccounts: failed };
   }
 
   private async syncAdsAccount(account: IntegrationAccount, organizationId: string, clientId: string, token: string) {
     const query = `SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM customer WHERE segments.date DURING LAST_30_DAYS`;
     const rows = await this.googleFetch<Array<{ results?: GoogleAdsRow[] }>>(`https://googleads.googleapis.com/${this.adsApiVersion()}/customers/${account.externalId}/googleAds:searchStream`, token, { method: 'POST', headers: this.adsHeaders(), body: JSON.stringify({ query }) });
-    let count = 0;
-    for (const row of rows.flatMap((batch) => batch.results ?? [])) {
-      await this.upsertMetric({ organizationId, clientId, provider: 'google_ads', externalAccountId: account.externalId, metricDate: new Date(row.segments.date), spend: Number(row.metrics.costMicros ?? 0) / 1_000_000, impressions: Number(row.metrics.impressions ?? 0), clicks: Number(row.metrics.clicks ?? 0), conversions: Number(row.metrics.conversions ?? 0), reach: 0, leads: 0 }); count += 1;
-    }
-    return count;
+    const metricsToUpsert = rows.flatMap((batch) => batch.results ?? []).map((row) => ({
+      organizationId, clientId, provider: 'google_ads' as const, externalAccountId: account.externalId,
+      metricDate: new Date(row.segments.date), spend: Number(row.metrics.costMicros ?? 0) / 1_000_000,
+      impressions: Number(row.metrics.impressions ?? 0), clicks: Number(row.metrics.clicks ?? 0),
+      conversions: Number(row.metrics.conversions ?? 0), reach: 0, leads: 0,
+    }));
+    return this.upsertMetrics(metricsToUpsert);
   }
 
   private async syncAnalyticsProperty(account: IntegrationAccount, organizationId: string, clientId: string, token: string) {
     const property = account.externalId.replace('properties/', '');
     const payload = await this.googleFetch<GaReport>(`https://analyticsdata.googleapis.com/v1beta/properties/${property}:runReport`, token, { method: 'POST', body: JSON.stringify({ dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }], dimensions: [{ name: 'date' }], metrics: [{ name: 'sessions' }, { name: 'conversions' }], limit: 100 }) });
-    let count = 0;
-    for (const row of payload.rows ?? []) {
+    const metricsToUpsert = (payload.rows ?? []).map((row) => {
       const raw = row.dimensionValues?.[0]?.value ?? '';
-      const date = new Date(`${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`);
-      await this.upsertMetric({ organizationId, clientId, provider: 'google_analytics', externalAccountId: account.externalId, metricDate: date, spend: 0, impressions: 0, reach: 0, clicks: Number(row.metricValues?.[0]?.value ?? 0), conversions: Number(row.metricValues?.[1]?.value ?? 0), leads: 0, breakdown: { sessions: Number(row.metricValues?.[0]?.value ?? 0) } }); count += 1;
-    }
-    return count;
+      const sessions = Number(row.metricValues?.[0]?.value ?? 0);
+      return {
+        organizationId, clientId, provider: 'google_analytics' as const, externalAccountId: account.externalId,
+        metricDate: new Date(`${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`),
+        spend: 0, impressions: 0, reach: 0, clicks: sessions, conversions: Number(row.metricValues?.[1]?.value ?? 0),
+        leads: 0, breakdown: { sessions } as Record<string, unknown>,
+      };
+    });
+    return this.upsertMetrics(metricsToUpsert);
   }
 
-  private async upsertMetric(values: Partial<IntegrationMetric> & Pick<IntegrationMetric, 'provider' | 'externalAccountId' | 'clientId' | 'metricDate'>) {
-    let metric = await this.metrics.findOne({ where: { organizationId: values.organizationId, provider: values.provider, externalAccountId: values.externalAccountId, clientId: values.clientId, metricDate: values.metricDate } });
-    metric ??= this.metrics.create(values); Object.assign(metric, values); return this.metrics.save(metric);
+  private async upsertMetrics(values: Array<Partial<IntegrationMetric>>) {
+    if (values.length === 0) return 0;
+    // El DeepPartial de TypeORM no logra conciliar una columna json `Record<string, any>` via upsert(); la forma de arriba es correcta en tiempo de ejecución.
+    await this.metrics.upsert(values as QueryDeepPartialEntity<IntegrationMetric>[], ['provider', 'externalAccountId', 'clientId', 'metricDate']);
+    return values.length;
   }
 
   private async getAccess(id: string, organizationId: string) {

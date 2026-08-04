@@ -41,7 +41,7 @@ export class PublicReservationsController {
   async validateCoupon(@Param('slug') slug: string, @Body() dto: CouponValidateDto) {
     const code = dto.code?.trim();
     if (!code) throw new BadRequestException('CÃ³digo requerido');
-    return this.service.validatePublicCoupon(slug, code);
+    return this.service.validatePublicCoupon(slug, code, dto.startsAt ? new Date(dto.startsAt) : undefined);
   }
 
   @Post(':slug/survey')

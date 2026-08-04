@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  ManyToOne, JoinColumn, Index,
 } from 'typeorm';
 import { Organization } from '../organizations/organization.entity';
 import { Client } from '../clients/client.entity';
@@ -8,6 +8,7 @@ import { User } from '../users/user.entity';
 import { ApprovalRequestStatus } from './approval-request-status.enum';
 
 @Entity('approval_requests')
+@Index('IDX_approval_requests_org_created', ['organizationId', 'createdAt'])
 export class ApprovalRequest {
   @PrimaryGeneratedColumn('uuid')
   id: string;

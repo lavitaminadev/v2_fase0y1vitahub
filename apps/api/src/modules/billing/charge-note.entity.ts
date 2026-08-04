@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 
 @Entity('charge_notes')
 @Index('UQ_charge_notes_correction', ['correctionId'], { unique: true })
+@Index('IDX_charge_notes_org_created', ['organizationId', 'createdAt'])
 export class ChargeNote {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId: string;

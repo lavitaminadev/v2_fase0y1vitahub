@@ -28,7 +28,9 @@ export class LeadConvertedHandler {
       // Verifica que el lead haya venido originalmente de Meta
       if (lead.source !== 'meta_lead_ads' && !lead.metadata?.adId) return;
 
-      const pageId = lead.metadata?.pageId;
+      // `pageId` es columna propia del lead (ver LeadIntakeService/MetaLeadAdsService), no viaja
+      // dentro de `metadata`: ahi solo se guardan adId/adsetId/formId/etc.
+      const pageId = lead.pageId;
       if (!pageId) return;
 
       const pageAccount = await this.accountsRepo.findOne({

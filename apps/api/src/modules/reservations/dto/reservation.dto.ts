@@ -31,7 +31,7 @@ export class UpdateReservationFormDto {
   @IsOptional() @IsArray() @IsEmail({}, { each: true }) teamNotifications?: string[];
 }
 export class CreateBlockDto { @IsDateString() startsAt: string; @IsDateString() endsAt: string; @IsOptional() @IsString() @MaxLength(180) reason?: string; }
-export class CouponValidateDto { @IsString() @MaxLength(80) code: string; }
+export class CouponValidateDto { @IsString() @MaxLength(80) code: string; @IsOptional() @IsDateString() startsAt?: string; }
 export class PublicReservationDto {
   @IsDateString() startsAt: string;
   @IsString() @MaxLength(180) guestName: string;
