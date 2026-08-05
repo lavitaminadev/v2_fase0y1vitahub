@@ -29,6 +29,41 @@ export function localToUtc(date: string, time: string, timeZone: string): Date {
   return result;
 }
 
+/**
+ * Convierte una hora local a UTC, o `null` si esa hora no existe en la zona.
+ *
+ * Es la variante que usan los cálculos internos, donde una hora inexistente es un dato del
+ * calendario y no un error de quien pide: en un salto de horario de verano simplemente hay
+ * horas que no ocurrieron.
+ */
+export function tryLocalToUtc(date: string, time: string, timeZone: string): Date | null {
+  try {
+    return localToUtc(date, time, timeZone);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Primer instante de un día local, expresado en UTC.
+ *
+ * Chile adelanta el reloj el primer domingo de septiembre saltando de las 23:59 a la 01:00,
+ * así que **ese día las 00:00 no existen**. Calcular el límite del día con `localToUtc(…,
+ * '00:00')` lanzaba una excepción y devolvía un 400: el tope diario dejaba de poder
+ * evaluarse y el calendario público quedaba caído para cualquier consulta cuyo rango tocara
+ * esa fecha, no solo para el día mismo.
+ *
+ * Ante un salto se avanza al primer minuto que sí existe, que es lo que el día realmente
+ * empieza a valer.
+ */
+export function startOfLocalDayUtc(date: string, timeZone: string): Date {
+  for (let hour = 0; hour < 4; hour += 1) {
+    const candidate = tryLocalToUtc(date, `${String(hour).padStart(2, '0')}:00`, timeZone);
+    if (candidate) return candidate;
+  }
+  throw new BadRequestException('No se pudo determinar el inicio del día en esa zona horaria');
+}
+
 export function addPlainDays(value: string, days: number): string {
   const [year, month, day] = value.split('-').map(Number); const date = new Date(Date.UTC(year, month - 1, day + days)); return date.toISOString().slice(0, 10);
 }

@@ -24,20 +24,48 @@ export class PodsService {
     private readonly accountAccess: AccountAccessService,
   ) {}
 
+  /**
+   * Pods con sus integrantes y sus cuentas.
+   *
+   * Las consultas se hacen para todos los pods a la vez y se agrupan en memoria. Resolverlas
+   * dentro del recorrido costaba tres consultas por pod, y como guardar un pod vuelve a
+   * llamar a este método, cada cambio pagaba ese precio otra vez.
+   */
   async list(organizationId: string) {
     const pods = await this.pods.find({ where: { organizationId }, order: { name: 'ASC' } });
-    return Promise.all(pods.map(async (pod) => {
-      const memberRecords = await this.members.find({ where: { podId: pod.id } });
-      const memberIds = memberRecords.map((item) => item.userId);
-      const [podUsers, podClients]: [User[], Client[]] = await Promise.all([
-        memberIds.length ? this.users.find({ where: { organizationId, id: In(memberIds) }, order: { name: 'ASC' } }) : Promise.resolve([] as User[]),
-        this.clients.find({ where: { organizationId, podId: pod.id }, order: { name: 'ASC' } }),
-      ]);
-      return {
-        ...pod,
-        members: podUsers.map(({ id, name, role, workMode }) => ({ id, name, role, workMode })),
-        clients: podClients.map(({ id, name, status, defaultUdBudget }) => ({ id, name, status, defaultUdBudget })),
-      };
+    if (pods.length === 0) return [];
+
+    const podIds = pods.map((pod) => pod.id);
+    const memberRecords = await this.members.find({ where: { podId: In(podIds) } });
+    const memberIds = [...new Set(memberRecords.map((item) => item.userId))];
+
+    const [podUsers, podClients]: [User[], Client[]] = await Promise.all([
+      memberIds.length ? this.users.find({ where: { organizationId, id: In(memberIds) }, order: { name: 'ASC' } }) : Promise.resolve([] as User[]),
+      this.clients.find({ where: { organizationId, podId: In(podIds) }, order: { name: 'ASC' } }),
+    ]);
+
+    const usersById = new Map(podUsers.map((user) => [user.id, user]));
+    const memberIdsByPod = new Map<string, string[]>();
+    for (const record of memberRecords) {
+      const current = memberIdsByPod.get(record.podId);
+      if (current) current.push(record.userId);
+      else memberIdsByPod.set(record.podId, [record.userId]);
+    }
+    const clientsByPod = new Map<string, Client[]>();
+    for (const client of podClients) {
+      if (!client.podId) continue;
+      const current = clientsByPod.get(client.podId);
+      if (current) current.push(client);
+      else clientsByPod.set(client.podId, [client]);
+    }
+
+    return pods.map((pod) => ({
+      ...pod,
+      members: (memberIdsByPod.get(pod.id) ?? [])
+        .map((userId) => usersById.get(userId))
+        .filter((user): user is User => user !== undefined)
+        .map(({ id, name, role, workMode }) => ({ id, name, role, workMode })),
+      clients: (clientsByPod.get(pod.id) ?? []).map(({ id, name, status, defaultUdBudget }) => ({ id, name, status, defaultUdBudget })),
     }));
   }
 

@@ -144,27 +144,32 @@ export class ContactsService {
     const scopedIds = clientId ? [clientId] : allowedClientIds;
     const clientFilter = scopedIds ? `AND c.client_id IN (${scopedIds.map(() => '?').join(',')})` : '';
     const params = scopedIds ? [organizationId, ...scopedIds] : [organizationId];
-    const totalRow = await this.dataSource.query(
-      `SELECT COUNT(*) total FROM crm_contacts c WHERE c.organization_id = ? ${clientFilter}`, params,
-    );
-    const total = Number(totalRow?.[0]?.total ?? 0);
-    const stats = await this.dataSource.query(
-      `SELECT c.id,
-              COUNT(r.id) reservations,
-              SUM(r.status = 'attended') attended,
-              MAX(r.starts_at) last_visit
-       FROM crm_contacts c
-       LEFT JOIN reservations r ON r.contact_id = c.id AND r.status NOT LIKE 'cancelled%'
-       WHERE c.organization_id = ? ${clientFilter}
-       GROUP BY c.id`,
+    // Los conteos se resuelven en la base. Traer una fila por contacto para contar cuatro
+    // números obligaba a materializar la audiencia entera —decenas de miles de filas en una
+    // cuenta con recorrido— y recorrerla tres veces en memoria.
+    const [row] = await this.dataSource.query(
+      `SELECT
+         COUNT(*) total,
+         SUM(t.reservations >= 3) frequent,
+         SUM(t.attended >= 5) vip,
+         SUM(t.last_visit IS NOT NULL AND t.last_visit < DATE_SUB(NOW(), INTERVAL 90 DAY)) inactive90
+       FROM (
+         SELECT c.id,
+                COUNT(r.id) reservations,
+                SUM(r.status = 'attended') attended,
+                MAX(r.starts_at) last_visit
+         FROM crm_contacts c
+         LEFT JOIN reservations r ON r.contact_id = c.id AND r.status NOT LIKE 'cancelled%'
+         WHERE c.organization_id = ? ${clientFilter}
+         GROUP BY c.id
+       ) t`,
       params,
     );
-    const rows = stats as Array<{ id: string; reservations: number; attended: number; last_visit: string | null }>;
     return buildSegments({
-      total,
-      frequent: rows.filter((row) => Number(row.reservations) >= 3).length,
-      vip: rows.filter((row) => Number(row.attended) >= 5).length,
-      inactive90: rows.filter((row) => row.last_visit && (Date.now() - new Date(row.last_visit).getTime()) > 90 * 24 * 60 * 60 * 1000).length,
+      total: Number(row?.total ?? 0),
+      frequent: Number(row?.frequent ?? 0),
+      vip: Number(row?.vip ?? 0),
+      inactive90: Number(row?.inactive90 ?? 0),
     });
   }
 

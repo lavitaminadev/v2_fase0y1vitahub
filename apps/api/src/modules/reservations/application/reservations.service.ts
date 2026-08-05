@@ -9,7 +9,7 @@ import { AvailabilityBlock } from '../domain/availability-block.entity';
 import { ReservationEvent } from '../domain/reservation-event.entity';
 import { ReservationFormEvent } from '../domain/reservation-form-event.entity';
 import { ReservationCoupon } from '../domain/reservation-coupon.entity';
-import { addPlainDays, assertTimeZone, localToUtc, plainDateParts, zonedParts } from '../domain/timezone';
+import { addPlainDays, assertTimeZone, plainDateParts, startOfLocalDayUtc, tryLocalToUtc, zonedParts } from '../domain/timezone';
 import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ListReservationsDto, PublicFormEventDto, PublicReservationDto, PublicSurveyResponseDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from '../dto/reservation.dto';
 import { LeadIntakeService } from '../../crm/leads/lead-intake.service';
 import { GoogleCalendarService } from '../../integrations/google/google-calendar.service';
@@ -287,11 +287,16 @@ export class ReservationsService {
     return this.clientPixels.resolve(organizationId, clientId);
   }
 
-  async createManual(organizationId: string, userId: string, dto: CreateManualReservationDto, clientId?: string, clientIds?: string[]) {
+  /**
+   * @param notify - Avisar al equipo. La importación masiva lo desactiva: cargar un histórico
+   *   de quinientas filas generaba quinientas notificaciones y quinientos correos de "nueva
+   *   reserva recibida" por reservas que ya ocurrieron.
+   */
+  async createManual(organizationId: string, userId: string, dto: CreateManualReservationDto, clientId?: string, clientIds?: string[], notify = true) {
     const form = await this.getForm(organizationId, dto.formId, clientId, clientIds);
     const startsAt = new Date(dto.startsAt);
     if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Fecha inválida');
-    await this.validateEmailDomain(dto.guestEmail);
+    this.validateEmailDomain(dto.guestEmail);
     const partySize = dto.partySize || 1;
     const result = await this.dataSource.transaction(async (manager) => {
       await manager.getRepository(ReservationForm).createQueryBuilder('f').setLock('pessimistic_write').where('f.id = :id', { id: form.id }).getOne();
@@ -312,13 +317,13 @@ export class ReservationsService {
       await manager.save(ReservationEvent, manager.create(ReservationEvent, { organizationId, clientId: form.clientId, reservationId: booking.id, type: 'created', toStatus: 'confirmed', actorId: userId, actorType: 'team', metadata: { startsAt: startsAt.toISOString(), serviceId: dto.serviceId, resourceId: dto.resourceId, manual: true, skipAvailability: dto.skipAvailability } }));
       return { booking, form };
     });
-    await this.notifyNewBooking(result.form, result.booking);
+    if (notify) await this.notifyNewBooking(result.form, result.booking);
     return result.booking;
   }
 
   private async dailyReservationsCount(manager: EntityManager, formId: string, dateKey: string, timeZone: string, excludeId?: string) {
-    const start = localToUtc(dateKey, '00:00', timeZone);
-    const end = localToUtc(addPlainDays(dateKey, 1), '00:00', timeZone);
+    const start = startOfLocalDayUtc(dateKey, timeZone);
+    const end = startOfLocalDayUtc(addPlainDays(dateKey, 1), timeZone);
     const qb = manager.getRepository(Reservation).createQueryBuilder('r')
       .where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { formId, start, end, statuses: ACTIVE_STATUSES });
     if (excludeId) qb.andWhere('r.id != :excludeId', { excludeId });
@@ -332,8 +337,8 @@ export class ReservationsService {
    * cuenta el total del dia y no el de un formulario.
    */
   private async clientDailyReservationsCount(manager: EntityManager, clientId: string, dateKey: string, timeZone: string, excludeId?: string) {
-    const start = localToUtc(dateKey, '00:00', timeZone);
-    const end = localToUtc(addPlainDays(dateKey, 1), '00:00', timeZone);
+    const start = startOfLocalDayUtc(dateKey, timeZone);
+    const end = startOfLocalDayUtc(addPlainDays(dateKey, 1), timeZone);
     const qb = manager.getRepository(Reservation).createQueryBuilder('r')
       .where('r.client_id = :clientId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { clientId, start, end, statuses: ACTIVE_STATUSES });
     if (excludeId) qb.andWhere('r.id != :excludeId', { excludeId });
@@ -374,8 +379,8 @@ export class ReservationsService {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new BadRequestException('Fecha inválida');
     const rules = this.effectiveRules(form, serviceId, resourceId);
     const count = Math.min(Math.max(days, 1), 31);
-    const rangeStart = localToUtc(from, '00:00', form.timezone);
-    const rangeEnd = localToUtc(addPlainDays(from, count), '00:00', form.timezone);
+    const rangeStart = startOfLocalDayUtc(from, form.timezone);
+    const rangeEnd = startOfLocalDayUtc(addPlainDays(from, count), form.timezone);
     const existingQb = this.reservations.createQueryBuilder('r')
       .select(['r.id', 'r.startsAt', 'r.endsAt', 'r.partySize'])
       .where('r.form_id = :formId AND r.starts_at >= :start AND r.starts_at < :end AND r.status IN (:...statuses)', { formId: form.id, start: rangeStart, end: rangeEnd, statuses: ACTIVE_STATUSES });
@@ -448,7 +453,10 @@ export class ReservationsService {
       const dayBlocks = blocksByDate.get(date) || [];
       for (const window of dayWindows) {
         for (let minute = this.minutes(window.start); minute + rules.duration <= this.minutes(window.end); minute += rules.duration + form.bufferMinutes) {
-          const startsAt = localToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone);
+          // Un cupo que cae en el salto de horario de verano no existe como hora local, así
+          // que se omite en vez de tumbar la consulta entera del calendario.
+          const startsAt = tryLocalToUtc(date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`, form.timezone);
+          if (!startsAt) continue;
           const endsAt = new Date(startsAt.getTime() + rules.duration * 60000);
           if (startsAt.getTime() < minStart || startsAt.getTime() > maxStart) continue;
           if (dayBlocks.some((block) => this.overlaps(startsAt, endsAt, block.startsAt, block.endsAt))) continue;
@@ -466,7 +474,31 @@ export class ReservationsService {
       const existing = await this.formEvents.findOne({ where: { formId: form.id, type: dto.type, sessionId: dto.sessionId } });
       if (existing) return existing;
     }
-    return this.formEvents.save(this.formEvents.create({ organizationId: form.organizationId, clientId: form.clientId, formId: form.id, type: dto.type, sessionId: dto.sessionId, utmSource: dto.utmSource, utmCampaign: dto.utmCampaign }));
+    return this.saveFormEventOnce(
+      this.formEvents.create({ organizationId: form.organizationId, clientId: form.clientId, formId: form.id, type: dto.type, sessionId: dto.sessionId, utmSource: dto.utmSource, utmCampaign: dto.utmCampaign }),
+    );
+  }
+
+  /**
+   * Guarda un evento de formulario resolviendo el choque contra la restricción de unicidad.
+   *
+   * La consulta previa no basta: entre esa consulta y el `save` cabe otra petición, y a
+   * diferencia de las reservas no hay bloqueo que las serialice. La base decide quién gana y
+   * el que pierde recupera la fila del otro, de modo que un doble clic devuelve la misma
+   * respuesta en vez de crear una segunda —que, además de duplicar el registro, encolaba una
+   * conversión `Lead` extra hacia Meta.
+   */
+  private async saveFormEventOnce(event: ReservationFormEvent): Promise<ReservationFormEvent> {
+    try {
+      return await this.formEvents.save(event);
+    } catch (error) {
+      if ((error as { code?: string })?.code !== 'ER_DUP_ENTRY') throw error;
+      const existing = await this.formEvents.findOne({
+        where: { formId: event.formId, type: event.type, sessionId: event.sessionId },
+      });
+      if (!existing) throw error;
+      return existing;
+    }
   }
 
   async createPublicSurveyResponse(slug: string, dto: PublicSurveyResponseDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
@@ -476,7 +508,7 @@ export class ReservationsService {
     this.validateAnswers(form, dto.answers);
     const existing = await this.formEvents.findOne({ where: { formId: form.id, type: 'submit', sessionId: dto.idempotencyKey } });
     if (existing) return existing;
-    const response = await this.formEvents.save(this.formEvents.create({
+    const response = await this.saveFormEventOnce(this.formEvents.create({
       organizationId: form.organizationId,
       clientId: form.clientId,
       formId: form.id,
@@ -513,17 +545,24 @@ export class ReservationsService {
     return response;
   }
 
-  private async validateEmailDomain(email?: string): Promise<void> {
+  /**
+   * Comprueba que el dominio del correo tenga registros MX y lo anota si no.
+   *
+   * No rechaza nada: la única rama negativa deja una fila de auditoría. Por eso **no se
+   * espera su resultado** en el camino de creación —esperarlo sumaba la ida y vuelta al DNS,
+   * que con un dominio que no responde son decenas de segundos por los reintentos del
+   * resolver, a la latencia del botón "Reservar" y a cada fila de una importación.
+   *
+   * El formato del correo ya lo valida el DTO con `@IsEmail`, así que esto solo aporta la
+   * señal de que un dominio no recibe correo.
+   */
+  private validateEmailDomain(email?: string): void {
     if (!email) return;
     const domain = email.split('@')[1];
-    if (!domain) throw new BadRequestException('Correo inválido');
-    try {
-      const mx = await dns.resolveMx(domain);
-      if (!mx || mx.length === 0) this.reportBadEmail(domain);
-    } catch (err) {
-      this.logger.warn(`MX lookup failed for domain ${domain}: ${err instanceof Error ? err.message : err}`);
-      // La verificación MX es best-effort; no debe bloquear la reserva
-    }
+    if (!domain) return;
+    void dns.resolveMx(domain)
+      .then((mx) => { if (!mx || mx.length === 0) this.reportBadEmail(domain); })
+      .catch((err) => this.logger.warn(`MX lookup failed for domain ${domain}: ${err instanceof Error ? err.message : err}`));
   }
   private reportBadEmail(_domain: string) {
     this.dataSource.query('INSERT INTO audit_logs (organization_id, entity_type, entity_id, action, metadata, occurred_at) VALUES (?, ?, ?, ?, ?, NOW())', [null, 'email_validation', _domain, 'mx_failed', JSON.stringify({ domain: _domain })]).catch(() => undefined);
@@ -532,7 +571,7 @@ export class ReservationsService {
   async createPublic(slug: string, dto: PublicReservationDto, ipAddress?: string, userAgent?: string, eventSourceUrl?: string) {
     if (dto.website) throw new BadRequestException('Solicitud inválida');
     if (dto.renderedAt && Date.now() - new Date(dto.renderedAt).getTime() < 800) throw new BadRequestException('Completa el formulario antes de enviarlo');
-    await this.validateEmailDomain(dto.guestEmail);
+    this.validateEmailDomain(dto.guestEmail);
 
     const result = await this.dataSource.transaction(async (manager) => {
       const form = await this.publishedForm(slug, manager, true);
@@ -824,7 +863,12 @@ export class ReservationsService {
       const teamEmails = (form.teamNotifications || []).filter((email) => typeof email === 'string' && email.includes('@'));
       if (teamEmails.length > 0) {
         const html = `<h2>Nueva reserva recibida</h2><p><strong>${booking.guestName}</strong> reservó <strong>${form.name}</strong>.</p><p>Fecha: ${booking.startsAt.toLocaleString('es-CL')}<br>Personas: ${booking.partySize}<br>Código: ${booking.referenceCode}</p>`;
-        await Promise.all(teamEmails.map((email) => this.emails.send(email, `Nueva reserva - ${form.name}`, html)));
+        // Sin esperar: el envío es un handshake TLS más una entrega por destinatario, y con
+        // el servidor de correo lento o caído eso se sumaba entero a lo que espera quien
+        // reserva. Que el correo no salga ya estaba aceptado —lo dice el catch de abajo—, así
+        // que tampoco tiene por qué retrasar la respuesta.
+        void Promise.all(teamEmails.map((email) => this.emails.send(email, `Nueva reserva - ${form.name}`, html)))
+          .catch((err) => this.logger.warn(`Aviso por correo de la reserva ${booking.id} no enviado: ${err instanceof Error ? err.message : err}`));
       }
     } catch (err) {
       this.logger.warn(`Notification failed for booking ${booking.id}: ${err instanceof Error ? err.message : err}`);

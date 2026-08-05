@@ -182,6 +182,9 @@ export class ReservationsBulkImportService {
           { ...row.data, skipAvailability: options.skipAvailability } as CreateManualReservationDto,
           options.clientId,
           options.clientIds,
+          // Sin avisos: quien importa ya sabe lo que está cargando, y el resumen del propio
+          // import le dice cuántas entraron.
+          false,
         );
         imported += 1;
       } catch (error) {
