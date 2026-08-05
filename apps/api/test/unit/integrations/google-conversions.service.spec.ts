@@ -92,10 +92,26 @@ describe('GoogleConversionsService.buildPayload', () => {
     expect(payload.userIdentifiers).toHaveLength(1);
   });
 
-  it('rechaza conversiones sin gclid ni identificadores', () => {
+  it('rechaza conversiones sin identificador de clic ni de usuario', () => {
     expect(() => service.buildPayload({ ...base, userData: {} })).toThrow(
-      /Se requiere gclid o al menos un identificador/,
+      /Se requiere un identificador de clic o al menos un identificador de usuario/,
     );
+  });
+
+  it('emite gbraid cuando no hay gclid, para el trafico iOS de Google', () => {
+    const payload = service.buildPayload({ ...base, gbraid: 'gb-1', userData: {} });
+
+    expect(payload.gbraid).toBe('gb-1');
+    expect(payload.gclid).toBeUndefined();
+  });
+
+  it('emite un solo identificador de clic aunque lleguen varios', () => {
+    // Google rechaza la conversion si recibe mas de uno, asi que se prefiere el mas preciso.
+    const payload = service.buildPayload({ ...base, gclid: 'gc-1', gbraid: 'gb-1', wbraid: 'wb-1', userData: {} });
+
+    expect(payload.gclid).toBe('gc-1');
+    expect(payload.gbraid).toBeUndefined();
+    expect(payload.wbraid).toBeUndefined();
   });
 
   it('incluye valor y moneda cuando se entregan', () => {

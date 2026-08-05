@@ -39,7 +39,14 @@ export class Reservation {
   @Column({ name: 'utm_medium', type: 'varchar', length: 120, nullable: true }) utmMedium?: string;
   @Column({ name: 'utm_campaign', type: 'varchar', length: 180, nullable: true }) utmCampaign?: string;
   @Column({ name: 'utm_content', type: 'varchar', length: 180, nullable: true }) utmContent?: string;
+  /** @deprecated Se conserva por el histórico y por los formularios aún en caché. Usar `gclid`. */
   @Column({ name: 'click_id', type: 'varchar', length: 255, nullable: true }) clickId?: string;
+  @Column({ name: 'gclid', type: 'varchar', length: 255, nullable: true }) gclid?: string | null;
+  /** Identificador de Google para campañas iOS y de aplicación, donde no hay cookies. */
+  @Column({ name: 'gbraid', type: 'varchar', length: 255, nullable: true }) gbraid?: string | null;
+  @Column({ name: 'wbraid', type: 'varchar', length: 255, nullable: true }) wbraid?: string | null;
+  /** Identificador de clic de Meta, del que se deriva `fbc` cuando el navegador no deja cookie. */
+  @Column({ name: 'fbclid', type: 'varchar', length: 255, nullable: true }) fbclid?: string | null;
   @Column({ name: 'fbc', type: 'varchar', length: 255, nullable: true }) fbc?: string | null;
   @Column({ name: 'fbp', type: 'varchar', length: 255, nullable: true }) fbp?: string | null;
   @Column({ name: 'client_ip_address', type: 'varchar', length: 100, nullable: true }) clientIpAddress?: string | null;

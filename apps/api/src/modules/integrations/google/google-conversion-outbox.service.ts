@@ -158,7 +158,7 @@ export class GoogleConversionOutboxService {
         const message = error instanceof Error ? error.message : 'Unknown Google Ads error';
         // Un payload malformado o una acción de conversión inexistente no se
         // arreglan reintentando; un 429 o un 5xx sí.
-        const isNonRetryable = /INVALID_ARGUMENT|NOT_FOUND|PERMISSION_DENIED|no se requiere|Se requiere gclid/i.test(message);
+        const isNonRetryable = /INVALID_ARGUMENT|NOT_FOUND|PERMISSION_DENIED|no se requiere|Se requiere un identificador/i.test(message);
         const isExpiredToken = /expired|invalid.*token|unauthorized|UNAUTHENTICATED/i.test(message);
 
         item.attempts += 1;

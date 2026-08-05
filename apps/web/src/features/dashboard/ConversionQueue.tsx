@@ -22,12 +22,13 @@ interface OutboxProblem {
 }
 
 interface OutboxState {
-  stats: { pending: number; retry: number; processing: number; failed: number; processed: number; total: number };
+  stats: { pending: number; retry: number; processing: number; failed: number; expired: number; processed: number; total: number };
   problems: OutboxProblem[];
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'En cola', retry: 'Reintentando', processing: 'Enviando', failed: 'Falló', processed: 'Enviado',
+  pending: 'En cola', retry: 'Reintentando', processing: 'Enviando', failed: 'Falló',
+  expired: 'Vencido', processed: 'Enviado',
 };
 
 function dateTime(value: string): string {
@@ -50,7 +51,10 @@ export function ConversionQueue() {
   // intervención manual, así que se destaca por separado del resto.
   const tokenIssues = problems.filter((problem) => (problem.lastError ?? '').includes('[TOKEN]'));
   const stuck = stats.processing > 0;
-  const healthy = stats.failed === 0 && stats.retry === 0 && !stuck;
+  // Un evento vencido es una conversión perdida de forma definitiva, así que cuenta como
+  // problema: antes no aparecía en ningún número y la cola se veía sana mientras se perdían.
+  const expired = stats.expired ?? 0;
+  const healthy = stats.failed === 0 && stats.retry === 0 && expired === 0 && !stuck;
 
   return (
     <div className="section viz-root">
@@ -72,7 +76,16 @@ export function ConversionQueue() {
         <article><span>En cola</span><strong>{stats.pending.toLocaleString('es-CL')}</strong><small>se procesan cada 5 minutos</small></article>
         <article><span>Reintentando</span><strong>{stats.retry.toLocaleString('es-CL')}</strong><small>{stats.retry > 0 ? 'con espera progresiva' : 'sin reintentos'}</small></article>
         <article><span>Fallidos</span><strong>{stats.failed.toLocaleString('es-CL')}</strong><small>{stats.failed > 0 ? 'no se reintentan solos' : 'ninguno'}</small></article>
+        <article><span>Vencidos</span><strong>{expired.toLocaleString('es-CL')}</strong><small>{expired > 0 ? 'fuera de la ventana de Meta' : 'ninguno'}</small></article>
       </div>
+
+      {expired > 0 && (
+        <div className="alert alert-error" role="alert">
+          <strong>{expired} conversión(es) se perdieron por antigüedad.</strong> El evento llegó a la cola después de
+          la ventana que Meta acepta —7 días desde la web, 62 desde el local— y ya no puede atribuirse.
+          Suele indicar que la asistencia se está marcando demasiado tarde, o que el cron estuvo detenido.
+        </div>
+      )}
 
       {tokenIssues.length > 0 && (
         <div className="alert alert-error" role="alert">

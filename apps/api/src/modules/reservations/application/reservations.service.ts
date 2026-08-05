@@ -490,6 +490,12 @@ export class ReservationsService {
         guestPhone: dto.guestPhone?.replace(/[^\d+]/g, ''),
         answers: dto.answers,
         clickId: dto.clickId,
+        // El formulario en caché todavía manda `clickId`; se interpreta como `gclid` porque
+        // ese era su destino real. Un `gclid` explícito manda sobre él.
+        gclid: dto.gclid ?? dto.clickId,
+        gbraid: dto.gbraid,
+        wbraid: dto.wbraid,
+        fbclid: dto.fbclid,
         fbc: dto.fbc,
         fbp: dto.fbp,
         clientIpAddress: ipAddress,
@@ -578,6 +584,12 @@ export class ReservationsService {
         utmCampaign: dto.utmCampaign,
         utmContent: dto.utmContent,
         clickId: dto.clickId,
+        // El formulario en caché todavía manda `clickId`; se interpreta como `gclid` porque
+        // ese era su destino real. Un `gclid` explícito manda sobre él.
+        gclid: dto.gclid ?? dto.clickId,
+        gbraid: dto.gbraid,
+        wbraid: dto.wbraid,
+        fbclid: dto.fbclid,
         fbc: dto.fbc,
         fbp: dto.fbp,
         clientIpAddress: ipAddress,
@@ -708,7 +720,12 @@ export class ReservationsService {
     const location = inferLocationFromPhone(booking.guestPhone);
 
     await this.googleOutbox.enqueue(form.organizationId, config, `${eventKey}:${booking.id}`, {
-      gclid: booking.clickId ?? undefined,
+      // Solo identificadores de Google. `fbclid` viaja por su propio campo hacia Meta: subirlo
+      // acá como `gclid` hacía que Google descartara la fila dentro de `partialFailureError`,
+      // y de paso impedía caer al camino de conversiones mejoradas, que sí habría atribuido.
+      gclid: booking.gclid ?? undefined,
+      gbraid: booking.gbraid ?? undefined,
+      wbraid: booking.wbraid ?? undefined,
       orderId: booking.id,
       conversionDateTime: conversionDate,
       timezone: form.timezone,
@@ -993,16 +1010,12 @@ export class ReservationsService {
       const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const headers = fields;
       return [headers, ...items.map((item) => fields.map((field) => fieldMap[field]?.(item) ?? '-'))].map((row) => row.map(escape).join(',')).join('\r\n');
-    } else if (format === 'pdf') {
-      // For now, return a simple text representation for PDF
-      // In production, you would use a PDF library like pdfkit or html2pdf
-      let pdfContent = `RESERVAS\nFecha: ${new Date().toISOString()}\n\n`;
-      pdfContent += fields.map((f) => f.toUpperCase()).join('\t') + '\n';
-      pdfContent += '-'.repeat(100) + '\n';
-      pdfContent += items.map((item) => fields.map((field) => String(fieldMap[field]?.(item) ?? '-')).join('\t')).join('\n');
-      return Buffer.from(pdfContent, 'utf8');
     }
 
+    // El formato PDF se retiró: devolvía texto separado por tabuladores con cabecera de PDF,
+    // sin la firma `%PDF-`, así que ningún lector lo abría. Un archivo roto es peor que un
+    // formato ausente, porque el fallo aparece recién al abrirlo, fuera de la aplicación.
+    // Volverá cuando se genere con una librería real.
     throw new BadRequestException('Formato no soportado');
   }
 

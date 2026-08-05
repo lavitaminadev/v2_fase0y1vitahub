@@ -38,8 +38,16 @@ export interface GoogleConversionUserData {
 export interface GoogleClickConversion {
   /** Nombre de recurso: customers/{customerId}/conversionActions/{id} */
   conversionAction: string;
-  /** gclid capturado desde la URL del anuncio (Reservation.clickId). */
+  /** gclid capturado desde la URL del anuncio (`Reservation.gclid`). */
   gclid?: string;
+  /**
+   * Identificadores de clic de campañas iOS y de aplicación, donde Google no entrega gclid.
+   *
+   * Google acepta exactamente uno de los tres por conversión, así que se emite el primero
+   * disponible por ese orden de preferencia.
+   */
+  gbraid?: string;
+  wbraid?: string;
   /** Identificador estable de la reserva, para deduplicación en Google. */
   orderId?: string;
   /** Momento de la conversión. */
@@ -138,13 +146,24 @@ export class GoogleConversionsService {
   /** Arma el payload de una conversión sin enviarlo (facilita las pruebas). */
   buildPayload(conversion: GoogleClickConversion): Record<string, unknown> {
     const userIdentifiers = buildUserIdentifiers(conversion.userData);
-    if (!conversion.gclid && userIdentifiers.length === 0) {
-      throw new BadRequestException('Se requiere gclid o al menos un identificador de usuario');
+    // Google rechaza una conversión que traiga más de un identificador de clic, así que se
+    // elige uno solo. gclid primero por ser el más preciso; gbraid y wbraid cubren el tráfico
+    // iOS y de aplicación, donde gclid no existe.
+    const clickIdentifier = conversion.gclid
+      ? { gclid: conversion.gclid }
+      : conversion.gbraid
+        ? { gbraid: conversion.gbraid }
+        : conversion.wbraid
+          ? { wbraid: conversion.wbraid }
+          : undefined;
+
+    if (!clickIdentifier && userIdentifiers.length === 0) {
+      throw new BadRequestException('Se requiere un identificador de clic o al menos un identificador de usuario');
     }
     return {
       conversionAction: conversion.conversionAction,
       conversionDateTime: formatConversionDateTime(conversion.conversionDateTime, conversion.timezone),
-      ...(conversion.gclid ? { gclid: conversion.gclid } : {}),
+      ...(clickIdentifier ?? {}),
       ...(conversion.orderId ? { orderId: conversion.orderId } : {}),
       ...(conversion.conversionValue !== undefined ? { conversionValue: conversion.conversionValue } : {}),
       ...(conversion.currencyCode ? { currencyCode: conversion.currencyCode } : {}),

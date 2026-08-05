@@ -9,20 +9,39 @@ import { MetaClientPixelService } from './meta-client-pixel.service';
 const CLAIM_TIMEOUT_MS = 10 * 60_000;
 
 /**
- * Ventana que Meta acepta para recibir una conversión pasada.
+ * Ventana que Meta acepta para recibir una conversión pasada, según el origen del evento.
  *
- * Marcar la asistencia al día siguiente entra sin problema; pasada esta ventana el evento
- * ya no puede atribuirse y se deja de reintentar.
+ * Los eventos de tienda física admiten 62 días porque describen algo que ocurrió en el
+ * local y suelen cargarse con retraso: la asistencia se marca cuando alguien la registra, no
+ * cuando el comensal llega. Aplicarles el corte de 7 días descartaba localmente conversiones
+ * que Meta sí habría aceptado, incluida toda importación de histórico.
  */
-const META_EVENT_MAX_AGE_DAYS = 7;
+const MAX_AGE_DAYS_BY_ACTION_SOURCE: Record<string, number> = {
+  physical_store: 62,
+};
+
+/** Ventana por defecto, para eventos originados en la web. */
+const DEFAULT_MAX_AGE_DAYS = 7;
+
+/**
+ * Códigos con los que Meta señala que el token dejó de servir.
+ *
+ * `190` es el de OAuth: cubre token vencido, revocado y sesión invalidada por cambio de
+ * contraseña. Se prefiere al texto del mensaje porque el texto cambia con el idioma y con la
+ * versión de la API.
+ */
+const META_OAUTH_ERROR_CODE = 190;
 
 interface ApiError {
   response?: {
     status: number;
-    data?: { error?: { message?: string; error_user_msg?: string } };
+    data?: { error?: { message?: string; error_user_msg?: string; code?: number; type?: string } };
   };
   message?: string;
 }
+
+/** Estados en los que un evento ya no volverá a intentarse. */
+const TERMINAL_STATUSES = ['failed', 'expired'] as const;
 
 @Injectable()
 export class MetaConversionOutboxService {
@@ -47,20 +66,24 @@ export class MetaConversionOutboxService {
    *   omite a proposito para ver la cola completa; cualquier consulta desde la aplicacion
    *   debe pasarlo para no exponer numeros de otras organizaciones.
    */
-  async stats(organizationId?: string): Promise<{ pending: number; retry: number; processing: number; failed: number; processed: number; total: number }> {
+  async stats(organizationId?: string): Promise<{ pending: number; retry: number; processing: number; failed: number; expired: number; processed: number; total: number }> {
     const scope = organizationId ? { organizationId } : {};
     const countBy = (status?: string) => this.outbox.count({ where: status ? { ...scope, status } : scope });
-    const [pending, retry, processing, failed, processed, total] = await Promise.all([
+    const [pending, retry, processing, failed, expired, processed, total] = await Promise.all([
       countBy('pending'),
       countBy('retry'),
       // 'processing' son eventos ya tomados por una ejecucion en curso. Si este numero no
       // baja entre diagnosticos, hay lotes quedandose atascados.
       countBy('processing'),
       countBy('failed'),
+      // Se cuenta aparte porque es una conversion perdida de forma definitiva. Omitirlo hacia
+      // que la suma de estados no cuadrara con el total y que una perdida por antiguedad no
+      // apareciera en ningun numero.
+      countBy('expired'),
       countBy('processed'),
       countBy(),
     ]);
-    return { pending, retry, processing, failed, processed, total };
+    return { pending, retry, processing, failed, expired, processed, total };
   }
 
   /** Eventos que no lograron enviarse, con su motivo, para diagnosticar desde la aplicacion. */
@@ -68,6 +91,7 @@ export class MetaConversionOutboxService {
     return this.outbox.find({
       where: [
         { organizationId, status: 'failed' },
+        { organizationId, status: 'expired' },
         { organizationId, status: 'retry' },
       ],
       order: { updatedAt: 'DESC' },
@@ -126,14 +150,15 @@ export class MetaConversionOutboxService {
     let failed = 0;
     for (const item of items) {
       try {
-        // Meta rechaza eventos de mas de 7 dias. Sin este corte el evento agotaba los ocho
-        // reintentos contra una ventana ya cerrada y terminaba como un fallo generico, sin
-        // que nadie supiera que la conversion se habia perdido por antiguedad.
-        const eventTime = Number((item.eventData as ConversionEvent)?.eventTime ?? 0);
-        if (eventTime > 0 && Date.now() - eventTime * 1000 > META_EVENT_MAX_AGE_DAYS * 86_400_000) {
+        // Pasada la ventana de Meta el evento ya no puede atribuirse. Sin este corte agotaba
+        // los ocho reintentos contra una ventana cerrada y terminaba como un fallo generico.
+        const event = item.eventData as ConversionEvent;
+        const eventTime = Number(event?.eventTime ?? 0);
+        const maxAgeDays = MAX_AGE_DAYS_BY_ACTION_SOURCE[event?.actionSource ?? ''] ?? DEFAULT_MAX_AGE_DAYS;
+        if (eventTime > 0 && Date.now() - eventTime * 1000 > maxAgeDays * 86_400_000) {
           item.status = 'expired';
           item.nextAttemptAt = undefined;
-          item.lastError = `El evento supera los ${META_EVENT_MAX_AGE_DAYS} días que acepta Meta y ya no puede atribuirse.`;
+          item.lastError = `El evento supera los ${maxAgeDays} días que acepta Meta para su origen y ya no puede atribuirse.`;
           await this.outbox.save(item);
           failed += 1;
           continue;
@@ -149,8 +174,15 @@ export class MetaConversionOutboxService {
         const apiError = error as ApiError;
         const statusCode = apiError?.response?.status;
         const isNonRetryable = typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 && statusCode !== 429;
-        const bodyMsg: string = apiError?.response?.data?.error?.message ?? apiError?.response?.data?.error?.error_user_msg ?? '';
-        const isExpiredToken = /expired|invalid.*token|permission|revoked|unauthorized/i.test(bodyMsg);
+        const metaError = apiError?.response?.data?.error;
+        const bodyMsg: string = metaError?.message ?? metaError?.error_user_msg ?? '';
+        // Se mira primero el código, que Meta mantiene estable. El texto queda como respaldo
+        // para respuestas que no lo traigan: la revocación más común —"the session has been
+        // invalidated because the user changed their password"— no la reconocía ninguna
+        // variante del texto, así que caía a fallo genérico y el aviso nunca aparecía.
+        const isExpiredToken = metaError?.code === META_OAUTH_ERROR_CODE
+          || metaError?.type === 'OAuthException'
+          || /expired|invalid.*token|invalidated|revoked|unauthorized/i.test(bodyMsg);
 
         item.attempts += 1;
         if (isNonRetryable || isExpiredToken || item.attempts >= 8) {
@@ -171,10 +203,16 @@ export class MetaConversionOutboxService {
     return { processed, failed };
   }
 
+  /**
+   * Borra lo que ya no volverá a intentarse.
+   *
+   * Incluye los eventos vencidos: sin ellos la tabla crecía sin techo, porque eran el único
+   * estado terminal que nada limpiaba.
+   */
   async cleanup(olderThanDays = 7): Promise<{ deleted: number }> {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60_000);
     const result = await this.outbox.delete({ status: 'processed', processedAt: LessThanOrEqual(cutoff) });
-    const failedResult = await this.outbox.delete({ status: 'failed', createdAt: LessThanOrEqual(cutoff) });
-    return { deleted: (result.affected ?? 0) + (failedResult.affected ?? 0) };
+    const terminalResult = await this.outbox.delete({ status: In([...TERMINAL_STATUSES]), createdAt: LessThanOrEqual(cutoff) });
+    return { deleted: (result.affected ?? 0) + (terminalResult.affected ?? 0) };
   }
 }

@@ -6,7 +6,7 @@ import { VitaIcons } from '../../shared/Icons';
 import { triggerToast } from '../../shared/Toast';
 
 interface ExportOptions {
-  format: 'csv' | 'json' | 'pdf';
+  format: 'csv' | 'json';
   dateFrom: string;
   dateTo: string;
   fields: string[];
@@ -112,11 +112,10 @@ export function ExportModal({ open, onClose, formId, clientView = false }: Expor
             <span>Formato</span>
             <select
               value={options.format}
-              onChange={(e) => setOptions({ ...options, format: e.target.value as 'csv' | 'json' | 'pdf' })}
+              onChange={(e) => setOptions({ ...options, format: e.target.value as 'csv' | 'json' })}
             >
               <option value="csv">CSV (Excel)</option>
               <option value="json">JSON</option>
-              <option value="pdf">PDF</option>
             </select>
           </label>
 

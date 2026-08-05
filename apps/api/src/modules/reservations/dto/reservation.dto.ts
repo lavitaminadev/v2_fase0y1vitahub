@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUrl, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateReservationFormDto {
@@ -47,10 +47,15 @@ export class PublicReservationDto {
   @IsOptional() @IsString() @MaxLength(120) utmMedium?: string;
   @IsOptional() @IsString() @MaxLength(180) utmCampaign?: string;
   @IsOptional() @IsString() @MaxLength(180) utmContent?: string;
+  /** @deprecated Lo siguen enviando los formularios en caché. Se interpreta como `gclid`. */
   @IsOptional() @IsString() @MaxLength(255) clickId?: string;
+  @IsOptional() @IsString() @MaxLength(255) gclid?: string;
+  @IsOptional() @IsString() @MaxLength(255) gbraid?: string;
+  @IsOptional() @IsString() @MaxLength(255) wbraid?: string;
+  @IsOptional() @IsString() @MaxLength(255) fbclid?: string;
   @IsOptional() @IsString() @MaxLength(255) fbc?: string;
   @IsOptional() @IsString() @MaxLength(255) fbp?: string;
-  @IsOptional() @IsString() @MaxLength(2048) eventSourceUrl?: string;
+  @IsOptional() @IsUrl({ require_protocol: true, protocols: ['http', 'https'] }) @MaxLength(2048) eventSourceUrl?: string;
   @IsOptional() @IsString() @MaxLength(200) website?: string;
   @IsOptional() @IsDateString() renderedAt?: string;
   @IsOptional() @IsString() @MaxLength(80) couponCode?: string;
@@ -65,10 +70,15 @@ export class PublicSurveyResponseDto {
   @IsString() @MaxLength(80) idempotencyKey: string;
   @IsOptional() @IsString() @MaxLength(120) utmSource?: string;
   @IsOptional() @IsString() @MaxLength(180) utmCampaign?: string;
+  /** @deprecated Lo siguen enviando los formularios en caché. Se interpreta como `gclid`. */
   @IsOptional() @IsString() @MaxLength(255) clickId?: string;
+  @IsOptional() @IsString() @MaxLength(255) gclid?: string;
+  @IsOptional() @IsString() @MaxLength(255) gbraid?: string;
+  @IsOptional() @IsString() @MaxLength(255) wbraid?: string;
+  @IsOptional() @IsString() @MaxLength(255) fbclid?: string;
   @IsOptional() @IsString() @MaxLength(255) fbc?: string;
   @IsOptional() @IsString() @MaxLength(255) fbp?: string;
-  @IsOptional() @IsString() @MaxLength(2048) eventSourceUrl?: string;
+  @IsOptional() @IsUrl({ require_protocol: true, protocols: ['http', 'https'] }) @MaxLength(2048) eventSourceUrl?: string;
   @IsOptional() @IsString() @MaxLength(200) website?: string;
 }
 export class CreateCouponDto {
@@ -132,7 +142,7 @@ export class UpdateCouponDto {
 }
 
 export class ExportFormReservationsDto {
-  @IsIn(['csv', 'json', 'pdf']) format: 'csv' | 'json' | 'pdf';
+  @IsIn(['csv', 'json']) format: 'csv' | 'json';
   @IsOptional() @IsDateString() dateFrom?: string;
   @IsOptional() @IsDateString() dateTo?: string;
   @IsArray() @IsString({ each: true }) @MaxLength(120, { each: true }) fields: string[];

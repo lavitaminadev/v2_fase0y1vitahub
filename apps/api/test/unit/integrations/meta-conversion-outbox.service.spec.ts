@@ -114,6 +114,58 @@ describe('MetaConversionOutboxService.processPending', () => {
     expect(result.processed).toBe(1);
   });
 
+  it('acepta hasta 62 días un evento de tienda física', async () => {
+    // La asistencia se marca cuando alguien la registra, no cuando el comensal llega. Con el
+    // corte de 7 días para todo, cada carga con retraso se descartaba aunque Meta la aceptara.
+    const hace30Dias = Math.floor((Date.now() - 30 * 86_400_000) / 1000);
+    const { service, conversions } = makeService([
+      row({ eventData: { eventName: 'Reserva_Asistida', eventId: 'reserva_asistida:res-1', actionSource: 'physical_store', eventTime: hace30Dias } }),
+    ]);
+
+    const result = await service.processPending(5);
+
+    expect(conversions.sendServerEvent).toHaveBeenCalledTimes(1);
+    expect(result.processed).toBe(1);
+  });
+
+  it('descarta un evento de tienda física pasados los 62 días', async () => {
+    const hace70Dias = Math.floor((Date.now() - 70 * 86_400_000) / 1000);
+    const { service, outbox, conversions } = makeService([
+      row({ eventData: { eventName: 'Reserva_Asistida', eventId: 'reserva_asistida:res-1', actionSource: 'physical_store', eventTime: hace70Dias } }),
+    ]);
+
+    await service.processPending(5);
+
+    expect(conversions.sendServerEvent).not.toHaveBeenCalled();
+    expect(outbox.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'expired' }));
+  });
+
+  it('reconoce el token revocado por el código 190 aunque el texto no lo diga', async () => {
+    // Es el caso de un cambio de contraseña: el mensaje dice "invalidated", que ninguna
+    // variante del texto reconocía, así que caía a fallo genérico y el aviso nunca salía.
+    const { service, outbox, conversions } = makeService([row()]);
+    conversions.sendServerEvent.mockRejectedValue({
+      response: { status: 400, data: { error: { message: 'The session has been invalidated because the user changed their password', code: 190, type: 'OAuthException' } } },
+      message: 'Request failed with status code 400',
+    });
+
+    await service.processPending(5);
+
+    expect(outbox.save).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'failed',
+      lastError: expect.stringContaining('[TOKEN]'),
+    }));
+  });
+
+  it('cuenta los vencidos aparte para que la suma de estados cuadre', async () => {
+    const { service, outbox } = makeService();
+    outbox.count.mockResolvedValue(3);
+
+    const stats = await service.stats('org-1');
+
+    expect(stats.expired).toBe(3);
+  });
+
   it('enqueue exige un eventId estable para poder deduplicar en Meta', async () => {
     const { service } = makeService();
     await expect(service.enqueue('org-1', 'pixel-1', { eventName: 'Schedule' } as never))

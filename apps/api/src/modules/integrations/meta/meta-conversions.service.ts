@@ -86,7 +86,16 @@ export class MetaConversionsService {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Meta CAPI failed: ${message}`);
-      if (error && typeof error === 'object' && 'response' in error) throw error;
+      // Se relanza un error saneado con lo único que el outbox necesita para clasificar:
+      // estado y cuerpo de la respuesta. El error original de Axios arrastra `config.data`,
+      // que lleva el access token en claro; hoy nadie lo serializa, pero basta con que
+      // alguien registre el objeto completo para dejar el token en los logs.
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response?: { status?: number; data?: unknown } }).response;
+        throw Object.assign(new BadGatewayException(`Meta Conversions API rejected the event: ${message}`), {
+          response: { status: response?.status, data: response?.data },
+        });
+      }
       throw new BadGatewayException(`Meta Conversions API rejected the event: ${message}`);
     }
   }
@@ -112,17 +121,23 @@ export class MetaConversionsService {
 }
 
 /**
- * Meta exige que `ph` incluya el código de país, sin ceros a la izquierda, sin
- * símbolos, solo dígitos (ver la documentación de Customer Information
- * Parameters). Los números chilenos locales se guardan como 9 dígitos (ej.
- * 912345678) sin código de país, lo que rompe silenciosamente el matching de
- * teléfono si se hashea tal cual. Se antepone el código de país por defecto
- * cuando el número todavía no parece tener formato internacional.
+ * Meta exige que `ph` incluya el código de país, sin ceros a la izquierda, sin símbolos,
+ * solo dígitos (ver Customer Information Parameters).
+ *
+ * La señal de que un número ya es internacional es el `+` que escribió quien lo dejó, no su
+ * largo. Deducirlo del largo fallaba en tres formatos corrientes: un número de diez dígitos
+ * sin código de país se enviaba sin él, un número local con cero inicial conservaba el cero,
+ * y un móvil extranjero de nueve dígitos recibía el prefijo chileno y se convertía en un
+ * número que no existe. En los tres casos Meta acepta el evento —no valida el contenido de
+ * un hash— y la coincidencia simplemente no ocurre, sin señal en ninguna parte.
+ *
+ * El `+` sobrevive al guardado: las reservas normalizan con `replace(/[^\d+]/g, '')`.
  */
 function normalizePhoneForMeta(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
   const defaultCountryCode = process.env.META_PHONE_DEFAULT_COUNTRY_CODE ?? '56';
-  if (digits.startsWith(defaultCountryCode) && digits.length > 9) return digits;
-  if (digits.length > 9) return digits; // already looks internationally formatted
-  return `${defaultCountryCode}${digits.replace(/^0+/, '')}`;
+  const isInternational = phone.trim().startsWith('+');
+  const digits = phone.replace(/\D/g, '').replace(/^0+/, '');
+
+  if (isInternational) return digits;
+  return digits.startsWith(defaultCountryCode) && digits.length > 9 ? digits : `${defaultCountryCode}${digits}`;
 }

@@ -136,7 +136,12 @@ export function PublicReservationPage() {
         ...guest, answers, idempotencyKey, website,
         eventSourceUrl: window.location.href,
         utmSource, utmCampaign,
-        clickId: params.get('gclid') || meta.fbclid || undefined,
+        // Cada plataforma recibe su propio identificador. Mandarlos por un campo común hacía
+        // que un fbclid terminara subido a Google Ads como gclid, donde Google lo descarta.
+        gclid: params.get('gclid') || undefined,
+        gbraid: params.get('gbraid') || undefined,
+        wbraid: params.get('wbraid') || undefined,
+        fbclid: meta.fbclid || undefined,
         fbc: meta.fbc, fbp: meta.fbp,
       };
       if (isSurvey) return api.post<Created>(`/public/reservations/${slug}/survey`, baseBody);
@@ -162,11 +167,17 @@ export function PublicReservationPage() {
     if (submit.data?.id) sessionStorage.removeItem(BOOKING_KEY_STORAGE);
   }, [submit.data?.id]);
 
+  // El nombre y el id del evento tienen que coincidir con los que emite el servidor por
+  // Conversions API, o Meta no puede deduplicar y cuenta la conversión dos veces. Para las
+  // encuestas el servidor manda `Lead`; disparar `Schedule` acá dejaba ambos eventos sin
+  // pareja y además inventaba una reserva que nunca existió.
   useEffect(() => {
     if (!submit.data?.id || !window.fbq) return;
     if (!form?.pixelId) return;
-    window.fbq('trackSingle', form.pixelId, 'Schedule', {}, { eventID: `schedule:${submit.data.id}` });
-  }, [form?.pixelId, submit.data?.id]);
+    const eventName = isSurvey ? 'Lead' : 'Schedule';
+    const eventId = `${eventName.toLowerCase()}:${submit.data.id}`;
+    window.fbq('trackSingle', form.pixelId, eventName, {}, { eventID: eventId });
+  }, [form?.pixelId, isSurvey, submit.data?.id]);
 
   useEffect(() => {
     if (!submit.data?.id || !form?.ga4MeasurementId) return;

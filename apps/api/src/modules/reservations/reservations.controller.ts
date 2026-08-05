@@ -264,10 +264,6 @@ export class ReservationsController {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.csv"`);
       res.send(`\uFEFF${result}`);
-    } else if (body.format === 'pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.pdf"`);
-      res.send(result);
     }
   }
 
