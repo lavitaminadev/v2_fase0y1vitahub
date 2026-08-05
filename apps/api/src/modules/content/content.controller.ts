@@ -15,11 +15,13 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Parrillas de Contenido')
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('content')
 export class ContentController {
   constructor(
     private createGrid: CreateContentGridUseCase,

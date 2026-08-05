@@ -10,6 +10,7 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { Upload } from './upload.entity';
 import { randomUUID } from 'crypto';
+import { ModuleExempt } from '../../core/authorization/module-scope.decorator';
 
 class SyncDriveDto {
   @IsOptional() @IsString() @MaxLength(255) @Matches(/^[A-Za-z0-9_-]+$/)
@@ -27,6 +28,7 @@ const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image
 @Controller('uploads')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleExempt('Almacenamiento transversal usado por varios modulos')
 export class UploadsController {
   constructor(
     private readonly service: UploadsService,

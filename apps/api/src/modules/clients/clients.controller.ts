@@ -16,12 +16,14 @@ import { User } from '../users/user.entity';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
 import { ClientOverviewService } from './client-overview.service';
 import { PaginationDto } from '../../shared/dto/pagination.dto';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Clientes')
 @Controller('clients')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.ADMIN, UserRole.COMMERCIAL_DIRECTOR, UserRole.CREATIVE_DIRECTOR, UserRole.ART_DIRECTOR, UserRole.OPERATIONS_DIRECTOR, UserRole.AV_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
+@ModuleScope('clients')
 export class ClientsController {
   constructor(
     @InjectRepository(Client) private repo: Repository<Client>,

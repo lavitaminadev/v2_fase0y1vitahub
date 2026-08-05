@@ -4,10 +4,12 @@ import { NotificationService } from './notification.service';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { Roles } from '../authorization/roles.decorator';
 import { UserRole } from '../../modules/organizations/user-role.enum';
+import { ModuleExempt } from '../authorization/module-scope.decorator';
 
 @ApiTags('Notificaciones')
 @Controller('notifications')
 @Roles(...Object.values(UserRole))
+@ModuleExempt('Autoservicio: cada persona ve y marca sus propios avisos')
 export class NotificationsController {
   constructor(private readonly service: NotificationService) {}
 

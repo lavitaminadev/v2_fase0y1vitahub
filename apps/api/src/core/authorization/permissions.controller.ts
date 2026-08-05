@@ -13,6 +13,11 @@ import { User } from '../../modules/users/user.entity';
 import { isOrganizationFeatureKey } from '../../modules/organizations/organization-features';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedRequest } from '../../shared/types/request';
+import { ModuleScope } from '../authorization/module-scope.decorator';
+import { AccountAccessService } from '../client-scope/account-access.service';
+import { UserClientAccess } from '../client-scope/user-client-access.entity';
+import { GrantClientAccessDto } from './dto/grant-client-access.dto';
+import { Client } from '../../modules/clients/client.entity';
 
 /**
  * Consulta y administración de permisos por módulo.
@@ -21,11 +26,15 @@ import type { AuthenticatedRequest } from '../../shared/types/request';
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('users')
 export class PermissionsController {
   constructor(
     private readonly permissions: PermissionResolverService,
     @InjectRepository(UserPermissionOverride) private readonly overrides: Repository<UserPermissionOverride>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(UserClientAccess) private readonly clientAccess: Repository<UserClientAccess>,
+    @InjectRepository(Client) private readonly clients: Repository<Client>,
+    private readonly accountAccess: AccountAccessService,
     private readonly audit: AuditService,
   ) {}
 
@@ -117,6 +126,114 @@ export class PermissionsController {
       before: { module, level: existing.level, reason: existing.reason },
     });
     return { removed: true, module };
+  }
+
+  /**
+   * Cuentas que ve una persona, con la procedencia de cada una.
+   *
+   * Distingue lo heredado del pod de lo concedido a mano, que es lo que permite revisar
+   * accesos sin reconstruir la decisión: las excepciones se ven como excepciones.
+   */
+  @Get('users/:id/client-access')
+  @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+  @ApiOperation({ summary: 'Cuentas visibles de un usuario y por qué las ve' })
+  async clientAccessOfUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const user = await this.findUser(id, req.organizationId);
+    const access = await this.accountAccess.explain(req.organizationId, {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: user.organizationId,
+      clientId: user.clientId,
+      tenantId: user.organizationId,
+    });
+    return { userId: user.id, role: user.role, access };
+  }
+
+  /** Concede a una persona una cuenta que su pod no le da. */
+  @Put('users/:id/client-access/:clientId')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Conceder acceso a una cuenta' })
+  async grantClientAccess(
+    @Param('id') id: string,
+    @Param('clientId') clientId: string,
+    @Body() dto: GrantClientAccessDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const user = await this.findUser(id, req.organizationId);
+    if (user.role === UserRole.CLIENT) {
+      throw new BadRequestException('El acceso de un cliente lo define su propia cuenta, no una asignación');
+    }
+    const client = await this.clients.findOne({ where: { id: clientId, organizationId: req.organizationId }, select: { id: true } });
+    if (!client) throw new NotFoundException('Cuenta no encontrada');
+
+    const existing = await this.clientAccess.findOne({ where: { userId: user.id, clientId: client.id } });
+    const saved = await this.clientAccess.save({
+      ...(existing ?? {}),
+      organizationId: req.organizationId,
+      userId: user.id,
+      clientId: client.id,
+      reason: dto.reason ?? null,
+      grantedBy: req.user.id,
+    });
+    this.accountAccess.invalidateUser(user.id);
+    await this.audit.log({
+      organizationId: req.organizationId,
+      actorId: req.user.id,
+      entityType: 'UserClientAccess',
+      entityId: saved.id,
+      action: existing ? 'updated' : 'created',
+      before: existing ? { reason: existing.reason } : undefined,
+      after: { userId: user.id, clientId: client.id, reason: dto.reason ?? null },
+    });
+    return saved;
+  }
+
+  /**
+   * Retira una asignación directa.
+   *
+   * No quita el acceso que venga del pod: para eso hay que sacar a la persona del pod o
+   * mover la cuenta. La respuesta indica si, tras retirarla, la cuenta le sigue siendo
+   * visible, para que quien administra no crea haber cerrado algo que sigue abierto.
+   */
+  @Delete('users/:id/client-access/:clientId')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Retirar acceso a una cuenta' })
+  async revokeClientAccess(
+    @Param('id') id: string,
+    @Param('clientId') clientId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const user = await this.findUser(id, req.organizationId);
+    const existing = await this.clientAccess.findOne({ where: { userId: user.id, clientId } });
+    if (!existing) throw new NotFoundException('No existe una asignación directa para esa cuenta');
+
+    await this.clientAccess.remove(existing);
+    this.accountAccess.invalidateUser(user.id);
+    await this.audit.log({
+      organizationId: req.organizationId,
+      actorId: req.user.id,
+      entityType: 'UserClientAccess',
+      entityId: existing.id,
+      action: 'deleted',
+      before: { userId: user.id, clientId, reason: existing.reason },
+    });
+
+    const remaining = await this.accountAccess.allowedClientIds(req.organizationId, {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: user.organizationId,
+      clientId: user.clientId,
+      tenantId: user.organizationId,
+    });
+    return {
+      removed: true,
+      clientId,
+      stillVisible: remaining === undefined || remaining.includes(clientId),
+    };
   }
 
   /**

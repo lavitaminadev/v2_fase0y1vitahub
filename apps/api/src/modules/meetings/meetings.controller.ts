@@ -19,11 +19,13 @@ import { GoogleCalendarService } from '../integrations/google/google-calendar.se
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { Client } from '../clients/client.entity';
 import { User } from '../users/user.entity';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Reuniones')
 @Controller('meetings')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('meetings')
 export class MeetingsController {
   constructor(
     @InjectRepository(Meeting) private repo: Repository<Meeting>,

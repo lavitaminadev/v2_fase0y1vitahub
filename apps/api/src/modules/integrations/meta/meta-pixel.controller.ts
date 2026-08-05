@@ -17,9 +17,11 @@ import { MetaInsightsService } from './meta-insights.service';
 import { resolveOAuthRedirect } from '../../../shared/security/oauth-redirect';
 import { MetaClientPixelService } from './meta-client-pixel.service';
 import { MetaConversionOutboxService } from './meta-conversion-outbox.service';
+import { ModuleScope } from '../../../core/authorization/module-scope.decorator';
 
 @Controller('integrations/meta')
 @UseGuards(AuthGuard('jwt'))
+@ModuleScope('integrations')
 export class MetaPixelController {
   constructor(
     private pixel: MetaPixelService,

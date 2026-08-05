@@ -5,11 +5,13 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { WorkflowsService } from './workflows.service';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Flujos configurables')
 @ApiBearerAuth()
 @Controller('workflows')
 @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+@ModuleScope('operations')
 export class WorkflowsController {
   constructor(private readonly workflows: WorkflowsService) {}
   @Get() @ApiOperation({ summary: 'Listar flujos operativos configurables' }) list(@Req() req: AuthenticatedRequest) { return this.workflows.list(req.organizationId); }

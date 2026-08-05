@@ -16,6 +16,7 @@ import type { Request, Response } from 'express';
 import { config } from '../../config';
 import { ChangePasswordDto, CompletePasswordResetDto, RequestPasswordResetDto } from './dto/password-reset.dto';
 import { AcceptTermsDto, CompleteOnboardingDto } from './dto/onboarding.dto';
+import { ModuleExempt } from '../authorization/module-scope.decorator';
 
 const REFRESH_COOKIE = 'vitahub_refresh';
 const REFRESH_COOKIE_PATH = '/api/auth';
@@ -66,6 +67,7 @@ function clearRefreshCookie(response: Response): void {
  */
 @ApiTags('Autenticación')
 @Controller('auth')
+@ModuleExempt('Autoservicio de la propia cuenta: sesion, perfil y contrasena')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 

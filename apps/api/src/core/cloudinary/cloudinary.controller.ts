@@ -12,12 +12,14 @@ import { protectSecret } from '../../shared/security/integration-secrets';
 import { Roles } from '../authorization/roles.decorator';
 import { UserRole } from '../../modules/organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
+import { ModuleExempt } from '../authorization/module-scope.decorator';
 
 @ApiTags('Cloudinary')
 @Controller('cloudinary')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+@ModuleExempt('Firma de subida transversal, sin datos de negocio propios')
 export class CloudinaryController {
   constructor(
     @InjectRepository(Integration) private readonly integrations: Repository<Integration>,

@@ -140,8 +140,9 @@ describe('ReservationsService', () => {
       .mockResolvedValueOnce([{ capabilities: { reservations: true, crm: true, metaConversions: false } }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    const mockQb = { where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([]), getCount: vi.fn().mockResolvedValue(0), getOne: vi.fn().mockResolvedValue(null) };
+    const mockQb = { select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(), getMany: vi.fn().mockResolvedValue([]), getCount: vi.fn().mockResolvedValue(0), getOne: vi.fn().mockResolvedValue(null) };
     blocks.createQueryBuilder.mockReturnValue(mockQb);
+    reservations.createQueryBuilder.mockReturnValue(mockQb);
     const manager = {
       query: vi.fn().mockResolvedValue([]),
       getRepository: vi.fn().mockReturnValue({
@@ -163,11 +164,11 @@ describe('ReservationsService', () => {
       formQuery.getOne.mockResolvedValue(form);
       formQuery.setLock.mockReturnValue(formQuery);
       reservations.createQueryBuilder.mockReturnValue({
-        where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue(existingReservations),
       });
       blocks.createQueryBuilder.mockReturnValue({
-        where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), andWhere: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue(blockRows),
       });
     }

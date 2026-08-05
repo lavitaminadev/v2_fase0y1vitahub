@@ -4,10 +4,12 @@ import { Roles } from '../authorization/roles.decorator';
 import type { AuthenticatedRequest } from '../../shared/types/request';
 import { UserRole } from '../../modules/organizations/user-role.enum';
 import { AuditService } from './audit.service';
+import { ModuleScope } from '../authorization/module-scope.decorator';
 
 @Controller('audit')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+@ModuleScope('governance')
 export class AuditController {
   constructor(private readonly audit: AuditService) {}
 

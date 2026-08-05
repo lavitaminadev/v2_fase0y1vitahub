@@ -5,8 +5,10 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import { CreatePodDto, SetPodClientsDto, SetPodMembersDto, UpdatePodDto } from './dto/pod.dto';
 import { PodsService } from './pods.service';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Pods') @ApiBearerAuth() @Controller('pods') @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR)
+@ModuleScope('users')
 export class PodsController {
   constructor(private readonly pods: PodsService) {}
   @Get() @ApiOperation({ summary: 'Listar pods, integrantes y cuentas' }) list(@Req() req: AuthenticatedRequest) { return this.pods.list(req.organizationId); }

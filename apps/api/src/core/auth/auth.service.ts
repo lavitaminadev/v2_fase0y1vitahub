@@ -201,7 +201,16 @@ export class AuthService {
   }
 
   /**
-   * Registra un nuevo usuario y crea una organización si no se provee ninguna.
+   * Registra un usuario dentro de la organización de la agencia.
+   *
+   * VITAHUB opera una sola organización, así que el registro no la elige ni la crea: se
+   * incorpora a `AGENCY_ORGANIZATION_ID`. Sin esa variable configurada el registro no
+   * procede, porque la alternativa —inventar una organización— es precisamente el
+   * comportamiento multi-empresa que el sistema no tiene.
+   *
+   * La cuenta nace con el cargo de menor alcance y con `mustCompleteProfile`, de modo que
+   * quien administra decide después qué cargo le corresponde. Un registro que se otorgara a
+   * sí mismo la administración sería una escalada de privilegios abierta a Internet.
    *
    * @param data - Datos de registro.
    * @returns Tokens recién creados y resumen del usuario.
@@ -210,13 +219,19 @@ export class AuthService {
     if (process.env.ALLOW_PUBLIC_REGISTRATION !== 'true') {
       throw new ForbiddenException('El registro publico esta desactivado; solicita tu cuenta a un administrador');
     }
+    const organizationId = process.env.AGENCY_ORGANIZATION_ID;
+    if (!organizationId) {
+      throw new ForbiddenException('El registro no está disponible por ahora');
+    }
+    const organization = await this.orgRepo.findOne({ where: { id: organizationId, isActive: true }, select: ['id'] });
+    if (!organization) {
+      throw new ForbiddenException('El registro no está disponible por ahora');
+    }
+
     const email = data.email.trim().toLowerCase();
     const name = data.name.trim().replace(/\s+/g, ' ');
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('El correo ya está registrado');
-
-    const code = `${email.split('@')[0]}-${Date.now().toString(36)}`;
-    const org = await this.orgRepo.save(this.orgRepo.create({ name: `${name} - Organizacion`, code }));
 
     const rounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
     const hashed = await bcrypt.hash(data.password, rounds);
@@ -224,8 +239,9 @@ export class AuthService {
       email,
       password: hashed,
       name,
-      organizationId: org.id,
-      role: UserRole.ADMIN,
+      organizationId,
+      role: UserRole.DESIGNER,
+      mustCompleteProfile: true,
     });
     const saved = await this.userRepo.save(user);
     const payload: TokenPayload = {

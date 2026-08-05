@@ -5,9 +5,11 @@ import { UserRole } from '../organizations/user-role.enum';
 import { AccountCyclesService } from './account-cycles.service';
 import { UpdateAccountCycleDto } from './dto/update-account-cycle.dto';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @Controller('account-cycles')
 @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CREATIVE_DIRECTOR)
+@ModuleScope('clients')
 export class AccountCyclesController {
   constructor(
     private readonly service: AccountCyclesService,

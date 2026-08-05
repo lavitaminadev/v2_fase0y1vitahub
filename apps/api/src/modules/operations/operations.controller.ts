@@ -5,11 +5,13 @@ import { GetOperationsOverviewUseCase } from './get-operations-overview.use-case
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Operaciones')
 @Controller('operations')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('operations')
 export class OperationsController {
   constructor(
     private overview: GetOperationsOverviewUseCase,

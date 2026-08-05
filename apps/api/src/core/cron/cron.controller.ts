@@ -2,7 +2,6 @@ import { Controller, Get, Post, Headers, ForbiddenException, Body } from '@nestj
 import { Throttle } from '@nestjs/throttler';
 import { timingSafeEqual } from 'crypto';
 import { Public } from '../auth/decorators/public.decorator';
-import { SkipTenancy } from '../tenancy/skip-tenancy.decorator';
 import { MetaConversionOutboxService } from '../../modules/integrations/meta/meta-conversion-outbox.service';
 import { GoogleConversionOutboxService } from '../../modules/integrations/google/google-conversion-outbox.service';
 import { DetectStalePiecesJob } from '../jobs/cron/detect-stale-pieces.job';
@@ -14,7 +13,6 @@ import { CloseXpPeriodsJob } from '../jobs/cron/close-xp-periods.job';
 
 @Controller('cron')
 @Public()
-@SkipTenancy()
 export class CronController {
   private readonly running = new Set<string>();
 

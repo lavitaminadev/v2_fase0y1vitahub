@@ -15,6 +15,7 @@ import { FeatureGuard } from '../../core/authorization/feature.guard';
 import { AuditService } from '../../core/audit/audit.service';
 import { UserRole } from './user-role.enum';
 import type { AuthenticatedRequest } from '../../shared/types/request';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 /**
  * Endpoints de administración de organizaciones.
@@ -22,6 +23,7 @@ import type { AuthenticatedRequest } from '../../shared/types/request';
 @ApiTags('Organizaciones')
 @Controller('organizations')
 @Roles(UserRole.ADMIN, UserRole.COMMERCIAL_DIRECTOR, UserRole.OPERATIONS_DIRECTOR)
+@ModuleScope('settings')
 export class OrganizationsController {
   constructor(
     private readonly createOrg: CreateOrganizationUseCase,

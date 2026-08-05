@@ -5,11 +5,13 @@ import { DashboardsService } from './dashboards.service';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('dashboard')
 export class DashboardsController {
   constructor(private service: DashboardsService) {}
 

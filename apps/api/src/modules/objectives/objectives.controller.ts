@@ -10,11 +10,13 @@ import { Objective } from './objective.entity';
 import { Client } from '../clients/client.entity';
 import { User } from '../users/user.entity';
 import { CreateObjectiveDto, UpdateObjectiveDto } from './dto/objective.dto';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Objetivos')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
 @Controller('objectives')
+@ModuleScope('direction')
 export class ObjectivesController {
   constructor(
     @InjectRepository(Objective) private readonly repo: Repository<Objective>,

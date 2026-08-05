@@ -12,10 +12,12 @@ import { GoogleDataService } from './google-data.service';
 import { Throttle } from '@nestjs/throttler';
 import { RegisterAnalyticsPropertyDto } from './dto/register-analytics-property.dto';
 import { resolveOAuthRedirect } from '../../../shared/security/oauth-redirect';
+import { ModuleScope } from '../../../core/authorization/module-scope.decorator';
 
 @ApiTags('Google Integrations')
 @Controller('integrations/google')
 @UseGuards(AuthGuard('jwt'))
+@ModuleScope('integrations')
 export class GoogleController {
   constructor(private readonly oauth: GoogleOAuthService, private readonly data: GoogleDataService) {}
 

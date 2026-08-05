@@ -8,13 +8,11 @@ import { MetaLeadAdsService } from "./meta-lead-ads.service";
 import { MetaOAuthService } from "./meta-oauth.service";
 import { createDeletionConfirmation, parseMetaSignedRequest, verifyDeletionConfirmation } from "./meta-data-deletion";
 import { Public } from "../../../core/auth/decorators/public.decorator";
-import { SkipTenancy } from "../../../core/tenancy/skip-tenancy.decorator";
 import { MetaDataDeletionDto } from "./dto/data-deletion.dto";
 
 @Controller("webhooks/meta")
 @Throttle({ default: { limit: 200, ttl: 60000 } })
 @Public()
-@SkipTenancy()
 export class MetaController {
   constructor(
     private readonly meta: MetaService,

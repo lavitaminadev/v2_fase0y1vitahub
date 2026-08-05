@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './auth.guard';
+import { OrganizationContextGuard } from '../organization/organization-context.guard';
 import { RolesGuard } from '../authorization/roles.guard';
 import { FeatureGuard } from '../authorization/feature.guard';
 import { DataConsent } from '../data-protection/consent.entity';
@@ -32,6 +33,9 @@ const ACCESS_TOKEN_EXPIRES_IN = config.jwt.expiresIn as JwtSignOptions['expiresI
     AuthService,
     JwtStrategy,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Inmediatamente despues de la autenticacion: fija req.organizationId desde el JWT, de
+    // modo que los guards siguientes y los controladores ya la encuentren resuelta.
+    { provide: APP_GUARD, useClass: OrganizationContextGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     // Va despues de RolesGuard a proposito: el orden de registro es el orden de ejecucion, y
     // este necesita la organizacion ya resuelta en la peticion.

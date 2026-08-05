@@ -10,7 +10,7 @@ import { ErrorLoggingInterceptor } from './core/observability/error-logging.inte
 import { ErrorsModule } from './core/errors/errors.module';
 import { HealthModule } from './core/health/health.module';
 import { AuthModule } from './core/auth/auth.module';
-import { TenancyModule } from './core/tenancy/tenancy.module';
+import { OrganizationModule } from './core/organization/organization.module';
 import { AuditModule } from './core/audit/audit.module';
 import { AuthorizationModule } from './core/authorization/authorization.module';
 import { EventsModule } from './core/events/events.module';
@@ -85,7 +85,7 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
     ErrorsModule,
     HealthModule,
     AuthModule,
-    TenancyModule,
+    OrganizationModule,
     AccountAccessModule,
     AuditModule,
     EventsModule,

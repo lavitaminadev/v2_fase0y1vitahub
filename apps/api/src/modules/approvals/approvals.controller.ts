@@ -15,11 +15,13 @@ import { CreateApprovalDto } from './dto/create-approval.dto';
 import { Client } from '../clients/client.entity';
 import { Piece } from '../production/piece.entity';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Aprobaciones')
 @Controller('approvals')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('approvals')
 export class ApprovalsController {
   constructor(
     private listApprovals: ListApprovalsUseCase,

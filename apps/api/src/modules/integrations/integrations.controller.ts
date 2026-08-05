@@ -11,11 +11,13 @@ import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { IntegrationAccountsService } from './integration-accounts.service';
 import { AssignIntegrationClientDto } from './dto/assign-integration-client.dto';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Integraciones')
 @Controller('integrations')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('integrations')
 export class IntegrationsController {
   constructor(
     private createIntegration: CreateIntegrationUseCase,

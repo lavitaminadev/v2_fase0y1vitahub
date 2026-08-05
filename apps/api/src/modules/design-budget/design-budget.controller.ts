@@ -11,11 +11,13 @@ import { Roles } from '../../core/authorization/roles.decorator';
 import { UserRole } from '../organizations/user-role.enum';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Presupuesto UD')
 @Controller('design-budget')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('udBudget')
 export class DesignBudgetController {
   constructor(
     private getOrCreate: GetOrCreateBudgetUseCase,

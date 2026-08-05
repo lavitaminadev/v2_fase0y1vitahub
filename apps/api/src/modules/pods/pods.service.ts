@@ -3,10 +3,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Client } from '../clients/client.entity';
 import { User } from '../users/user.entity';
+import { AccountAccessService } from '../../core/client-scope/account-access.service';
 import { CreatePodDto, UpdatePodDto } from './dto/pod.dto';
 import { PodMember } from './pod-member.entity';
 import { Pod } from './pod.entity';
 
+/**
+ * Pods: el equipo que atiende un conjunto de cuentas.
+ *
+ * Componer un pod define dos cosas a la vez, y por eso todo cambio de integrantes o de
+ * cuentas descarta el alcance memorizado: quién trabaja en la cuenta y quién puede verla.
+ */
 @Injectable()
 export class PodsService {
   constructor(
@@ -14,6 +21,7 @@ export class PodsService {
     @InjectRepository(PodMember) private readonly members: Repository<PodMember>,
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Client) private readonly clients: Repository<Client>,
+    private readonly accountAccess: AccountAccessService,
   ) {}
 
   async list(organizationId: string) {
@@ -60,6 +68,9 @@ export class PodsService {
       await manager.delete(PodMember, { podId: pod.id });
       if (uniqueIds.length) await manager.save(PodMember, uniqueIds.map((userId) => manager.create(PodMember, { podId: pod.id, userId })));
     });
+    // Cambia el alcance tanto de quien entra como de quien sale, y a quien sale no se le
+    // conoce el id despues del borrado: se descarta todo lo memorizado.
+    this.accountAccess.invalidateAll();
     return this.list(organizationId);
   }
 
@@ -74,6 +85,8 @@ export class PodsService {
       await manager.createQueryBuilder().update(Client).set({ podId: undefined }).where('organization_id = :organizationId AND pod_id = :podId', { organizationId, podId: pod.id }).execute();
       if (uniqueIds.length) await manager.createQueryBuilder().update(Client).set({ podId: pod.id }).where('organization_id = :organizationId AND id IN (:...ids)', { organizationId, ids: uniqueIds }).execute();
     });
+    // Mover una cuenta entre pods cambia el alcance de ambos equipos a la vez.
+    this.accountAccess.invalidateAll();
     return this.list(organizationId);
   }
 

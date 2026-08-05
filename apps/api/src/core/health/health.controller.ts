@@ -5,10 +5,12 @@ import { HealthService } from './health.service';
 import { IntegrationsHealthService } from './integrations-health.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../authorization/roles.decorator';
+import { ModuleExempt } from '../authorization/module-scope.decorator';
 import { UserRole } from '../../modules/organizations/user-role.enum';
 
 @ApiTags('Health')
 @Controller('health')
+@ModuleExempt('Sondas de disponibilidad y diagnostico, acotadas por cargo con @Roles')
 export class HealthController {
   constructor(
     private readonly health: HealthService,

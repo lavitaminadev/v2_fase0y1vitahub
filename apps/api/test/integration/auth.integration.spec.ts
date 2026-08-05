@@ -36,15 +36,16 @@ describe('Auth Integration', () => {
 
   beforeEach(() => {
     process.env.ALLOW_PUBLIC_REGISTRATION = 'true';
+    // El registro se incorpora a la organizacion de la agencia; no crea ninguna.
+    process.env.AGENCY_ORGANIZATION_ID = 'org-1';
     vi.clearAllMocks();
+    mockOrgRepo.findOne.mockResolvedValue({ id: 'org-1', features: null });
     authService = new AuthService(mockUserRepo as any, mockOrgRepo as any, mockResetRepo as any, mockEmailService as any, mockJwtService as any);
   });
 
   it('should complete full registration -> login -> me flow', async () => {
     // Register
     mockUserRepo.findOne.mockResolvedValueOnce(null);
-    mockOrgRepo.create.mockReturnValue({ id: 'org-1', name: 'Test Org', code: 'test' });
-    mockOrgRepo.save.mockResolvedValue({ id: 'org-1', name: 'Test Org', code: 'test' });
     (bcrypt.hash as any).mockResolvedValue('hashed_password');
     mockUserRepo.create.mockReturnValue({
       id: 'user-1', email: 'user@test.com', name: 'User', password: 'hashed_password',

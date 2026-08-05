@@ -11,11 +11,13 @@ import { UserRole } from '../organizations/user-role.enum';
 import { ReservationsService } from './application/reservations.service';
 import { ReservationsBulkImportService } from './application/bulk-import.service';
 import { CreateBlockDto, CreateCouponDto, CreateManualReservationDto, CreateReservationFormDto, ExportFormReservationsDto, ImportReservationsDto, ListReservationsDto, ReservationScopeDto, UpdateCouponDto, UpdateReservationDto, UpdateReservationFormDto } from './dto/reservation.dto';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 @ApiTags('Reservas')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
 @Controller('reservations')
+@ModuleScope('reservations')
 export class ReservationsController {
   constructor(
     private readonly service: ReservationsService,

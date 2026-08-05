@@ -13,7 +13,11 @@ const mockUserRepo = {
 const mockOrgRepo = {
   create: vi.fn(),
   save: vi.fn(),
+  findOne: vi.fn(),
 };
+
+/** Organizacion unica de la agencia; el registro se incorpora a ella y nunca crea otra. */
+const AGENCY_ORGANIZATION_ID = 'org-1';
 
 const mockJwtService = {
   sign: vi.fn(),
@@ -39,14 +43,14 @@ describe('AuthService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ALLOW_PUBLIC_REGISTRATION = 'true';
+    process.env.AGENCY_ORGANIZATION_ID = AGENCY_ORGANIZATION_ID;
+    mockOrgRepo.findOne.mockResolvedValue({ id: AGENCY_ORGANIZATION_ID });
     service = new AuthService(mockUserRepo as any, mockOrgRepo as any, mockResetRepo as any, mockEmailService as any, mockJwtService as any);
   });
 
   describe('register', () => {
     it('should create user, hash password, and return tokens', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      mockOrgRepo.create.mockReturnValue({ id: 'org-1', name: 'Test Org', code: 'test' });
-      mockOrgRepo.save.mockResolvedValue({ id: 'org-1', name: 'Test Org', code: 'test' });
       (bcrypt.hash as any).mockResolvedValue('hashed_password');
       mockUserRepo.create.mockReturnValue({
         id: 'user-1', email: 'test@example.com', name: 'Test', password: 'hashed_password',
@@ -65,6 +69,23 @@ describe('AuthService', () => {
       expect(bcrypt.hash).toHaveBeenCalledWith('secret123', 10);
       expect(result.accessToken).toBe('access-token');
       expect(result.user.email).toBe('test@example.com');
+      // La cuenta se incorpora a la organizacion de la agencia y nace con el cargo de menor
+      // alcance: un registro abierto que se otorgara la administracion seria una escalada de
+      // privilegios accesible desde Internet.
+      expect(mockOrgRepo.save).not.toHaveBeenCalled();
+      expect(mockUserRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+        organizationId: AGENCY_ORGANIZATION_ID,
+        role: 'designer',
+        mustCompleteProfile: true,
+      }));
+    });
+
+    it('no permite registrarse cuando la organización de la agencia no está configurada', async () => {
+      delete process.env.AGENCY_ORGANIZATION_ID;
+
+      await expect(service.register({
+        email: 'nuevo@example.com', password: 'secret123', name: 'Nuevo',
+      })).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw ConflictException if email already exists', async () => {

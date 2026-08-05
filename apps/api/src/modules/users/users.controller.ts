@@ -11,6 +11,7 @@ import type { AuthenticatedRequest } from '../../shared/types/request';
 import { UpdateUserUseCase } from './update-user.use-case';
 import { ResetUserPasswordUseCase } from './reset-user-password.use-case';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 /**
  * Endpoints de administración de usuarios.
@@ -19,6 +20,7 @@ import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 @Controller('users')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('users')
 export class UsersController {
   constructor(
     private readonly createUser: CreateUserUseCase,

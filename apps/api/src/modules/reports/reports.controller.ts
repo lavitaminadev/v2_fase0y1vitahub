@@ -10,6 +10,7 @@ import { VitaminaPulseService } from './vitamina-pulse.service';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
 import { MonthlyReportsService } from './monthly-reports.service';
 import { GenerateMonthlyReportDto, UpdateMonthlyReportDto } from './dto/monthly-report.dto';
+import { ModuleScope } from '../../core/authorization/module-scope.decorator';
 
 interface PieceCountRow { status: string; count: number | string }
 interface MonthlyReportRow { month: string; revenue: number | string; ud: number | string }
@@ -29,6 +30,7 @@ interface PerformanceRow {
 @Controller('reporting')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
+@ModuleScope('reports')
 export class ReportingController {
   constructor(
     @InjectDataSource() private dataSource: DataSource,

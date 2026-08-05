@@ -17,12 +17,14 @@ import type { AuthenticatedRequest } from '@shared/types/request';
 import { Reservation } from '../../reservations/domain/reservation.entity';
 import { Lead } from './lead.entity';
 import { AccountAccessService } from '../../../core/client-scope/account-access.service';
+import { ModuleScope } from '../../../core/authorization/module-scope.decorator';
 
 @ApiTags('CRM - Leads')
 @Controller('crm/leads')
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
+@ModuleScope('crm')
 export class LeadController {
   constructor(
     private createLead: CreateLeadUseCase,

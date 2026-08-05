@@ -8,10 +8,12 @@ import { Roles } from '../../../core/authorization/roles.decorator';
 import { UserRole } from '../../organizations/user-role.enum';
 import { AccountAccessService } from '../../../core/client-scope/account-access.service';
 import type { AuthenticatedRequest } from '@shared/types/request';
+import { ModuleScope } from '../../../core/authorization/module-scope.decorator';
 
 @Controller('crm/contacts')
 @UseGuards(AuthGuard('jwt'))
 @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
+@ModuleScope('crm')
 export class ContactsController {
   constructor(
     private service: ContactsService,

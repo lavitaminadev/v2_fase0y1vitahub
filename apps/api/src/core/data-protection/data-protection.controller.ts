@@ -7,12 +7,14 @@ import { Roles } from '../authorization/roles.decorator';
 import { UserRole } from '../../modules/organizations/user-role.enum';
 import type { AuthenticatedRequest, AuthUser } from '../../shared/types/request';
 import { RecordConsentDto } from './dto/record-consent.dto';
+import { ModuleScope } from '../authorization/module-scope.decorator';
 
 @ApiTags('Proteccion de Datos')
 @Controller('data-protection')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Roles(...Object.values(UserRole))
+@ModuleScope('governance')
 export class DataProtectionController {
   constructor(private service: DataProtectionService) {}
 
