@@ -13,21 +13,27 @@ más entretenido de construir. Lo primero de la lista no tiene código.
 Cubre R-09, R-05, R-06. **Sin programación.** Es lo que más protege por unidad de esfuerzo y
 lo único que no puede esperar a la iteración siguiente.
 
-### I-0.1 Poner el código bajo control de versiones · R-09
-El repositorio no tiene ni un solo commit, y en el disco conviven `v2_fase0y1vitahub`,
-`vitahub-platform` y cuatro carpetas de despliegue. Hoy no hay forma de saber qué cambió,
-quién lo cambió ni de volver atrás.
+### I-0.1 Cerrar el repositorio y evitar que se filtre un secreto · R-09
+El código sí está versionado —125 commits en `v2_fase0y1vitahub`— pero **el remoto de GitHub
+es público**. Se revisó todo el historial y hoy no hay ningún secreto real filtrado: los
+archivos de entorno que llegaron a commitearse solo tenían marcadores. El riesgo es hacia
+adelante, y una filtración en un repositorio público es irreversible.
 
-- Confirmar cuál es la copia vigente. Todo apunta a `v2_fase0y1vitahub`: es la que abre
-  `.claude/launch.json` y la que tiene las migraciones hasta la 0070.
-- Verificar que `.gitignore` cubre `node_modules`, `.env`, `*.zip` y las carpetas de
-  despliegue antes del primer commit.
-- **Comprobar que ningún `.env` con credenciales entre en el commit.** Un secreto commiteado
-  sigue en el historial aunque se borre después.
-- Primer commit y repositorio remoto privado.
-- Archivar las copias antiguas fuera del directorio de trabajo.
+- **Hacer privado el repositorio.** Es lo primero y lo más barato.
+- Añadir detección de secretos antes de cada commit (`gitleaks` en un hook, o el escaneo de
+  secretos de GitHub una vez sea privado). El `.gitignore` protege por nombre de archivo; no
+  detecta una clave pegada dentro de un `.ts`.
+- **Sacar las copias antiguas del disco de trabajo.** En `Desktop/final/` hay cinco copias
+  (`cpanel-app`, `cpanel-app-stage`, `cpanel-combined-stage`, `vitahub-platform`,
+  `cpanel-web-stage`) cuyos `.env` **sí tienen credenciales de producción reales** y no están
+  cubiertos por ningún `.gitignore`. Mientras existan ahí, un `git init` en la carpeta padre
+  las publica.
+- Rotar lo que aparece en esas copias si alguna vez estuvieron en un remoto:
+  `INTEGRATION_ENCRYPTION_KEY` es la clave que descifra los tokens de Meta de todos los
+  clientes.
 
-**Terminado cuando** `git log` muestra el primer commit y `git status` sale limpio.
+**Terminado cuando** el repositorio es privado, el escaneo de secretos corre en cada commit y
+las copias antiguas están fuera del directorio de trabajo.
 
 ### I-0.2 Verificar HTTPS · R-05
 - Confirmar que el certificado está vigente y que `http://` redirige a `https://`.

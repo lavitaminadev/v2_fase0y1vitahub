@@ -223,26 +223,38 @@ No existe seguridad absoluta. Lo que sigue permanece abierto, con su tratamiento
 - **Revisión.** 5 de septiembre de 2026
 - **Tratamiento.** Mitigar — monitor externo sobre `/api/health` con aviso (I-4).
 
-### R-09 · El código no está bajo control de versiones
-- **Activo.** Todo el código.
+### R-09 · El repositorio remoto es público
+- **Activo.** Todo el código y su historial.
 - **Probabilidad.** Alta · **Impacto.** Crítico
-- **Control existente.** Ninguno. El repositorio no tiene ni un solo commit y conviven varias
-  copias del proyecto en el disco.
-- **Limitación conocida.** No se puede saber qué cambió, ni quién lo cambió, ni volver atrás.
-  Un borrado accidental es definitivo.
+- **Control existente.** El código sí está versionado —125 commits, remoto en GitHub— y el
+  `.gitignore` excluye `.env`, `.env.production`, `.env.override` y `docs/ACCESOS.md`. Se
+  revisó todo el historial: los únicos archivos de entorno que llegaron a estar commiteados
+  (`.env.base`, `.env.override`, `.env.example`) contenían marcadores (`change_me`,
+  `<generate>`), nunca valores reales. **No hay secretos filtrados hoy.**
+- **Limitación conocida.** El remoto es público, así que cada commit futuro depende de que
+  el `.gitignore` siga siendo correcto. Un archivo de entorno con nombre nuevo —o un secreto
+  pegado dentro de un archivo de código— queda expuesto de inmediato y de forma permanente:
+  borrarlo después no lo saca del historial ni de los réplicas ya clonadas. Fuera del
+  repositorio, en `Desktop/final/` conviven cinco copias antiguas del proyecto cuyos `.env`
+  sí tienen credenciales de producción reales, sin `.gitignore` que las cubra.
 - **Responsable.** Dirección de Operaciones
 - **Revisión.** Inmediata
-- **Tratamiento.** Eliminar — primer commit y repositorio remoto (I-0). **Es la brecha más
-  barata de cerrar y la que más protege.**
+- **Tratamiento.** Mitigar — hacer privado el repositorio, y hasta entonces revisar a mano
+  lo que se sube. Añadir detección automática de secretos antes de cada commit (I-0).
 
 ### R-10 · Cobertura del alcance por cuenta no verificada endpoint por endpoint
 - **Activo.** Datos de clientes.
 - **Probabilidad.** Media · **Impacto.** Alto
-- **Control existente.** `AccountAccessService` se invoca en 21 controladores. El alcance por
+- **Control existente.** `AccountAccessService` se invoca en 22 controladores. El alcance por
   módulo sí es exhaustivo y actúa como primera barrera.
 - **Limitación conocida.** A diferencia del alcance por módulo, el alcance por cuenta **no
   niega por omisión**: un endpoint que consulte datos de cliente sin llamar a
-  `allowedClientIds()` los devuelve todos. No está auditado uno por uno.
+  `allowedClientIds()` los devuelve todos. **Este riesgo ya se materializó una vez**: la
+  auditoría del 5 de agosto de 2026 encontró `GET /crm/contacts` sin acotar, devolviendo la
+  audiencia completa de todos los clientes a cualquier cargo no administrador. Se corrigió,
+  pero confirma que la omisión es fácil y silenciosa. Queda pendiente decidir si el pipeline
+  comercial (`opportunities`, `interactions`) debe acotarse, que es una decisión de negocio,
+  no de código.
 - **Responsable.** Dirección de Operaciones
 - **Revisión.** 5 de octubre de 2026
 - **Tratamiento.** Mitigar — auditar los endpoints que tocan datos de cliente y estudiar un
@@ -254,7 +266,7 @@ No existe seguridad absoluta. Lo que sigue permanece abierto, con su tratamiento
 
 | Id | Riesgo | Prob. | Impacto | Tratamiento | Revisión |
 |---|---|---|---|---|---|
-| R-09 | Sin control de versiones | Alta | Crítico | Eliminar | Inmediata |
+| R-09 | Repositorio remoto público | Alta | Crítico | Mitigar | Inmediata |
 | R-05 | HTTPS sin verificar | Baja | Crítico | Eliminar | Inmediata |
 | R-06 | Respaldo sin probar | Media | Crítico | Eliminar | Inmediata |
 | R-04 | Sin segundo factor | Media | Crítico | Mitigar | 05-10-2026 |
