@@ -29,29 +29,34 @@ export class ContactsController {
   @Get()
   async findAll(@Query() query: PaginationDto, @Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
     await this.accountAccess.assertClient(req.organizationId, req.user, clientId);
-    return this.service.findAll(req.organizationId, query.limit, query.offset, clientId);
+    const allowed = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    return this.service.findAll(req.organizationId, query.limit, query.offset, clientId, allowed);
   }
 
   @Get('segments')
   async segments(@Query('clientId') clientId: string | undefined, @Req() req: AuthenticatedRequest) {
     await this.accountAccess.assertClient(req.organizationId, req.user, clientId);
-    return this.service.segments(req.organizationId, clientId);
+    const allowed = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    return this.service.segments(req.organizationId, clientId, allowed);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.service.findOne(id, req.organizationId);
+  async findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const allowed = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    return this.service.findOne(id, req.organizationId, allowed);
   }
 
   @Put(':id')
   @Roles(UserRole.COMMERCIAL_DIRECTOR, UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateContactDto, @Req() req: AuthenticatedRequest) {
-    return this.service.update(id, dto, req.organizationId);
+  async update(@Param('id') id: string, @Body() dto: UpdateContactDto, @Req() req: AuthenticatedRequest) {
+    const allowed = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    return this.service.update(id, dto, req.organizationId, allowed);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.service.remove(id, req.organizationId);
+  async remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const allowed = await this.accountAccess.allowedClientIds(req.organizationId, req.user);
+    return this.service.remove(id, req.organizationId, allowed);
   }
 }
