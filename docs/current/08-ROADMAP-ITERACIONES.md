@@ -121,14 +121,31 @@ Los fallos se descubren hoy porque un cliente reclama.
 El alcance por módulo niega por omisión; el alcance por cuenta no. Un endpoint que consulte
 datos de cliente sin llamar a `allowedClientIds()` los devuelve todos.
 
+**Ya ocurrió una vez.** La auditoría del 5 de agosto de 2026 encontró `GET /crm/contacts`
+sin acotar: devolvía nombre, correo y teléfono de la audiencia completa de todos los clientes
+a cualquier cargo no administrador. Se corrigió junto con `/segments` y las rutas por id. Eso
+sube esta iteración de prioridad: no es un riesgo hipotético.
+
 - Inventariar los endpoints que devuelven datos ligados a un cliente.
-- Contrastar contra los 21 controladores que hoy invocan `AccountAccessService`.
+- Contrastar contra los 22 controladores que hoy invocan `AccountAccessService`.
 - Corregir los que falten.
 - Estudiar un filtro por omisión a nivel de consulta, análogo a lo que hace el guard con los
   módulos, para que la omisión deje de ser posible en vez de solo estar corregida.
 - Pruebas por cargo: un diseñador sin cuentas no debe recibir ni una fila de cliente.
 
 **Terminado cuando** existe el inventario y cada endpoint de la lista está verificado.
+
+### Decisión pendiente: el pipeline comercial
+
+`opportunities` e `interactions` tienen el mismo patrón sin acotar que tenía `contacts`, y se
+dejaron intactos a propósito. No son audiencia de clientes: son los prospectos de La Vitamina
+—empresas que quieren contratar a la agencia— y hoy los ve la dirección comercial completa.
+
+Acotarlos por pod cambia lo que esa persona puede hacer, así que es una decisión de negocio:
+
+- **Si el pipeline es responsabilidad de una sola persona**, dejarlo como está y anotarlo.
+- **Si se reparte por cartera**, acotarlo igual que contacts, sabiendo que quien no tenga
+  cuentas asignadas dejará de ver oportunidades.
 
 ---
 
@@ -178,6 +195,9 @@ Decisiones tomadas, anotadas para no rediscutirlas cada vez que aparezcan:
   vuelve un dato que nadie audita.
 - **Portal de cliente ampliado.** Depende de que Meta apruebe `ads_read`. El interruptor
   `clientMetricsPanel` ya existe: el día que se apruebe, se enciende sin desplegar.
+- **Exportación a PDF de reservas.** Se retiró porque devolvía texto plano con cabecera de
+  PDF y ningún lector lo abría. Reponerla exige una librería de generación (`pdfkit` o
+  similar) y decidir la maqueta del documento; hasta entonces, CSV cubre el caso.
 
 ---
 

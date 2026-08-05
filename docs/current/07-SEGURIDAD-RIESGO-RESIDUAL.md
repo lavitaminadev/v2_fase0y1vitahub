@@ -109,6 +109,36 @@ una escalada de privilegios accesible desde Internet cuando se habilitaba.
 La columna `organization_id` se conserva en las 44 entidades: eliminarla obligaba a reescribir
 1.233 sitios de código y rehacer 78 índices sin resolver ningún problema de seguridad.
 
+### 3.4 Fuga de datos personales entre clientes en el CRM
+
+**Hallazgo.** `GET /crm/contacts` nunca llamaba a `allowedClientIds()`. Omitiendo el
+parámetro `clientId`, cualquier cargo no administrador leía nombre, correo y teléfono de la
+audiencia completa de todos los clientes de la agencia; con paginación se extraía la base
+entera. El mismo hueco estaba en `/segments` y en las rutas por id.
+
+**Por qué pasó.** El acotamiento por cuenta se aplicó a leads, reservas y reportes, pero
+contacts quedó fuera. Su comentario documentaba la suposición vieja —"sin `clientId` se
+devuelven todos los de la organización"— que dejó de ser cierta al acotar a las direcciones.
+
+**Corrección.** Se reusa la convención de `list-leads`: un alcance vacío corta la consulta en
+vez de omitir el filtro, porque omitirlo es exactamente lo que convierte un alcance vacío en
+acceso total. Un contacto sin cuenta asignada queda fuera para quien está acotado.
+
+### 3.5 Conversiones publicitarias mal atribuidas
+
+Nueve defectos del camino de conversiones, todos con la misma forma: el evento se acepta,
+nada falla de forma visible y la conversión no se atribuye. Los tres de mayor alcance:
+
+- **`fbclid` subido a Google Ads como `gclid`.** El formulario enviaba ambos identificadores
+  por un único campo que se emitía a Google. Toda reserva originada en un anuncio de Meta
+  perdía además su conversión de Google, dentro de un `partialFailureError` que el outbox
+  clasificaba como definitivo. Ahora cada plataforma tiene su columna.
+- **Pixel resuelto a nivel de organización.** El manejador de `lead.converted` ignoraba el
+  `clientId` que recibía: en una agencia con varias cuentas, la conversión de un cliente iba
+  al Pixel del último validado, junto con el importe de su retainer.
+- **`eventSourceUrl` confiado al navegador.** Un endpoint sin autenticar aceptaba cualquier
+  dominio. Meta degrada la atribución de un dominio no verificado para ese Pixel.
+
 ---
 
 ## 4. Riesgos de la lista original ya cubiertos
