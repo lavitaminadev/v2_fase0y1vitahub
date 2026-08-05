@@ -60,6 +60,22 @@ const DB_USERNAME = process.env.DB_USERNAME || 'vitahub';
 const DB_PASSWORD = process.env.DB_PASSWORD || '';
 const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
 
+/**
+ * Conexiones que abre **cada proceso**, no la aplicación entera.
+ *
+ * Passenger levanta varios procesos y cada uno mantiene su propio pool, así que el consumo
+ * real es este número por la cantidad de procesos, y ese producto debe caber en el
+ * `max_connections` del servidor. Con el techo de procesos alto, un valor generoso acá deja
+ * a los últimos procesos sin poder conectar y la aplicación falla al escalar, que es
+ * justamente bajo carga.
+ *
+ * El cuello de las reservas es el bloqueo sobre la fila del formulario, que las serializa;
+ * subir este número no las acelera, solo retiene más conexiones esperando ese bloqueo.
+ *
+ * Se lee del entorno para poder ajustarlo sin desplegar.
+ */
+const DB_CONNECTION_LIMIT = Math.max(1, parseInt(process.env.DB_CONNECTION_LIMIT || '10', 10) || 10);
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -76,11 +92,18 @@ const DB_DATABASE = process.env.DB_DATABASE || 'vitahub';
       logging: process.env.DB_LOGGING === 'true',
       extra: {
         charset: 'utf8mb4_unicode_ci',
-        connectionLimit: 20,
+        connectionLimit: DB_CONNECTION_LIMIT,
         ...(process.env.NODE_ENV === 'production' ? { ssl: { rejectUnauthorized: true } } : {}),
       },
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    // El almacenamiento del limitador vive en memoria del proceso, así que el límite
+    // efectivo por IP es este número multiplicado por la cantidad de procesos de Passenger.
+    // Configurable para poder alinearlo con esa cantidad sin desplegar. Un límite realmente
+    // compartido exige un almacén común, que hoy no existe (ver roadmap).
+    ThrottlerModule.forRoot([{
+      ttl: Number(process.env.THROTTLE_TTL_MS ?? 60_000),
+      limit: Number(process.env.THROTTLE_LIMIT ?? 100),
+    }]),
     EventEmitterModule.forRoot(),
     ErrorsModule,
     HealthModule,
