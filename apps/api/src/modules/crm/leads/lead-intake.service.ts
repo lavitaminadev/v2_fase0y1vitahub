@@ -52,7 +52,7 @@ const LOW_QUALITY_KEYWORDS = [
 
 interface LeadMetadata {
   scoringSignals?: string[];
-  [key: string]: string | number | boolean | string[] | Record<string, unknown>[] | undefined;
+  [key: string]: string | number | boolean | string[] | Record<string, unknown> | Record<string, unknown>[] | undefined;
 }
 
 /**
@@ -147,6 +147,9 @@ export class LeadIntakeService {
 
       Object.assign(lead, {
         ...normalized,
+        // El dominio se fija al crear el lead y no cambia en updates posteriores: una
+        // captura de otro origen no debe poder mover un lead entre embudos silenciosamente.
+        domain: match.lead?.domain ?? domain,
         qualityScore: qualification.qualityScore,
         fitStatus: qualification.fitStatus,
         discardReason: qualification.discardReason,
@@ -178,6 +181,7 @@ export class LeadIntakeService {
 
     Object.assign(lead, {
       ...input,
+      domain: match.lead?.domain ?? domain,
       qualityScore: qualification.qualityScore,
       fitStatus: qualification.fitStatus,
       discardReason: qualification.discardReason,
@@ -199,8 +203,9 @@ export class LeadIntakeService {
   /**
    * Separa el dominio del resto del payload.
    *
-   * `domain` decide qué automatización corre, pero no es una columna de `crm_leads`: se extrae
-   * antes de normalizar para que no llegue al `Object.assign` que arma la entidad.
+   * `domain` decide qué automatización corre y además se persiste en `leads.domain`
+   * (migración 0069) — se separa acá solo para no depender del orden de propiedades del
+   * spread al armar el `Object.assign` de la entidad más abajo.
    */
   private splitDomain(input: LeadCaptureInput): { domain: LeadDomain; payload: LeadCaptureInput } {
     const { domain = 'commercial', ...payload } = input;

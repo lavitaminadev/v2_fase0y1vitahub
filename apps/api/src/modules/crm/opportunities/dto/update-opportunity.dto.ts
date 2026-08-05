@@ -11,4 +11,6 @@ export class UpdateOpportunityDto {
   @IsOptional() @IsString() @MaxLength(500) nextAction?: string | null;
   @IsOptional() @IsDateString() nextActionAt?: string | null;
   @IsOptional() @IsUUID() assignedTo?: string;
+  @IsOptional() @IsString() @MaxLength(60) lossReason?: string;
+  @IsOptional() @IsString() @MaxLength(2000) lossNote?: string;
 }

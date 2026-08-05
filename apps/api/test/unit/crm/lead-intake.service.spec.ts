@@ -122,12 +122,20 @@ describe('LeadIntakeService', () => {
       expect(lead.status).toBe('reserved');
     });
 
-    it('no persiste el dominio como columna del lead', async () => {
+    it('persiste el dominio de la captura (migración 0069)', async () => {
       repo.findOne.mockResolvedValue(null);
 
       const lead = await service.captureLead({ ...diner, domain: 'audience' });
 
-      expect(lead).not.toHaveProperty('domain');
+      expect(lead.domain).toBe('audience');
+    });
+
+    it('no cambia el dominio de un lead existente al recapturarlo desde otro origen', async () => {
+      repo.findOne.mockResolvedValue({ id: 'lead-1', organizationId: 'org-1', domain: 'audience', metadata: {} });
+
+      const lead = await service.captureLead({ ...diner, domain: 'commercial' });
+
+      expect(lead.domain).toBe('audience');
     });
 
     it('deduplica por teléfono antes que por correo', async () => {

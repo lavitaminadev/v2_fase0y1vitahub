@@ -46,6 +46,10 @@ const PATH_CONTROLLER: Record<string, string | null> = {
   '/production': 'production/production.controller.ts',
   '/reports': 'reports/reports.controller.ts',
   '/reservations': 'reservations/reservations.controller.ts',
+  '/reservations/agenda': 'reservations/reservations.controller.ts',
+  '/reservations/calendar': 'reservations/reservations.controller.ts',
+  '/reservations/waitlist': 'reservations/reservations.controller.ts',
+  '/reservations/analytics': 'reservations/reservations.controller.ts',
   '/users': 'users/users.controller.ts',
   // Pantallas compuestas: agregan datos de varios modulos y no tienen un controlador unico.
   '/dashboard': null,
@@ -55,6 +59,8 @@ const PATH_CONTROLLER: Record<string, string | null> = {
   '/settings': null,
   '/integrations': null,
   '/audiovisual': null,
+  // Agrega health/audit/data-protection de varios modulos, sin controlador propio unico.
+  '/security': null,
 };
 
 /** Roles declarados en la navegacion, por ruta. */

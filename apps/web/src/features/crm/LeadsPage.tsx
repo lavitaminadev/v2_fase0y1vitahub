@@ -108,7 +108,7 @@ export function LeadsPage() {
     // antiguos del tablero y descuadraba el resumen de totales apenas la organizacion superaba
     // esa cifra. El maximo que acepta el endpoint (100) sigue siendo una cota informal: si el
     // volumen de leads crece mas alla de eso, esta pagina necesita paginacion real.
-    queryFn: () => api.get('/crm/leads?limit=100'),
+    queryFn: () => api.get('/crm/leads?domain=commercial&limit=100'),
   });
   const leads = useMemo<Lead[]>(() => (leadsResp as { data: Lead[] } | undefined)?.data ?? [], [leadsResp]);
 

@@ -8,6 +8,14 @@ export interface ListLeadsFilters {
   status?: string;
   fitStatus?: string;
   source?: string;
+  /**
+   * Embudo a listar. A diferencia de `source` (opcional, de mayor detalle), este filtro
+   * tiene un valor por defecto obligatorio en `execute()`: sin él, una consulta sin
+   * parámetros mezclaría prospectos comerciales de la agencia con comensales que
+   * reservaron, que es exactamente el riesgo que `leads.domain` (migración 0069) existe
+   * para evitar. Pasa `'all'` explícitamente si de verdad se necesitan ambos dominios juntos.
+   */
+  domain?: 'audience' | 'commercial' | 'all';
   /** Cliente concreto solicitado por quien consulta. */
   clientId?: string;
   /**
@@ -52,6 +60,8 @@ export class ListLeadsUseCase {
     if (filters.status) where.status = filters.status as Lead['status'];
     if (filters.fitStatus) where.fitStatus = filters.fitStatus as Lead['fitStatus'];
     if (filters.source) where.source = filters.source;
+    const domain = filters.domain ?? 'commercial';
+    if (domain !== 'all') where.domain = domain;
 
     const scope = this.resolveClientScope(filters);
     if (scope === EMPTY_SCOPE) return { data: [], total: 0, limit, offset };

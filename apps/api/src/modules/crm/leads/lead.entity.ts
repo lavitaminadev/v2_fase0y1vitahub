@@ -12,6 +12,15 @@ export class Lead {
   @Column({ type: 'varchar', length: 20, nullable: true }) phone?: string | null;
   @Column({ type: 'varchar', length: 255, nullable: true }) company?: string | null;
   @Column({ type: 'varchar', length: 255, nullable: true }) source?: string;
+  /**
+   * A qué embudo pertenece este lead: `audience` (comensal que reservó vía un cliente
+   * restaurante) o `commercial` (prospecto que quiere contratar a La Vitamina).
+   *
+   * Antes se inferia solo de `source` en cada consulta por separado (frágil: un `source`
+   * mal escrito mezclaba dominios sin que nada lo detectara). Ahora se persiste una vez en
+   * la captura (`LeadIntakeService`) y todo lo demás lo lee de acá.
+   */
+  @Column({ type: 'varchar', length: 20, default: 'commercial' }) domain: 'audience' | 'commercial';
   @Column({ name: 'source_detail', type: 'varchar', length: 255, nullable: true }) sourceDetail?: string | null;
   @Column({ name: 'client_id', type: 'uuid', nullable: true }) clientId?: string;
   @Column({ type: 'json', nullable: true }) tags?: string[];

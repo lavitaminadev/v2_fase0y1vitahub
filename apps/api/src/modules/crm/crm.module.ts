@@ -13,6 +13,7 @@ import { CrmLeadAutomationService } from './leads/crm-lead-automation.service';
 import { Contact } from './contacts/contact.entity';
 import { ContactsController } from './contacts/contacts.controller';
 import { ContactsService } from './contacts/contacts.service';
+import { PublicAgencyLeadsController } from './leads/public-agency-leads.controller';
 import { Opportunity } from './opportunities/opportunity.entity';
 import { OpportunitiesController } from './opportunities/opportunities.controller';
 import { OpportunityReferenceValidator } from './opportunities/opportunity-reference-validator.service';
@@ -30,7 +31,7 @@ import { Reservation } from '../reservations/domain/reservation.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Lead, Contact, Opportunity, Interaction, User, Client, Reservation]), AccountAccessModule],
-  controllers: [LeadController, ContactsController, OpportunitiesController, InteractionsController],
+  controllers: [LeadController, ContactsController, OpportunitiesController, InteractionsController, PublicAgencyLeadsController],
   providers: [
     CreateLeadUseCase, ListLeadsUseCase, GetLeadUseCase, ConvertLeadUseCase, UpdateLeadUseCase, LeadIntakeService, CrmLeadAutomationService,
     ContactsService,

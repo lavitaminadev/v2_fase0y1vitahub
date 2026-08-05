@@ -57,6 +57,7 @@ export class LeadController {
       status: query.status,
       fitStatus: query.fitStatus,
       source: query.source,
+      domain: query.domain,
       clientId: query.clientId,
       allowedClientIds,
     });

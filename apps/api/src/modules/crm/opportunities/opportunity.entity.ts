@@ -16,6 +16,9 @@ export class Opportunity {
   @Column({ name: 'expected_close_date', type: 'date', nullable: true }) expectedCloseDate?: Date;
   @Column({ name: 'next_action', type: 'varchar', length: 500, nullable: true }) nextAction?: string;
   @Column({ name: 'next_action_at', type: 'timestamp', nullable: true }) nextActionAt?: Date;
+  /** Obligatorio en el service cuando `stage` pasa a 'lost' — no se pierde por qué se perdió. */
+  @Column({ name: 'loss_reason', type: 'varchar', length: 60, nullable: true }) lossReason?: string;
+  @Column({ name: 'loss_note', type: 'text', nullable: true }) lossNote?: string;
   @Column({ name: 'assigned_to', type: 'uuid', nullable: true }) assignedTo?: string;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
