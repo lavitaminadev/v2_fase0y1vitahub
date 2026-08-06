@@ -6,10 +6,30 @@ export function assertTimeZone(timeZone: string): void {
   try { new Intl.DateTimeFormat('en-US', { timeZone }).format(); } catch { throw new BadRequestException('Zona horaria inválida'); }
 }
 
-export function zonedParts(date: Date, timeZone: string): ZonedParts {
+/**
+ * Formateadores ya construidos, uno por zona horaria.
+ *
+ * Construir un `Intl.DateTimeFormat` es caro —carga las reglas de la zona— y esta función se
+ * llama tres veces por cada horario que se evalúa. Generar el calendario de catorce días
+ * suponía construir más de novecientos formateadores idénticos por petición: 142 ms de CPU
+ * pura que, con un solo núcleo, bloqueaban el proceso entero mientras tanto.
+ *
+ * Las zonas horarias en uso son un puñado y sus reglas no cambian durante la vida del
+ * proceso, así que se conservan.
+ */
+const FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+
+function formatterFor(timeZone: string): Intl.DateTimeFormat {
+  const cached = FORMATTERS.get(timeZone);
+  if (cached) return cached;
   assertTimeZone(timeZone);
   const formatter = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short' });
-  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  FORMATTERS.set(timeZone, formatter);
+  return formatter;
+}
+
+export function zonedParts(date: Date, timeZone: string): ZonedParts {
+  const parts = Object.fromEntries(formatterFor(timeZone).formatToParts(date).map((part) => [part.type, part.value]));
   const weekdays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), hour: Number(parts.hour), minute: Number(parts.minute), weekday: weekdays[parts.weekday] };
 }
