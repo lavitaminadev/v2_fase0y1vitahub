@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { promises as dns } from 'dns';
 import { ReservationForm } from '../domain/reservation-form.entity';
@@ -992,22 +992,67 @@ export class ReservationsService {
       })),
     };
   }
-  async exportCsv(organizationId: string, clientId?: string, clientIds?: string[], from?: string, to?: string, limit?: number) {
-    const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId });
-    if (clientId) qb.andWhere('r.client_id = :clientId', { clientId });
-    else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds });
-    if (from) qb.andWhere('r.starts_at >= :from', { from });
-    if (to) qb.andWhere('r.starts_at <= :to', { to });
-    const items = await qb.orderBy('r.starts_at', 'DESC').take(limit || 50000).getMany();
-    const allFields = new Set<string>();
-    for (const item of items) { if (item.answers) Object.keys(item.answers as Record<string, unknown>).forEach((key) => allFields.add(key)); }
-    const answerKeys = [...allFields].sort();
-    const headers = ['codigo','nombre','correo','telefono','fecha','estado','origen','campana','cupon','personas','notas_internas', ...answerKeys];
+  /**
+   * Exporta reservas a CSV entregándolas por lotes.
+   *
+   * Se emite en trozos y no como un texto único porque la cuenta de alojamiento tiene 768 MB
+   * para todos los procesos: traer decenas de miles de reservas hidratadas, concatenar el CSV
+   * completo y copiarlo otra vez al responder son varios cientos de megas para una sola
+   * petición, y el proceso muere llevándose por delante a quien estuviera reservando.
+   *
+   * Así la memoria depende del tamaño del lote y no del total exportado, de modo que no hace
+   * falta un tope que recorte filas en silencio.
+   *
+   * @param limit - Máximo de filas a exportar; sin valor se exportan todas las que coincidan.
+   */
+  async *streamCsv(organizationId: string, clientId?: string, clientIds?: string[], from?: string, to?: string, limit?: number): AsyncGenerator<string> {
+    const BATCH = 500;
+    const baseQuery = () => {
+      const qb = this.reservations.createQueryBuilder('r').where('r.organization_id = :organizationId', { organizationId });
+      if (clientId) qb.andWhere('r.client_id = :clientId', { clientId });
+      else if (clientIds !== undefined) qb.andWhere(clientIds.length ? 'r.client_id IN (:...clientIds)' : '1 = 0', { clientIds });
+      if (from) qb.andWhere('r.starts_at >= :from', { from });
+      if (to) qb.andWhere('r.starts_at <= :to', { to });
+      return qb.orderBy('r.starts_at', 'DESC');
+    };
+
+    // Las respuestas del formulario son columnas dinámicas, así que la cabecera solo se
+    // conoce tras mirarlas todas. Este primer recorrido trae únicamente esa columna.
+    const answerKeys = new Set<string>();
+    for await (const rows of this.batches(() => baseQuery().select('r.answers', 'answers'), BATCH, limit, true)) {
+      for (const row of rows as Array<{ answers: unknown }>) {
+        const answers = typeof row.answers === 'string' ? JSON.parse(row.answers || '{}') : row.answers;
+        if (answers && typeof answers === 'object') Object.keys(answers).forEach((key) => answerKeys.add(key));
+      }
+    }
+    const keys = [...answerKeys].sort();
+
     const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    return [headers, ...items.map((item) => {
-      const answers = (item.answers || {}) as Record<string, unknown>;
-      return [item.referenceCode, item.guestName, item.guestEmail, item.guestPhone, item.startsAt.toISOString(), item.status, item.utmSource, item.utmCampaign, item.couponCode, item.partySize, item.internalNotes, ...answerKeys.map((key) => answers[key])];
-    })].map((row) => row.map(escape).join(',')).join('\r\n');
+    const toLine = (row: unknown[]) => row.map(escape).join(',');
+
+    yield toLine(['codigo', 'nombre', 'correo', 'telefono', 'fecha', 'estado', 'origen', 'campana', 'cupon', 'personas', 'notas_internas', ...keys]);
+
+    for await (const items of this.batches(baseQuery, BATCH, limit, false)) {
+      const lines = (items as Reservation[]).map((item) => {
+        const answers = (item.answers || {}) as Record<string, unknown>;
+        return toLine([item.referenceCode, item.guestName, item.guestEmail, item.guestPhone, item.startsAt.toISOString(), item.status, item.utmSource, item.utmCampaign, item.couponCode, item.partySize, item.internalNotes, ...keys.map((key) => answers[key])]);
+      });
+      if (lines.length > 0) yield `\r\n${lines.join('\r\n')}`;
+    }
+  }
+
+  /** Recorre una consulta por lotes, sin mantener en memoria más de un lote a la vez. */
+  private async *batches(build: () => SelectQueryBuilder<Reservation>, size: number, limit: number | undefined, raw: boolean): AsyncGenerator<unknown[]> {
+    let offset = 0;
+    while (limit === undefined || offset < limit) {
+      const take = limit === undefined ? size : Math.min(size, limit - offset);
+      const qb = build().skip(offset).take(take);
+      const rows = raw ? await qb.getRawMany() : await qb.getMany();
+      if (rows.length === 0) return;
+      yield rows;
+      if (rows.length < take) return;
+      offset += rows.length;
+    }
   }
 
   async exportFormReservations(

@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { AuthenticatedRequest } from '@shared/types/request';
 import type { Response } from 'express';
+import { once } from 'node:events';
 import { AccountAccessService } from '../../core/client-scope/account-access.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { Roles } from '../../core/authorization/roles.decorator';
@@ -223,7 +224,6 @@ export class ReservationsController {
   @Roles(UserRole.ADMIN, UserRole.OPERATIONS_DIRECTOR, UserRole.COMMERCIAL_DIRECTOR, UserRole.COMMUNITY_MANAGER, UserRole.CLIENT)
   async exportCsv(@Req() req: AuthenticatedRequest, @Query() query: ReservationScopeDto, @Res() res: Response) {
     const scope = await this.requestedScope(req, query.clientId);
-    const csv = await this.service.exportCsv(req.organizationId, scope.clientId, scope.clientIds, query.from, query.to, query.limit);
     // GET no pasa por AuditInterceptor (solo intercepta verbos mutantes) y esto mueve PII en
     // bloque fuera del sistema, así que se audita explícitamente en vez de quedar sin rastro.
     void this.audit.log({
@@ -233,7 +233,14 @@ export class ReservationsController {
     }).catch(() => {});
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="reservas-${new Date().toISOString().slice(0, 10)}.csv"`);
-    res.send(`\uFEFF${csv}`);
+    // Se escribe por lotes en vez de armar el archivo completo y enviarlo de una sola vez: lo
+    // que ocupa en memoria deja de depender de cu\u00E1ntas reservas se exporten. El `drain` evita
+    // que los trozos se acumulen si el cliente descarga m\u00E1s lento de lo que se generan.
+    res.write('\uFEFF');
+    for await (const chunk of this.service.streamCsv(req.organizationId, scope.clientId, scope.clientIds, query.from, query.to, query.limit)) {
+      if (!res.write(chunk)) await once(res, 'drain');
+    }
+    res.end();
   }
 
   @Post('forms/:formId/export')

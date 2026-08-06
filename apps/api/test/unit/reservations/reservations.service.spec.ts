@@ -97,19 +97,48 @@ describe('ReservationsService', () => {
     expect(result.days).toBe(365);
   });
 
-  it('exportCsv includes answer columns', async () => {
+  it('streamCsv includes answer columns', async () => {
     const items = [{ referenceCode: 'R1', guestName: 'Test', guestEmail: 'test@test.cl', guestPhone: '', startsAt: new Date('2026-07-22T15:00:00Z'), status: 'confirmed', utmSource: 'direct', utmCampaign: undefined, couponCode: undefined, partySize: 2, internalNotes: 'Test note', answers: { color: 'red' } }];
+    // El primer recorrido trae solo la columna de respuestas para armar la cabecera; el
+    // segundo trae las filas. Ambos se agotan tras un lote incompleto.
     reservations.createQueryBuilder.mockReturnValue({
       where: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      skip: vi.fn().mockReturnThis(),
       take: vi.fn().mockReturnThis(),
+      getRawMany: vi.fn().mockResolvedValue([{ answers: { color: 'red' } }]),
       getMany: vi.fn().mockResolvedValue(items),
     });
-    const csv = await service.exportCsv('org-1');
+
+    let csv = '';
+    for await (const chunk of service.streamCsv('org-1')) csv += chunk;
+
     expect(csv).toContain('R1');
     expect(csv).toContain('"color"');
     expect(csv).toContain('red');
+  });
+
+  it('streamCsv emite la cabecera antes que las filas y en trozos separados', async () => {
+    // Es lo que permite que la memoria no dependa del total exportado: si volviera a
+    // concatenarse todo antes de responder, con 768 MB de cuenta el proceso muere.
+    reservations.createQueryBuilder.mockReturnValue({
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      skip: vi.fn().mockReturnThis(),
+      take: vi.fn().mockReturnThis(),
+      getRawMany: vi.fn().mockResolvedValue([]),
+      getMany: vi.fn().mockResolvedValue([]),
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of service.streamCsv('org-1')) chunks.push(chunk);
+
+    expect(chunks[0]).toContain('"codigo"');
+    expect(chunks[0]).not.toContain('\r\n');
   });
 
   it('removeBlock logs audit', async () => {
